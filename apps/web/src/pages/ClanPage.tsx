@@ -440,7 +440,7 @@ export function ClanPage() {
                     <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setPowerRanges(powerRanges.filter((_, j) => j !== i))}><Trash2 className="h-3 w-3" /></Button>
                   </div>
                 ))}
-                {!powerRanges.length && <p className="text-xs text-muted-foreground">Нет диапазонов — kBM = 0</p>}
+                {!powerRanges.length && <p className="text-xs text-muted-foreground">Нет диапазонов — kBM = 1 (по умолчанию)</p>}
               </div>
             </div>
 
@@ -468,7 +468,7 @@ export function ClanPage() {
                     <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setLevelRanges(levelRanges.filter((_, j) => j !== i))}><Trash2 className="h-3 w-3" /></Button>
                   </div>
                 ))}
-                {!levelRanges.length && <p className="text-xs text-muted-foreground">Нет диапазонов — kLVL = 0</p>}
+                {!levelRanges.length && <p className="text-xs text-muted-foreground">Нет диапазонов — kLVL = 1 (по умолчанию)</p>}
               </div>
             </div>
           </CardContent>

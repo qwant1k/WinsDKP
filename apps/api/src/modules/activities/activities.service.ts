@@ -302,6 +302,6 @@ export class ActivitiesService {
         return Number(range.coefficient);
       }
     }
-    return 0;
+    return 1;
   }
 }
