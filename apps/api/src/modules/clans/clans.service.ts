@@ -1,11 +1,15 @@
 import { Injectable, NotFoundException, ForbiddenException, ConflictException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { SocketGateway } from '../../common/socket/socket.gateway';
 import { PaginationDto, PaginatedResponse } from '../../common/dto/pagination.dto';
 import { ClanRole } from '@prisma/client';
 
 @Injectable()
 export class ClansService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly socket: SocketGateway,
+  ) {}
 
   async findAll(query: PaginationDto) {
     const where = {
@@ -73,9 +77,21 @@ export class ClansService {
     });
     if (pendingRequest) throw new ConflictException('Join request already pending');
 
-    return this.prisma.clanJoinRequest.create({
+    const joinRequest = await this.prisma.clanJoinRequest.create({
       data: { userId, clanId, message },
+      include: { user: { include: { profile: true } } },
     });
+
+    // Real-time: notify clan leaders/elders about new join request
+    this.socket.emitToClan(clanId, 'clan.join_request_created', {
+      id: joinRequest.id,
+      userId,
+      nickname: joinRequest.user?.profile?.nickname,
+      message,
+      createdAt: joinRequest.createdAt,
+    });
+
+    return joinRequest;
   }
 
   async getJoinRequests(clanId: string, query: PaginationDto) {

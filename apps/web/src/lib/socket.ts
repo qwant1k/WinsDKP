@@ -52,3 +52,11 @@ export function leaveAuctionRoom(auctionId: string) {
 export function joinRandomizerRoom(sessionId: string) {
   getSocket().emit('randomizer.join', { sessionId });
 }
+
+export function joinActivityRoom(activityId: string) {
+  getSocket().emit('activity.join', { activityId });
+}
+
+export function leaveActivityRoom(activityId: string) {
+  getSocket().emit('activity.leave', { activityId });
+}

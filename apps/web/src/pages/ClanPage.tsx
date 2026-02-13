@@ -9,8 +9,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { formatDkp, getRoleLabel } from '@/lib/utils';
 import { Users, UserPlus, UserMinus, Shield, Crown, Star, Check, X, AlertTriangle, Eye, Send, BarChart3, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { getSocket } from '@/lib/socket';
 
 export function ClanPage() {
   const { user } = useAuthStore();
@@ -19,6 +20,16 @@ export function ClanPage() {
   const isLeader = user?.clanMembership?.role === 'CLAN_LEADER';
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Real-time: listen for new clan join requests
+  useEffect(() => {
+    const socket = getSocket();
+    const handler = () => {
+      queryClient.invalidateQueries({ queryKey: ['join-requests'] });
+    };
+    socket.on('clan.join_request_created', handler);
+    return () => { socket.off('clan.join_request_created', handler); };
+  }, [queryClient]);
 
   const { data: clan, isLoading } = useQuery({
     queryKey: ['clan', clanId],

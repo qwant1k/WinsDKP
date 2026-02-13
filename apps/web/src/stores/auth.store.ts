@@ -42,6 +42,7 @@ interface AuthState {
   refreshToken: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  mustChangePassword: boolean;
 
   setTokens: (accessToken: string, refreshToken: string) => void;
   setUser: (user: User) => void;
@@ -49,6 +50,7 @@ interface AuthState {
   register: (data: { email: string; password: string; nickname: string; displayName?: string }) => Promise<void>;
   logout: () => void;
   fetchMe: () => Promise<void>;
+  clearMustChangePassword: () => void;
 
   isAdmin: () => boolean;
   isClanLeader: () => boolean;
@@ -64,6 +66,7 @@ export const useAuthStore = create<AuthState>()(
       refreshToken: null,
       isAuthenticated: false,
       isLoading: false,
+      mustChangePassword: false,
 
       setTokens: (accessToken: string, refreshToken: string) => {
         set({ accessToken, refreshToken, isAuthenticated: true });
@@ -83,6 +86,7 @@ export const useAuthStore = create<AuthState>()(
             refreshToken: data.refreshToken,
             isAuthenticated: true,
             isLoading: false,
+            mustChangePassword: data.mustChangePassword || false,
           });
         } catch (error) {
           set({ isLoading: false });
@@ -111,8 +115,11 @@ export const useAuthStore = create<AuthState>()(
           accessToken: null,
           refreshToken: null,
           isAuthenticated: false,
+          mustChangePassword: false,
         });
       },
+
+      clearMustChangePassword: () => set({ mustChangePassword: false }),
 
       fetchMe: async () => {
         try {
@@ -141,6 +148,7 @@ export const useAuthStore = create<AuthState>()(
         refreshToken: state.refreshToken,
         user: state.user,
         isAuthenticated: state.isAuthenticated,
+        mustChangePassword: state.mustChangePassword,
       }),
     },
   ),

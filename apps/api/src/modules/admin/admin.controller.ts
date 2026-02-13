@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Patch, Delete, Body, Param, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
+import { AuthService } from '../auth/auth.service';
 import { CurrentUser, JwtPayload } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { PaginationDto } from '../../common/dto/pagination.dto';
@@ -10,7 +11,10 @@ import { PaginationDto } from '../../common/dto/pagination.dto';
 @Roles('PORTAL_ADMIN')
 @Controller('admin')
 export class AdminController {
-  constructor(private readonly adminService: AdminService) {}
+  constructor(
+    private readonly adminService: AdminService,
+    private readonly authService: AuthService,
+  ) {}
 
   @Get('dashboard')
   @ApiOperation({ summary: 'Get admin dashboard stats' })
@@ -41,6 +45,15 @@ export class AdminController {
     @Body() body: { globalRole?: string; isActive?: boolean; email?: string; displayName?: string; bm?: number; level?: number },
   ) {
     return this.adminService.updateUser(id, body, user.sub);
+  }
+
+  @Post('users/:id/reset-password')
+  @ApiOperation({ summary: 'Admin reset user password (forces change on next login)' })
+  async resetUserPassword(
+    @Param('id') id: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.authService.adminResetPassword(id, user.sub);
   }
 
   @Delete('users/:id')

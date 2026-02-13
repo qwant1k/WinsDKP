@@ -9,8 +9,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { formatDateTime, getStatusLabel, getStatusColor } from '@/lib/utils';
 import { Swords, Plus, Play, Square, CheckCircle, Users, Clock, ChevronDown, ChevronUp } from 'lucide-react';
 import { toast } from 'sonner';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getSocket } from '@/lib/socket';
 
 export function ActivitiesPage() {
   const { user } = useAuthStore();
@@ -26,6 +27,17 @@ export function ActivitiesPage() {
     queryFn: async () => (await api.get(`/clans/${clanId}/activities/${expandedActivity}`)).data,
     enabled: !!expandedActivity && !!clanId,
   });
+
+  // Real-time: listen for new participants joining activities in this clan
+  useEffect(() => {
+    const socket = getSocket();
+    const handler = (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['activities'] });
+      queryClient.invalidateQueries({ queryKey: ['activity-detail', data.activityId] });
+    };
+    socket.on('activity.participant_joined', handler);
+    return () => { socket.off('activity.participant_joined', handler); };
+  }, [queryClient]);
 
   const canJoin = ['CLAN_LEADER', 'ELDER', 'MEMBER', 'NEWBIE'].includes(user?.clanMembership?.role || '');
 

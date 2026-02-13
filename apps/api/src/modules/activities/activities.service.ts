@@ -1,8 +1,10 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { DkpService } from '../dkp/dkp.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { SocketGateway } from '../../common/socket/socket.gateway';
 import { PaginationDto, PaginatedResponse } from '../../common/dto/pagination.dto';
-import { ActivityStatus, ActivityType, DkpTransactionType } from '@prisma/client';
+import { ActivityStatus, ActivityType, DkpTransactionType, NotificationType } from '@prisma/client';
 
 @Injectable()
 export class ActivitiesService {
@@ -11,6 +13,8 @@ export class ActivitiesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly dkpService: DkpService,
+    private readonly notifications: NotificationsService,
+    private readonly socket: SocketGateway,
   ) {}
 
   async findAll(clanId: string, query: PaginationDto) {
@@ -143,9 +147,23 @@ export class ActivitiesService {
     });
     if (existing) throw new BadRequestException('Already joined this activity');
 
-    return this.prisma.activityParticipant.create({
+    const participant = await this.prisma.activityParticipant.create({
       data: { activityId, userId },
+      include: { user: { include: { profile: true } } },
     });
+
+    // Real-time: notify clan about new participant
+    this.socket.emitToClan(activity.clanId, 'activity.participant_joined', {
+      activityId,
+      participant: {
+        id: participant.id,
+        userId,
+        nickname: participant.user?.profile?.nickname,
+        joinedAt: participant.joinedAt,
+      },
+    });
+
+    return participant;
   }
 
   async leaveActivity(activityId: string, userId: string) {
@@ -209,6 +227,15 @@ export class ActivitiesService {
       await this.prisma.activityParticipant.update({
         where: { id: participant.id },
         data: { dkpEarned },
+      });
+
+      // Notify user about DKP reward
+      await this.notifications.create({
+        userId: participant.userId,
+        type: NotificationType.DKP_RECEIVED,
+        title: `Начислено ${dkpEarned} DKP`,
+        body: `За участие в активности «${activity.title}»`,
+        data: { activityId: activity.id, amount: dkpEarned },
       });
     }
 

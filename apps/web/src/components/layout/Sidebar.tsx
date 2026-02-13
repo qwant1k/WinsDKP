@@ -117,14 +117,14 @@ export function Sidebar() {
 
       <div className="border-t border-border p-3">
         <div className={cn('flex items-center gap-3', collapsed && 'flex-col')}>
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/20 text-sm font-bold text-primary">
+          <Link to="/profile" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/20 text-sm font-bold text-primary hover:ring-2 hover:ring-primary/50 transition-all" title="Мой профиль">
             {user?.profile?.nickname?.charAt(0)?.toUpperCase() || '?'}
-          </div>
+          </Link>
           {!collapsed && (
-            <div className="flex-1 truncate">
+            <Link to="/profile" className="flex-1 truncate hover:opacity-80 transition-opacity">
               <p className="truncate text-sm font-medium">{user?.profile?.nickname || 'User'}</p>
               <p className="truncate text-xs text-muted-foreground">{user?.profile?.displayName}</p>
-            </div>
+            </Link>
           )}
           <Button
             variant="ghost"

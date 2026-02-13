@@ -17,6 +17,22 @@ const notifIcons: Record<string, React.ElementType> = {
   NEWS_POSTED: Newspaper, MESSAGE_RECEIVED: Bell, SYSTEM: Bell,
 };
 
+function getNotifLink(n: any): string | null {
+  const data = n.data || {};
+  switch (n.type) {
+    case 'AUCTION_OUTBID': case 'AUCTION_WON': case 'AUCTION_LOST': case 'AUCTION_STARTED':
+      return data.auctionId ? `/auctions/${data.auctionId}` : '/auctions';
+    case 'RANDOMIZER_WON': case 'RANDOMIZER_STARTED': return '/randomizer';
+    case 'DKP_RECEIVED': case 'DKP_PENALTY': return data.activityId ? '/activities' : '/dkp';
+    case 'ACTIVITY_CREATED': case 'ACTIVITY_STARTED': case 'ACTIVITY_COMPLETED': return '/activities';
+    case 'CLAN_JOIN_REQUEST': case 'CLAN_JOIN_APPROVED': case 'CLAN_JOIN_REJECTED':
+    case 'CLAN_ROLE_CHANGED': case 'CLAN_KICKED': return '/clan';
+    case 'NEWS_POSTED': return '/news';
+    case 'MESSAGE_RECEIVED': return data.senderId ? `/messages/${data.senderId}` : '/messages';
+    default: return null;
+  }
+}
+
 export function Header() {
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
@@ -133,7 +149,11 @@ export function Header() {
                       <div
                         key={n.id}
                         className={`flex items-start gap-3 px-4 py-3 border-b border-border/30 cursor-pointer hover:bg-accent/30 transition-colors ${!n.isRead ? 'bg-primary/5' : ''}`}
-                        onClick={() => { if (!n.isRead) markReadMutation.mutate(n.id); }}
+                        onClick={() => {
+                          if (!n.isRead) markReadMutation.mutate(n.id);
+                          const link = getNotifLink(n);
+                          if (link) { navigate(link); setShowNotifs(false); }
+                        }}
                       >
                         <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${!n.isRead ? 'bg-primary/20' : 'bg-secondary'}`}>
                           <Icon className={`h-4 w-4 ${!n.isRead ? 'text-primary' : 'text-muted-foreground'}`} />

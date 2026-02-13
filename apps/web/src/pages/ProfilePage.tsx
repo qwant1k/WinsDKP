@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { formatDkp, getRoleLabel } from '@/lib/utils';
-import { User, Save, Shield, Coins, TrendingUp } from 'lucide-react';
+import { User, Save, Shield, Coins, TrendingUp, KeyRound, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { useState, useEffect } from 'react';
 
@@ -123,6 +123,8 @@ export function ProfilePage() {
             </CardContent>
           </Card>
 
+          <ChangePasswordCard />
+
           <Card>
             <CardHeader><CardTitle className="text-lg">Хронология</CardTitle></CardHeader>
             <CardContent>
@@ -148,5 +150,71 @@ export function ProfilePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function ChangePasswordCard() {
+  const [oldPassword, setOldPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showOld, setShowOld] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+
+  const changeMutation = useMutation({
+    mutationFn: async () => (await api.post('/auth/change-password', { oldPassword, newPassword })).data,
+    onSuccess: () => {
+      toast.success('Пароль успешно изменён');
+      setOldPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    },
+    onError: (e) => toast.error(getErrorMessage(e)),
+  });
+
+  const handleSubmit = () => {
+    if (newPassword !== confirmPassword) {
+      toast.error('Пароли не совпадают');
+      return;
+    }
+    if (newPassword.length < 6) {
+      toast.error('Пароль должен быть не менее 6 символов');
+      return;
+    }
+    changeMutation.mutate();
+  };
+
+  return (
+    <Card>
+      <CardHeader><CardTitle className="flex items-center gap-2 text-lg"><KeyRound className="h-5 w-5" /> Сменить пароль</CardTitle></CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Текущий пароль</label>
+          <div className="relative">
+            <Input type={showOld ? 'text' : 'password'} value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} placeholder="••••••••" />
+            <Button type="button" variant="ghost" size="icon" className="absolute right-0 top-0 h-10 w-10" onClick={() => setShowOld(!showOld)}>
+              {showOld ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </Button>
+          </div>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Новый пароль</label>
+            <div className="relative">
+              <Input type={showNew ? 'text' : 'password'} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="••••••••" />
+              <Button type="button" variant="ghost" size="icon" className="absolute right-0 top-0 h-10 w-10" onClick={() => setShowNew(!showNew)}>
+                {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </Button>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Подтвердите пароль</label>
+            <Input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="••••••••" />
+          </div>
+        </div>
+        <Button variant="outline" onClick={handleSubmit} disabled={changeMutation.isPending || !oldPassword || !newPassword}>
+          <KeyRound className="h-4 w-4" /> {changeMutation.isPending ? 'Сохранение...' : 'Сменить пароль'}
+        </Button>
+      </CardContent>
+    </Card>
   );
 }

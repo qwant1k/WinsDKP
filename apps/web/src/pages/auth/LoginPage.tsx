@@ -19,6 +19,11 @@ export function LoginPage() {
     e.preventDefault();
     try {
       await login(email, password);
+      const { mustChangePassword } = useAuthStore.getState();
+      if (mustChangePassword) {
+        navigate('/force-change-password');
+        return;
+      }
       toast.success('Добро пожаловать!');
       navigate('/');
     } catch (error) {
@@ -95,6 +100,9 @@ export function LoginPage() {
                 <LogIn className="h-4 w-4" />
                 {isLoading ? 'Вход...' : 'Войти'}
               </Button>
+              <Link to="/forgot-password" className="text-sm text-muted-foreground hover:text-primary">
+                Забыли пароль?
+              </Link>
               <p className="text-sm text-muted-foreground">
                 Нет аккаунта?{' '}
                 <Link to="/register" className="text-primary hover:underline">Регистрация</Link>

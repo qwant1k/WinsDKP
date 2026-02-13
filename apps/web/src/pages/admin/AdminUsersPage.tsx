@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDkp, formatDateTime, getRoleLabel } from '@/lib/utils';
-import { Search, UserCog, Ban, CheckCircle, Plus, Trash2, Pencil, X } from 'lucide-react';
+import { Search, UserCog, Ban, CheckCircle, Plus, Trash2, Pencil, X, KeyRound, Coins } from 'lucide-react';
 import { toast } from 'sonner';
 import { useState } from 'react';
 
@@ -63,6 +63,28 @@ export function AdminUsersPage() {
     mutationFn: async (userId: string) => (await api.post(`/admin/impersonate/${userId}`)).data,
     onSuccess: (data) => {
       toast.success(`Имперсонация: ${data.email}`);
+    },
+    onError: (e) => toast.error(getErrorMessage(e)),
+  });
+
+  const resetPasswordMutation = useMutation({
+    mutationFn: async (userId: string) => (await api.post(`/admin/users/${userId}/reset-password`)).data,
+    onSuccess: () => {
+      toast.success('Пароль сброшен. Пользователь установит новый при следующем входе.');
+    },
+    onError: (e) => toast.error(getErrorMessage(e)),
+  });
+
+  const [dkpUserId, setDkpUserId] = useState<string | null>(null);
+  const [dkpAmount, setDkpAmount] = useState('');
+  const [dkpDesc, setDkpDesc] = useState('');
+
+  const dkpAdjustMutation = useMutation({
+    mutationFn: async () => (await api.post('/dkp/admin/adjust', { userId: dkpUserId, amount: Number(dkpAmount), description: dkpDesc || 'Корректировка админом' })).data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+      setDkpUserId(null); setDkpAmount(''); setDkpDesc('');
+      toast.success('DKP скорректировано');
     },
     onError: (e) => toast.error(getErrorMessage(e)),
   });
@@ -212,6 +234,14 @@ export function AdminUsersPage() {
                               <Button variant="ghost" size="icon" className="h-7 w-7" title="Редактировать" onClick={() => startEdit(user)}>
                                 <Pencil className="h-3 w-3" />
                               </Button>
+                              <Button variant="ghost" size="icon" className="h-7 w-7" title="Сбросить пароль"
+                                onClick={() => { if (confirm(`Сбросить пароль для ${user.email}? Пользователь установит новый при следующем входе.`)) resetPasswordMutation.mutate(user.id); }}>
+                                <KeyRound className="h-3 w-3 text-amber-400" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-7 w-7" title="DKP"
+                                onClick={() => { setDkpUserId(user.id); setDkpAmount(''); setDkpDesc(''); }}>
+                                <Coins className="h-3 w-3 text-gold-400" />
+                              </Button>
                               <Button variant="ghost" size="icon" className="h-7 w-7" title="Имперсонация"
                                 onClick={() => impersonateMutation.mutate(user.id)}>
                                 <UserCog className="h-3 w-3" />
@@ -237,6 +267,26 @@ export function AdminUsersPage() {
           )}
         </CardContent>
       </Card>
+
+      {dkpUserId && (
+        <Card className="border-gold-500/30">
+          <CardHeader><CardTitle className="text-lg flex items-center gap-2"><Coins className="h-5 w-5 text-gold-400" /> Корректировка DKP</CardTitle></CardHeader>
+          <CardContent>
+            <div className="flex items-end gap-3">
+              <div className="space-y-1">
+                <label className="text-xs font-medium">Сумма (+/-)</label>
+                <Input type="number" className="w-32" value={dkpAmount} onChange={(e) => setDkpAmount(e.target.value)} placeholder="100 или -50" />
+              </div>
+              <div className="flex-1 space-y-1">
+                <label className="text-xs font-medium">Описание</label>
+                <Input value={dkpDesc} onChange={(e) => setDkpDesc(e.target.value)} placeholder="Причина корректировки" />
+              </div>
+              <Button variant="gold" disabled={!dkpAmount || dkpAdjustMutation.isPending} onClick={() => dkpAdjustMutation.mutate()}>Применить</Button>
+              <Button variant="ghost" onClick={() => setDkpUserId(null)}><X className="h-4 w-4" /></Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {data?.meta && data.meta.totalPages > 1 && (
         <div className="flex items-center justify-center gap-2">

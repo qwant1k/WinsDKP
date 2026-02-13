@@ -73,6 +73,29 @@ export class AuthController {
     return this.authService.resetPassword(token, password);
   }
 
+  @Post('change-password')
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Change password (logged-in user)' })
+  async changePassword(
+    @CurrentUser() user: JwtPayload,
+    @Body('oldPassword') oldPassword: string,
+    @Body('newPassword') newPassword: string,
+  ) {
+    return this.authService.changePassword(user.sub, oldPassword, newPassword);
+  }
+
+  @Post('force-change-password')
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Force change password (mustChangePassword flag)' })
+  async forceChangePassword(
+    @CurrentUser() user: JwtPayload,
+    @Body('newPassword') newPassword: string,
+  ) {
+    return this.authService.forceChangePassword(user.sub, newPassword);
+  }
+
   @Get('me')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get current user profile' })

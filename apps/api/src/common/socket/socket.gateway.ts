@@ -101,6 +101,23 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
     client.leave(`auction:${data.auctionId}`);
   }
 
+  @SubscribeMessage('activity.join')
+  handleActivityJoin(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() data: { activityId: string },
+  ) {
+    client.join(`activity:${data.activityId}`);
+    this.logger.debug(`User ${client.userId} joined activity room ${data.activityId}`);
+  }
+
+  @SubscribeMessage('activity.leave')
+  handleActivityLeave(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() data: { activityId: string },
+  ) {
+    client.leave(`activity:${data.activityId}`);
+  }
+
   @SubscribeMessage('randomizer.join')
   handleRandomizerJoin(
     @ConnectedSocket() client: AuthenticatedSocket,
@@ -119,6 +136,10 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   emitToAuction(auctionId: string, event: string, data: unknown) {
     this.server.to(`auction:${auctionId}`).emit(event, data);
+  }
+
+  emitToActivity(activityId: string, event: string, data: unknown) {
+    this.server.to(`activity:${activityId}`).emit(event, data);
   }
 
   emitToRandomizer(sessionId: string, event: string, data: unknown) {

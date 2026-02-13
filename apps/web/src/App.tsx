@@ -3,6 +3,9 @@ import { useAuthStore } from '@/stores/auth.store';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { LoginPage } from '@/pages/auth/LoginPage';
 import { RegisterPage } from '@/pages/auth/RegisterPage';
+import { ForgotPasswordPage } from '@/pages/auth/ForgotPasswordPage';
+import { ResetPasswordPage } from '@/pages/auth/ResetPasswordPage';
+import { ForceChangePasswordPage } from '@/pages/auth/ForceChangePasswordPage';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { ClanPage } from '@/pages/ClanPage';
 import { ClanReportPage } from '@/pages/ClanReportPage';
@@ -29,8 +32,9 @@ import { Suspense, useEffect } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, mustChangePassword } = useAuthStore();
   if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (mustChangePassword) return <Navigate to="/force-change-password" replace />;
   return <>{children}</>;
 }
 
@@ -67,8 +71,11 @@ export default function App() {
   return (
     <Suspense fallback={<PageLoader />}>
       <Routes>
-        <Route path="/login" element={isAuthenticated ? <Navigate to="/" /> : <LoginPage />} />
+        <Route path="/login" element={isAuthenticated && !useAuthStore.getState().mustChangePassword ? <Navigate to="/" /> : <LoginPage />} />
         <Route path="/register" element={isAuthenticated ? <Navigate to="/" /> : <RegisterPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/force-change-password" element={isAuthenticated ? <ForceChangePasswordPage /> : <Navigate to="/login" />} />
         <Route path="/rules/dkp" element={<DkpRulesPage />} />
         <Route path="/rules/auction" element={<AuctionRulesPage />} />
 

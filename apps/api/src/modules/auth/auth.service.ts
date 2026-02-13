@@ -3,6 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import * as crypto from 'crypto';
+import * as nodemailer from 'nodemailer';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 
@@ -114,6 +115,7 @@ export class AuthService {
         profile: user.profile,
         clanMembership: activeMembership || null,
       },
+      mustChangePassword: user.mustChangePassword,
       ...tokens,
     };
   }
@@ -215,7 +217,26 @@ export class AuthService {
       data: { resetToken, resetTokenExp },
     });
 
-    this.logger.log(`Password reset requested for ${email}, token: ${resetToken}`);
+    const webUrl = this.config.get<string>('WEB_URL', 'http://localhost:5173');
+    const resetLink = `${webUrl}/reset-password?token=${resetToken}`;
+
+    try {
+      const transporter = nodemailer.createTransport({
+        host: this.config.get<string>('SMTP_HOST', 'mailpit'),
+        port: this.config.get<number>('SMTP_PORT', 1025),
+        secure: false,
+      });
+      await transporter.sendMail({
+        from: this.config.get<string>('SMTP_FROM', 'noreply@ymir.local'),
+        to: email,
+        subject: 'Ymir Hub — Сброс пароля',
+        html: `<p>Для сброса пароля перейдите по ссылке:</p><p><a href="${resetLink}">${resetLink}</a></p><p>Ссылка действительна 1 час.</p>`,
+      });
+      this.logger.log(`Password reset email sent to ${email}`);
+    } catch (err) {
+      this.logger.warn(`Failed to send reset email to ${email}: ${err}`);
+    }
+
     return { message: 'If the email exists, a reset link has been sent.' };
   }
 
@@ -229,7 +250,7 @@ export class AuthService {
 
     await this.prisma.user.update({
       where: { id: user.id },
-      data: { passwordHash, resetToken: null, resetTokenExp: null },
+      data: { passwordHash, resetToken: null, resetTokenExp: null, mustChangePassword: false },
     });
 
     await this.prisma.session.updateMany({
@@ -238,6 +259,62 @@ export class AuthService {
     });
 
     return { message: 'Password reset successfully' };
+  }
+
+  async changePassword(userId: string, oldPassword: string, newPassword: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user || !user.passwordHash) throw new BadRequestException('User not found');
+
+    const isValid = await this.verifyPassword(oldPassword, user.passwordHash);
+    if (!isValid) throw new BadRequestException('Current password is incorrect');
+
+    const passwordHash = await this.hashPassword(newPassword);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash, mustChangePassword: false },
+    });
+
+    return { message: 'Password changed successfully' };
+  }
+
+  async forceChangePassword(userId: string, newPassword: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new BadRequestException('User not found');
+    if (!user.mustChangePassword) throw new BadRequestException('Password change not required');
+
+    const passwordHash = await this.hashPassword(newPassword);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash, mustChangePassword: false },
+    });
+
+    return { message: 'Password changed successfully' };
+  }
+
+  async adminResetPassword(userId: string, actorId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new BadRequestException('User not found');
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { mustChangePassword: true },
+    });
+
+    await this.prisma.session.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        actorId,
+        action: 'admin.user.password_reset',
+        entityType: 'user',
+        entityId: userId,
+      },
+    });
+
+    return { message: 'User must change password on next login' };
   }
 
   async getMe(userId: string) {
