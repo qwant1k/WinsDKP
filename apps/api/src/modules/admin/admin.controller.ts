@@ -157,12 +157,14 @@ export class AdminController {
   }
 
   @Get('coefficients/:clanId')
+  @Roles('PORTAL_ADMIN', 'CLAN_LEADER')
   @ApiOperation({ summary: 'Get DKP coefficients for a clan' })
   async getCoefficients(@Param('clanId') clanId: string) {
     return this.adminService.getCoefficients(clanId);
   }
 
   @Patch('coefficients/:clanId/power')
+  @Roles('PORTAL_ADMIN', 'CLAN_LEADER')
   @ApiOperation({ summary: 'Update power coefficient ranges' })
   async updatePowerCoefficients(
     @Param('clanId') clanId: string,
@@ -173,6 +175,7 @@ export class AdminController {
   }
 
   @Patch('coefficients/:clanId/level')
+  @Roles('PORTAL_ADMIN', 'CLAN_LEADER')
   @ApiOperation({ summary: 'Update level coefficient ranges' })
   async updateLevelCoefficients(
     @Param('clanId') clanId: string,

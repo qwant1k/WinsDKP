@@ -138,17 +138,21 @@ export class AuditService {
       ];
     }
 
+    const page = Number(query.page) || 1;
+    const limit = Number(query.limit) || 20;
+    const skip = (page - 1) * limit;
+
     const [logs, total] = await Promise.all([
       this.prisma.auditEventLog.findMany({
         where,
         orderBy: { createdAt: 'desc' },
-        skip: query.skip,
-        take: query.limit,
+        skip,
+        take: limit,
       }),
       this.prisma.auditEventLog.count({ where }),
     ]);
 
-    return new PaginatedResponse(logs, total, query.page, query.limit);
+    return new PaginatedResponse(logs, total, page, limit);
   }
 
   async findById(id: string) {

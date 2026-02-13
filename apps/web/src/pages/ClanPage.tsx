@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDkp, getRoleLabel } from '@/lib/utils';
-import { Users, UserPlus, UserMinus, Shield, Crown, Star, Check, X, AlertTriangle, Eye, Send, BarChart3, ChevronDown } from 'lucide-react';
+import { Users, UserPlus, UserMinus, Shield, Crown, Star, Check, X, AlertTriangle, Eye, Send, BarChart3, ChevronDown, Calculator, Plus, Save, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
@@ -76,6 +76,8 @@ export function ClanPage() {
   const [penaltyForm, setPenaltyForm] = useState({ amount: '', reason: '' });
   const [joinMessage, setJoinMessage] = useState('');
   const [roleChangeTarget, setRoleChangeTarget] = useState<string | null>(null);
+  const [powerRanges, setPowerRanges] = useState<Array<{ fromPower: number; toPower: number; coefficient: number }>>([]);
+  const [levelRanges, setLevelRanges] = useState<Array<{ fromLevel: number; toLevel: number; coefficient: number }>>([]);
 
   const changeRoleMutation = useMutation({
     mutationFn: async ({ userId, role }: { userId: string; role: string }) =>
@@ -101,6 +103,31 @@ export function ClanPage() {
       setPenaltyForm({ amount: '', reason: '' });
       toast.success('Штраф назначен');
     },
+    onError: (e) => toast.error(getErrorMessage(e)),
+  });
+
+  const { data: coefficients } = useQuery({
+    queryKey: ['coefficients', clanId],
+    queryFn: async () => (await api.get(`/admin/coefficients/${clanId}`)).data,
+    enabled: !!clanId && isLeader,
+  });
+
+  useEffect(() => {
+    if (coefficients) {
+      setPowerRanges(coefficients.powerRanges?.map((r: any) => ({ fromPower: r.fromPower, toPower: r.toPower, coefficient: Number(r.coefficient) })) || []);
+      setLevelRanges(coefficients.levelRanges?.map((r: any) => ({ fromLevel: r.fromLevel, toLevel: r.toLevel, coefficient: Number(r.coefficient) })) || []);
+    }
+  }, [coefficients]);
+
+  const savePowerMutation = useMutation({
+    mutationFn: async () => (await api.patch(`/admin/coefficients/${clanId}/power`, { ranges: powerRanges })).data,
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['coefficients'] }); toast.success('kBM коэффициенты сохранены'); },
+    onError: (e) => toast.error(getErrorMessage(e)),
+  });
+
+  const saveLevelMutation = useMutation({
+    mutationFn: async () => (await api.patch(`/admin/coefficients/${clanId}/level`, { ranges: levelRanges })).data,
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['coefficients'] }); toast.success('kLVL коэффициенты сохранены'); },
     onError: (e) => toast.error(getErrorMessage(e)),
   });
 
@@ -379,6 +406,74 @@ export function ClanPage() {
           )}
         </CardContent>
       </Card>
+      {isLeader && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Calculator className="h-5 w-5" />
+              DKP Формула: (kLVL × kBM) + BaseDKP
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">Настройте коэффициенты грейдов для расчёта DKP наград после активностей</p>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-sm font-semibold">kBM — Коэффициент боевой мощи</h4>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setPowerRanges([...powerRanges, { fromPower: 0, toPower: 0, coefficient: 1 }])}>
+                    <Plus className="h-3 w-3" /> Диапазон
+                  </Button>
+                  <Button variant="gold" size="sm" className="h-7 text-xs" onClick={() => savePowerMutation.mutate()} disabled={savePowerMutation.isPending}>
+                    <Save className="h-3 w-3" /> Сохранить
+                  </Button>
+                </div>
+              </div>
+              <div className="space-y-2">
+                {powerRanges.map((r, i) => (
+                  <div key={i} className="flex items-center gap-2 text-xs">
+                    <span className="text-muted-foreground w-8">От</span>
+                    <Input className="h-7 w-28 text-xs" type="number" value={r.fromPower} onChange={(e) => { const nr = [...powerRanges]; nr[i] = { ...nr[i], fromPower: Number(e.target.value) }; setPowerRanges(nr); }} />
+                    <span className="text-muted-foreground w-8">До</span>
+                    <Input className="h-7 w-28 text-xs" type="number" value={r.toPower} onChange={(e) => { const nr = [...powerRanges]; nr[i] = { ...nr[i], toPower: Number(e.target.value) }; setPowerRanges(nr); }} />
+                    <span className="text-muted-foreground w-16">Коэфф.</span>
+                    <Input className="h-7 w-20 text-xs" type="number" step="0.01" value={r.coefficient} onChange={(e) => { const nr = [...powerRanges]; nr[i] = { ...nr[i], coefficient: Number(e.target.value) }; setPowerRanges(nr); }} />
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setPowerRanges(powerRanges.filter((_, j) => j !== i))}><Trash2 className="h-3 w-3" /></Button>
+                  </div>
+                ))}
+                {!powerRanges.length && <p className="text-xs text-muted-foreground">Нет диапазонов — kBM = 0</p>}
+              </div>
+            </div>
+
+            <div className="border-t border-border pt-4">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-sm font-semibold">kLVL — Коэффициент уровня</h4>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setLevelRanges([...levelRanges, { fromLevel: 0, toLevel: 0, coefficient: 1 }])}>
+                    <Plus className="h-3 w-3" /> Диапазон
+                  </Button>
+                  <Button variant="gold" size="sm" className="h-7 text-xs" onClick={() => saveLevelMutation.mutate()} disabled={saveLevelMutation.isPending}>
+                    <Save className="h-3 w-3" /> Сохранить
+                  </Button>
+                </div>
+              </div>
+              <div className="space-y-2">
+                {levelRanges.map((r, i) => (
+                  <div key={i} className="flex items-center gap-2 text-xs">
+                    <span className="text-muted-foreground w-8">От</span>
+                    <Input className="h-7 w-28 text-xs" type="number" value={r.fromLevel} onChange={(e) => { const nr = [...levelRanges]; nr[i] = { ...nr[i], fromLevel: Number(e.target.value) }; setLevelRanges(nr); }} />
+                    <span className="text-muted-foreground w-8">До</span>
+                    <Input className="h-7 w-28 text-xs" type="number" value={r.toLevel} onChange={(e) => { const nr = [...levelRanges]; nr[i] = { ...nr[i], toLevel: Number(e.target.value) }; setLevelRanges(nr); }} />
+                    <span className="text-muted-foreground w-16">Коэфф.</span>
+                    <Input className="h-7 w-20 text-xs" type="number" step="0.01" value={r.coefficient} onChange={(e) => { const nr = [...levelRanges]; nr[i] = { ...nr[i], coefficient: Number(e.target.value) }; setLevelRanges(nr); }} />
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setLevelRanges(levelRanges.filter((_, j) => j !== i))}><Trash2 className="h-3 w-3" /></Button>
+                  </div>
+                ))}
+                {!levelRanges.length && <p className="text-xs text-muted-foreground">Нет диапазонов — kLVL = 0</p>}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
