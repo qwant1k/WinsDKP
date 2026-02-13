@@ -17,6 +17,10 @@ EXPOSE 5173
 CMD ["pnpm", "dev", "--host", "0.0.0.0"]
 
 FROM base AS builder
+ARG VITE_API_URL=""
+ARG VITE_WS_URL=""
+ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_WS_URL=$VITE_WS_URL
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY . .
 WORKDIR /app/apps/web
