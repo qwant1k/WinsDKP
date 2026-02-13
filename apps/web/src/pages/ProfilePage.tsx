@@ -130,17 +130,41 @@ export function ProfilePage() {
             <CardContent>
               {timeline?.length ? (
                 <div className="space-y-3">
-                  {timeline.map((item: any, i: number) => (
-                    <div key={i} className="flex items-center gap-3 rounded-lg border border-border/30 p-3 text-sm">
-                      <div className={`h-2 w-2 rounded-full ${item.type === 'dkp_transaction' ? 'bg-gold-400' : item.type === 'activity' ? 'bg-green-400' : item.type === 'bid' ? 'bg-purple-400' : 'bg-red-400'}`} />
-                      <div className="flex-1">
-                        <span className="font-medium capitalize">{item.type.replace('_', ' ')}</span>
-                        {item.data?.description && <span className="text-muted-foreground"> — {item.data.description}</span>}
-                        {item.data?.amount && <span className="font-mono ml-2 text-gold-400">{formatDkp(item.data.amount)}</span>}
+                  {timeline.map((item: any, i: number) => {
+                    let label = '';
+                    let detail = '';
+                    let amountVal: number | null = null;
+                    if (item.type === 'dkp_transaction') {
+                      label = 'DKP';
+                      detail = item.data?.description || '';
+                      amountVal = item.data?.amount;
+                    } else if (item.type === 'activity') {
+                      label = 'Активность';
+                      detail = item.data?.activity?.title || '';
+                      amountVal = item.data?.dkpEarned;
+                    } else if (item.type === 'bid') {
+                      const itemName = item.data?.lot?.warehouseItem?.name || 'Предмет';
+                      const won = item.data?.lot?.result?.winnerId === user?.id;
+                      label = won ? '🏆 Выигрыш' : 'Ставка';
+                      detail = itemName;
+                      amountVal = item.data?.amount;
+                    } else if (item.type === 'penalty') {
+                      label = 'Штраф';
+                      detail = item.data?.reason || '';
+                      amountVal = item.data?.amount;
+                    }
+                    return (
+                      <div key={i} className="flex items-center gap-3 rounded-lg border border-border/30 p-3 text-sm">
+                        <div className={`h-2 w-2 rounded-full ${item.type === 'dkp_transaction' ? 'bg-gold-400' : item.type === 'activity' ? 'bg-green-400' : item.type === 'bid' ? 'bg-purple-400' : 'bg-red-400'}`} />
+                        <div className="flex-1">
+                          <span className="font-medium">{label}</span>
+                          {detail && <span className="text-muted-foreground"> — {detail}</span>}
+                          {amountVal != null && <span className="font-mono ml-2 text-gold-400">{formatDkp(amountVal)}</span>}
+                        </div>
+                        <span className="text-xs text-muted-foreground">{new Date(item.date).toLocaleDateString('ru-RU')}</span>
                       </div>
-                      <span className="text-xs text-muted-foreground">{new Date(item.date).toLocaleDateString('ru-RU')}</span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <p className="text-center text-sm text-muted-foreground py-8">Нет записей</p>

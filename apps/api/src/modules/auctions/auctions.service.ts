@@ -49,7 +49,7 @@ export class AuctionsService {
               take: 50,
               include: { user: { include: { profile: true } } },
             },
-            result: true,
+            result: { include: { winner: { include: { profile: true } } } },
           },
           orderBy: { sortOrder: 'asc' },
         },
@@ -269,6 +269,7 @@ export class AuctionsService {
           maxAutoBid: maxAutoBid || null,
           idempotencyKey,
         },
+        include: { user: { include: { profile: true } } },
       });
 
       await tx.lot.update({
@@ -309,6 +310,7 @@ export class AuctionsService {
         lotId,
         bidId: bid.id,
         userId,
+        nickname: bid.user?.profile?.nickname || null,
         amount,
         timerExtended,
       });

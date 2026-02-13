@@ -88,6 +88,36 @@ export class ActivitiesService {
     return activity;
   }
 
+  async updateActivity(id: string, data: { baseDkp?: number; title?: string; description?: string }, actorId: string) {
+    const activity = await this.prisma.activity.findUnique({ where: { id } });
+    if (!activity) throw new NotFoundException('Activity not found');
+    if (activity.status === ActivityStatus.COMPLETED || activity.status === ActivityStatus.CANCELLED) {
+      throw new BadRequestException('Cannot edit completed or cancelled activity');
+    }
+
+    const updated = await this.prisma.activity.update({
+      where: { id },
+      data: {
+        ...(data.baseDkp !== undefined ? { baseDkp: data.baseDkp } : {}),
+        ...(data.title !== undefined ? { title: data.title } : {}),
+        ...(data.description !== undefined ? { description: data.description } : {}),
+      },
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        actorId,
+        action: 'activity.updated',
+        entityType: 'activity',
+        entityId: id,
+        before: activity,
+        after: updated,
+      },
+    });
+
+    return updated;
+  }
+
   async updateStatus(id: string, status: ActivityStatus, actorId: string) {
     const activity = await this.prisma.activity.findUnique({ where: { id } });
     if (!activity) throw new NotFoundException('Activity not found');

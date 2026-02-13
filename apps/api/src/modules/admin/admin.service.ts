@@ -125,15 +125,11 @@ export class AdminService {
     if (!user) throw new NotFoundException('User not found');
     if (user.globalRole === 'PORTAL_ADMIN') throw new ForbiddenException('Cannot delete portal admin');
 
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { deletedAt: new Date(), isActive: false },
-    });
+    const auditData = { email: user.email, nickname: user.profile?.nickname };
 
-    await this.prisma.clanMembership.updateMany({
-      where: { userId, isActive: true },
-      data: { isActive: false, leftAt: new Date() },
-    });
+    // Hard delete — Prisma cascades will remove all related records
+    // (profile, sessions, memberships, bids, transactions, notifications, etc.)
+    await this.prisma.user.delete({ where: { id: userId } });
 
     await this.prisma.auditLog.create({
       data: {
@@ -141,11 +137,11 @@ export class AdminService {
         action: 'admin.user.deleted',
         entityType: 'user',
         entityId: userId,
-        before: { email: user.email, nickname: user.profile?.nickname },
+        before: auditData,
       },
     });
 
-    return { message: 'User deleted' };
+    return { message: 'User permanently deleted' };
   }
 
   async getClans(query: PaginationDto) {

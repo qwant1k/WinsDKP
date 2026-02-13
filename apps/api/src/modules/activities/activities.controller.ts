@@ -44,6 +44,17 @@ export class ActivitiesController {
     });
   }
 
+  @Patch(':id')
+  @Roles('ELDER')
+  @ApiOperation({ summary: 'Update activity (baseDkp, title, description) before completion' })
+  async update(
+    @Param('id') id: string,
+    @CurrentUser() user: JwtPayload,
+    @Body() body: { baseDkp?: number; title?: string; description?: string },
+  ) {
+    return this.activitiesService.updateActivity(id, body, user.sub);
+  }
+
   @Patch(':id/status')
   @Roles('ELDER')
   @ApiOperation({ summary: 'Update activity status' })

@@ -175,6 +175,7 @@ model User {
   mediaAttachments MediaAttachment[]
   sentMessages     DirectMessage[]  @relation("MessageSender")
   receivedMessages DirectMessage[]  @relation("MessageReceiver")
+  lotResults       LotResult[]
 
   @@map("users")
 }
@@ -578,7 +579,8 @@ model LotResult {
   status     String
   createdAt  DateTime @default(now()) @map("created_at")
 
-  lot Lot @relation(fields: [lotId], references: [id], onDelete: Cascade)
+  lot    Lot   @relation(fields: [lotId], references: [id], onDelete: Cascade)
+  winner User? @relation(fields: [winnerId], references: [id], onDelete: SetNull)
 
   @@map("lot_results")
 }

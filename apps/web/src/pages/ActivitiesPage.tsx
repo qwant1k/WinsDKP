@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDateTime, getStatusLabel, getStatusColor } from '@/lib/utils';
-import { Swords, Plus, Play, Square, CheckCircle, Users, Clock, ChevronDown, ChevronUp } from 'lucide-react';
+import { Swords, Plus, Play, Square, CheckCircle, Users, Clock, ChevronDown, ChevronUp, Pencil, XCircle, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -21,6 +21,8 @@ export function ActivitiesPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState({ title: '', type: 'RAID', baseDkp: '100', description: '' });
   const [expandedActivity, setExpandedActivity] = useState<string | null>(null);
+  const [editingDkp, setEditingDkp] = useState<string | null>(null);
+  const [editDkpValue, setEditDkpValue] = useState('');
 
   const { data: activityDetail } = useQuery({
     queryKey: ['activity-detail', expandedActivity],
@@ -68,6 +70,23 @@ export function ActivitiesPage() {
   const completeMutation = useMutation({
     mutationFn: async (id: string) => (await api.post(`/clans/${clanId}/activities/${id}/complete`)).data,
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['activities'] }); toast.success('Активность завершена, DKP начислены'); },
+    onError: (e) => toast.error(getErrorMessage(e)),
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: async (id: string) => (await api.patch(`/clans/${clanId}/activities/${id}/status`, { status: 'CANCELLED' })).data,
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['activities'] }); toast.success('Активность отменена'); },
+    onError: (e) => toast.error(getErrorMessage(e)),
+  });
+
+  const updateDkpMutation = useMutation({
+    mutationFn: async ({ id, baseDkp }: { id: string; baseDkp: number }) => (await api.patch(`/clans/${clanId}/activities/${id}`, { baseDkp })).data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['activities'] });
+      queryClient.invalidateQueries({ queryKey: ['activity-detail'] });
+      setEditingDkp(null);
+      toast.success('BaseDKP обновлен');
+    },
     onError: (e) => toast.error(getErrorMessage(e)),
   });
 
@@ -167,6 +186,11 @@ export function ActivitiesPage() {
                         <CheckCircle className="h-3 w-3" /> Завершить
                       </Button>
                     )}
+                    {canManage && activity.status !== 'COMPLETED' && activity.status !== 'CANCELLED' && (
+                      <Button variant="ghost" size="sm" className="text-red-400 hover:text-red-300" onClick={() => { if (confirm('Отменить активность?')) cancelMutation.mutate(activity.id); }}>
+                        <XCircle className="h-3 w-3" /> Отмена
+                      </Button>
+                    )}
                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setExpandedActivity(expandedActivity === activity.id ? null : activity.id)}>
                       {expandedActivity === activity.id ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                     </Button>
@@ -188,7 +212,24 @@ export function ActivitiesPage() {
                           </div>
                         )) : <span className="text-xs text-muted-foreground">Нет участников</span>}
                       </div>
-                      <p className="mt-3 text-xs text-muted-foreground">Формула: (kLVL × kBM) + {activityDetail.baseDkp} BaseDKP</p>
+                      <div className="mt-3 flex items-center gap-2">
+                        <p className="text-xs text-muted-foreground">Формула: (kLVL × kBM) + {activityDetail.baseDkp} BaseDKP</p>
+                        {canManage && activity.status !== 'COMPLETED' && activity.status !== 'CANCELLED' && (
+                          editingDkp === activity.id ? (
+                            <div className="flex items-center gap-1">
+                              <Input type="number" className="h-6 w-20 text-xs" value={editDkpValue} onChange={(e) => setEditDkpValue(e.target.value)} />
+                              <Button variant="gold" size="sm" className="h-6 px-2 text-xs" onClick={() => updateDkpMutation.mutate({ id: activity.id, baseDkp: Number(editDkpValue) })} disabled={updateDkpMutation.isPending}>
+                                <Save className="h-3 w-3" />
+                              </Button>
+                              <Button variant="ghost" size="sm" className="h-6 px-1 text-xs" onClick={() => setEditingDkp(null)}>✕</Button>
+                            </div>
+                          ) : (
+                            <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => { setEditingDkp(activity.id); setEditDkpValue(String(activityDetail.baseDkp)); }}>
+                              <Pencil className="h-3 w-3" /> Изменить
+                            </Button>
+                          )
+                        )}
+                      </div>
                     </motion.div>
                   )}
                 </AnimatePresence>

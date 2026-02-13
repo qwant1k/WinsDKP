@@ -69,7 +69,7 @@ export class UsersService {
       }),
       this.prisma.bid.findMany({
         where: { userId },
-        include: { lot: { include: { warehouseItem: true } } },
+        include: { lot: { include: { warehouseItem: true, result: true } } },
         orderBy: { createdAt: 'desc' },
         take: query.limit,
       }),

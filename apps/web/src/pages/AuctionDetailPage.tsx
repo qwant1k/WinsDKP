@@ -65,7 +65,10 @@ export function AuctionDetailPage() {
     joinAuctionRoom(id);
     const socket = getSocket();
 
-    const handleBidCreated = () => queryClient.invalidateQueries({ queryKey: ['auction', id] });
+    const handleBidCreated = () => {
+      // Small delay to let the DB transaction commit before refetching
+      setTimeout(() => queryClient.invalidateQueries({ queryKey: ['auction', id] }), 300);
+    };
     const handleTimerExtended = () => {
       toast.info('Таймер продлён (Anti-Sniper)');
       queryClient.invalidateQueries({ queryKey: ['auction', id] });
