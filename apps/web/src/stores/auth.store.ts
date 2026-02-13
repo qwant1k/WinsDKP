@@ -58,22 +58,22 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set, get) => ({
+    (set: any, get: any) => ({
       user: null,
       accessToken: null,
       refreshToken: null,
       isAuthenticated: false,
       isLoading: false,
 
-      setTokens: (accessToken, refreshToken) => {
+      setTokens: (accessToken: string, refreshToken: string) => {
         set({ accessToken, refreshToken, isAuthenticated: true });
       },
 
-      setUser: (user) => {
+      setUser: (user: User) => {
         set({ user });
       },
 
-      login: async (email, password) => {
+      login: async (email: string, password: string) => {
         set({ isLoading: true });
         try {
           const { data } = await api.post('/auth/login', { email, password });
@@ -90,7 +90,7 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      register: async (regData) => {
+      register: async (regData: { email: string; password: string; nickname: string; displayName?: string }) => {
         set({ isLoading: true });
         try {
           await api.post('/auth/register', regData);
@@ -136,7 +136,7 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'ymir-auth',
-      partialize: (state) => ({
+      partialize: (state: AuthState) => ({
         accessToken: state.accessToken,
         refreshToken: state.refreshToken,
         user: state.user,
