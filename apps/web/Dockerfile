@@ -6,7 +6,7 @@ FROM base AS dependencies
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml* ./
 COPY apps/web/package.json ./apps/web/
 COPY packages/ ./packages/
-RUN pnpm install --frozen-lockfile || pnpm install
+RUN pnpm install --shamefully-hoist --frozen-lockfile || pnpm install --shamefully-hoist
 
 FROM base AS development
 COPY --from=dependencies /app/node_modules ./node_modules
