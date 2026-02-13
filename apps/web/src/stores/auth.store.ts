@@ -58,7 +58,7 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set: any, get: any) => ({
+    (set, get) => ({
       user: null,
       accessToken: null,
       refreshToken: null,
@@ -136,7 +136,7 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'ymir-auth',
-      partialize: (state: AuthState) => ({
+      partialize: (state) => ({
         accessToken: state.accessToken,
         refreshToken: state.refreshToken,
         user: state.user,

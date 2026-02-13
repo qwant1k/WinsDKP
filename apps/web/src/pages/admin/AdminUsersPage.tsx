@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDkp, formatDateTime, getRoleLabel } from '@/lib/utils';
-import { Users, Search, UserCog, Ban, CheckCircle, Plus, Trash2, Pencil, X } from 'lucide-react';
+import { Search, UserCog, Ban, CheckCircle, Plus, Trash2, Pencil, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useState } from 'react';
 
