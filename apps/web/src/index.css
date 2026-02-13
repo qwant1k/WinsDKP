@@ -1,0 +1,79 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 222 47% 6%;
+    --foreground: 210 40% 96%;
+    --card: 222 47% 8%;
+    --card-foreground: 210 40% 96%;
+    --popover: 222 47% 8%;
+    --popover-foreground: 210 40% 96%;
+    --primary: 38 75% 55%;
+    --primary-foreground: 222 47% 6%;
+    --secondary: 222 47% 14%;
+    --secondary-foreground: 210 40% 96%;
+    --muted: 222 47% 14%;
+    --muted-foreground: 215 20% 55%;
+    --accent: 222 47% 18%;
+    --accent-foreground: 210 40% 96%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 222 47% 16%;
+    --input: 222 47% 16%;
+    --ring: 38 75% 55%;
+    --radius: 1rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted)) transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted));
+    border-radius: 3px;
+  }
+}
+
+.rarity-mythic { @apply text-purple-400; }
+.rarity-legendary { @apply text-amber-400; }
+.rarity-epic { @apply text-violet-400; }
+.rarity-rare { @apply text-blue-400; }
+.rarity-uncommon { @apply text-green-400; }
+.rarity-common { @apply text-gray-400; }
+
+.rarity-bg-mythic { @apply bg-purple-500/10 border-purple-500/30; }
+.rarity-bg-legendary { @apply bg-amber-500/10 border-amber-500/30; }
+.rarity-bg-epic { @apply bg-violet-500/10 border-violet-500/30; }
+.rarity-bg-rare { @apply bg-blue-500/10 border-blue-500/30; }
+.rarity-bg-uncommon { @apply bg-green-500/10 border-green-500/30; }
+.rarity-bg-common { @apply bg-gray-500/10 border-gray-500/30; }
+
+.glass {
+  @apply bg-white/5 backdrop-blur-md border border-white/10;
+}
+
+.gradient-gold {
+  background: linear-gradient(135deg, #D4A84B 0%, #F5E8C6 50%, #D4A84B 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
