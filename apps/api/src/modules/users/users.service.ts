@@ -80,13 +80,59 @@ export class UsersService {
       }),
     ]);
 
+    // Enrich DKP transaction descriptions — replace UUIDs with human-readable names
+    const enrichedTransactions = await this.enrichTransactionDescriptions(transactions);
+
     const timeline = [
-      ...transactions.map((t) => ({ type: 'dkp_transaction' as const, data: t, date: t.createdAt })),
+      ...enrichedTransactions.map((t) => ({ type: 'dkp_transaction' as const, data: t, date: t.createdAt })),
       ...activities.map((a) => ({ type: 'activity' as const, data: a, date: a.joinedAt })),
       ...bids.map((b) => ({ type: 'bid' as const, data: b, date: b.createdAt })),
       ...penalties.map((p) => ({ type: 'penalty' as const, data: p, date: p.createdAt })),
     ].sort((a, b) => b.date.getTime() - a.date.getTime());
 
     return timeline.slice(0, query.limit);
+  }
+
+  private async enrichTransactionDescriptions(transactions: any[]) {
+    const lotIds = new Set<string>();
+    const activityIds = new Set<string>();
+
+    for (const t of transactions) {
+      if (t.referenceType === 'lot' && t.referenceId) lotIds.add(t.referenceId);
+      if (t.referenceType === 'activity' && t.referenceId) activityIds.add(t.referenceId);
+    }
+
+    const [lots, activitiesMap] = await Promise.all([
+      lotIds.size > 0
+        ? this.prisma.lot.findMany({
+            where: { id: { in: [...lotIds] } },
+            include: { warehouseItem: true },
+          })
+        : [],
+      activityIds.size > 0
+        ? this.prisma.activity.findMany({
+            where: { id: { in: [...activityIds] } },
+          })
+        : [],
+    ]);
+
+    const lotNameMap = new Map(lots.map((l) => [l.id, l.warehouseItem?.name || 'Предмет']));
+    const activityNameMap = new Map(activitiesMap.map((a) => [a.id, a.title]));
+
+    return transactions.map((t) => {
+      let description = t.description || '';
+      if (t.referenceType === 'lot' && t.referenceId && lotNameMap.has(t.referenceId)) {
+        const itemName = lotNameMap.get(t.referenceId)!;
+        description = description
+          .replace(/Auction bid on lot [a-f0-9-]+/gi, `Ставка на «${itemName}»`)
+          .replace(/Hold released:?\s*/gi, 'Возврат: ')
+          .replace(/Hold for:?\s*/gi, 'Удержание: ');
+      }
+      if (t.referenceType === 'activity' && t.referenceId && activityNameMap.has(t.referenceId)) {
+        const actName = activityNameMap.get(t.referenceId)!;
+        description = description.replace(/Activity reward:?\s*/gi, `Награда за «${actName}»`);
+      }
+      return { ...t, description };
+    });
   }
 }

@@ -12,10 +12,25 @@ import { useAuthStore } from '@/stores/auth.store';
 export function AdminSettingsPage() {
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
-  const clanId = user?.clanMembership?.clanId;
+  const [selectedClanId, setSelectedClanId] = useState<string>('');
   const [editValues, setEditValues] = useState<Record<string, string>>({});
   const [powerRanges, setPowerRanges] = useState<Array<{ fromPower: number; toPower: number; coefficient: number }>>([]);
   const [levelRanges, setLevelRanges] = useState<Array<{ fromLevel: number; toLevel: number; coefficient: number }>>([]);
+
+  const { data: clans } = useQuery({
+    queryKey: ['admin', 'clans'],
+    queryFn: async () => (await api.get('/admin/clans?limit=50')).data,
+  });
+
+  // Auto-select first clan or user's clan
+  useEffect(() => {
+    if (!selectedClanId && clans?.data?.length) {
+      const userClan = user?.clanMembership?.clanId;
+      setSelectedClanId(userClan || clans.data[0].id);
+    }
+  }, [clans, selectedClanId, user]);
+
+  const clanId = selectedClanId;
 
   const { data: settings, isLoading } = useQuery({
     queryKey: ['admin', 'settings'],
@@ -139,15 +154,21 @@ export function AdminSettingsPage() {
           </Card>
         ))
       )}
-      {clanId && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Calculator className="h-5 w-5" />
-              DKP Формула: (kLVL × kBM) + BaseDKP
-            </CardTitle>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Calculator className="h-5 w-5" />
+            DKP Формула: (kLVL × kBM) + BaseDKP
+          </CardTitle>
+          <div className="flex items-center gap-3 mt-2">
             <p className="text-xs text-muted-foreground">Настройте коэффициенты для расчёта DKP наград</p>
-          </CardHeader>
+            {clans?.data?.length > 1 && (
+              <select className="rounded-md border border-input bg-background px-3 py-1 text-xs" value={clanId} onChange={(e) => setSelectedClanId(e.target.value)}>
+                {clans.data.map((c: any) => <option key={c.id} value={c.id}>[{c.tag}] {c.name}</option>)}
+              </select>
+            )}
+          </div>
+        </CardHeader>
           <CardContent className="space-y-6">
             <div>
               <div className="flex items-center justify-between mb-3">
@@ -206,7 +227,6 @@ export function AdminSettingsPage() {
             </div>
           </CardContent>
         </Card>
-      )}
     </div>
   );
 }
