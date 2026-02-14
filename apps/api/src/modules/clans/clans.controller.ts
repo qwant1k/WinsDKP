@@ -18,6 +18,12 @@ export class ClansController {
     return this.clansService.findAll(query);
   }
 
+  @Get('my-requests')
+  @ApiOperation({ summary: 'Get current user join requests' })
+  async getMyJoinRequests(@CurrentUser() user: JwtPayload) {
+    return this.clansService.getMyJoinRequests(user.sub);
+  }
+
   @Get(':clanId')
   @ApiOperation({ summary: 'Get clan details' })
   async findOne(@Param('clanId') clanId: string) {

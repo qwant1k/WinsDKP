@@ -4,23 +4,23 @@ import { useAuthStore } from '@/stores/auth.store';
 import {
   LayoutDashboard, Users, Swords, Trophy, Dices, Package,
   Newspaper, MessageSquare, Mail, Bell, ScrollText, Settings,
-  Shield, LogOut, ChevronLeft, Coins,
+  Shield, LogOut, ChevronLeft, Coins, UserPlus,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 
 const navItems = [
-  { label: 'Дашборд', icon: LayoutDashboard, path: '/' },
-  { label: 'Мой клан', icon: Users, path: '/clan' },
-  { label: 'DKP Кошелёк', icon: Coins, path: '/dkp' },
-  { label: 'Активности', icon: Swords, path: '/activities' },
-  { label: 'Аукцион', icon: Trophy, path: '/auctions' },
-  { label: 'Рандомайзер', icon: Dices, path: '/randomizer' },
-  { label: 'Хранилище', icon: Package, path: '/warehouse' },
-  { label: 'Новости', icon: Newspaper, path: '/news' },
-  { label: 'Лента', icon: MessageSquare, path: '/feed' },
-  { label: 'Сообщения', icon: Mail, path: '/messages' },
-  { label: 'Уведомления', icon: Bell, path: '/notifications' },
+  { label: 'Дашборд', icon: LayoutDashboard, path: '/', requiresClan: true },
+  { label: 'Мой клан', icon: Users, path: '/clan', requiresClan: true },
+  { label: 'DKP Кошелёк', icon: Coins, path: '/dkp', requiresClan: true },
+  { label: 'Активности', icon: Swords, path: '/activities', requiresClan: true },
+  { label: 'Аукцион', icon: Trophy, path: '/auctions', requiresClan: true },
+  { label: 'Рандомайзер', icon: Dices, path: '/randomizer', requiresClan: true },
+  { label: 'Хранилище', icon: Package, path: '/warehouse', requiresClan: true },
+  { label: 'Новости', icon: Newspaper, path: '/news', requiresClan: true },
+  { label: 'Лента', icon: MessageSquare, path: '/feed', requiresClan: true },
+  { label: 'Сообщения', icon: Mail, path: '/messages', requiresClan: false },
+  { label: 'Уведомления', icon: Bell, path: '/notifications', requiresClan: false },
 ];
 
 const adminItems = [
@@ -66,7 +66,21 @@ export function Sidebar() {
       </div>
 
       <nav className="flex-1 space-y-1 overflow-y-auto p-3 scrollbar-thin">
-        {navItems.map((item) => {
+        {!user?.clanMembership && !isAdmin() && (
+          <Link
+            to="/join-clan"
+            className={cn(
+              'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all',
+              'bg-gold-500/10 text-gold-400 hover:bg-gold-500/20',
+              collapsed && 'justify-center px-2',
+            )}
+            title={collapsed ? 'Вступить в клан' : undefined}
+          >
+            <UserPlus className="h-5 w-5 shrink-0" />
+            {!collapsed && <span>Вступить в клан</span>}
+          </Link>
+        )}
+        {navItems.filter((item) => !item.requiresClan || !!user?.clanMembership || isAdmin()).map((item) => {
           const isActive = location.pathname === item.path ||
             (item.path !== '/' && location.pathname.startsWith(item.path));
           return (

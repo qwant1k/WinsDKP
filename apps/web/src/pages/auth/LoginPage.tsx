@@ -86,12 +86,28 @@ export function LoginPage() {
               </div>
 
               <div className="rounded-lg border border-border/50 bg-secondary/30 p-3 text-xs text-muted-foreground">
-                <p className="font-medium text-foreground mb-1">Демо-аккаунты (пароль: Password123!)</p>
-                <div className="grid grid-cols-2 gap-1">
-                  <button type="button" className="text-left hover:text-primary transition-colors" onClick={() => { setEmail('admin@ymir.local'); setPassword('Password123!'); }}>admin@ymir.local</button>
-                  <button type="button" className="text-left hover:text-primary transition-colors" onClick={() => { setEmail('leader@ymir.local'); setPassword('Password123!'); }}>leader@ymir.local</button>
-                  <button type="button" className="text-left hover:text-primary transition-colors" onClick={() => { setEmail('elder@ymir.local'); setPassword('Password123!'); }}>elder@ymir.local</button>
-                  <button type="button" className="text-left hover:text-primary transition-colors" onClick={() => { setEmail('member@ymir.local'); setPassword('Password123!'); }}>member@ymir.local</button>
+                <p className="font-medium text-foreground mb-2">Демо-аккаунты (пароль: demo123)</p>
+                <div className="space-y-1">
+                  <button type="button" className="flex w-full items-center justify-between rounded px-2 py-1 hover:bg-accent/50 transition-colors" onClick={() => { setEmail('admin@ymir.local'); setPassword('demo123'); }}>
+                    <span className="text-primary">admin@ymir.local</span>
+                    <span className="text-muted-foreground">SuperAdmin</span>
+                  </button>
+                  <button type="button" className="flex w-full items-center justify-between rounded px-2 py-1 hover:bg-accent/50 transition-colors" onClick={() => { setEmail('leader@ymir.local'); setPassword('demo123'); }}>
+                    <span className="text-primary">leader@ymir.local</span>
+                    <span className="text-muted-foreground">Asma31337 — Глава</span>
+                  </button>
+                  <button type="button" className="flex w-full items-center justify-between rounded px-2 py-1 hover:bg-accent/50 transition-colors" onClick={() => { setEmail('elder@ymir.local'); setPassword('demo123'); }}>
+                    <span className="text-primary">elder@ymir.local</span>
+                    <span className="text-muted-foreground">Valkyrion — Старейшина</span>
+                  </button>
+                  <button type="button" className="flex w-full items-center justify-between rounded px-2 py-1 hover:bg-accent/50 transition-colors" onClick={() => { setEmail('member@ymir.local'); setPassword('demo123'); }}>
+                    <span className="text-primary">member@ymir.local</span>
+                    <span className="text-muted-foreground">RuneKeeper — Участник</span>
+                  </button>
+                  <button type="button" className="flex w-full items-center justify-between rounded px-2 py-1 hover:bg-accent/50 transition-colors" onClick={() => { setEmail('newbie@ymir.local'); setPassword('demo123'); }}>
+                    <span className="text-primary">newbie@ymir.local</span>
+                    <span className="text-muted-foreground">FrostBite — Новичок</span>
+                  </button>
                 </div>
               </div>
             </CardContent>
