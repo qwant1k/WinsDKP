@@ -20,13 +20,13 @@ export function DashboardPage() {
   });
 
   const { data: activities } = useQuery({
-    queryKey: ['activities', clanId],
+    queryKey: ['dashboard-activities', clanId],
     queryFn: async () => (await api.get(`/clans/${clanId}/activities?limit=5`)).data,
     enabled: !!clanId,
   });
 
   const { data: auctions } = useQuery({
-    queryKey: ['auctions', clanId],
+    queryKey: ['dashboard-auctions', clanId],
     queryFn: async () => (await api.get(`/clans/${clanId}/auctions?limit=5`)).data,
     enabled: !!clanId,
   });

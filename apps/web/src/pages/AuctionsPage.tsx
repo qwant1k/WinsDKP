@@ -24,7 +24,7 @@ export function AuctionsPage() {
   const createMutation = useMutation({
     mutationFn: async () => (await api.post(`/clans/${clanId}/auctions`, form)).data,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['auctions'] });
+      queryClient.invalidateQueries({ queryKey: ['auctions', clanId], exact: true });
       setShowCreate(false);
       setForm({ title: '', description: '', antiSniperEnabled: true });
       toast.success('Аукцион создан');

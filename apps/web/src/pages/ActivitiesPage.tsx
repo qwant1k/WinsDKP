@@ -34,12 +34,12 @@ export function ActivitiesPage() {
   useEffect(() => {
     const socket = getSocket();
     const handler = (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ['activities'] });
-      queryClient.invalidateQueries({ queryKey: ['activity-detail', data.activityId] });
+      queryClient.invalidateQueries({ queryKey: ['activities', clanId], exact: true });
+      queryClient.invalidateQueries({ queryKey: ['activity-detail', data.activityId], exact: true });
     };
     socket.on('activity.participant_joined', handler);
     return () => { socket.off('activity.participant_joined', handler); };
-  }, [queryClient]);
+  }, [queryClient, clanId]);
 
   const canJoin = ['CLAN_LEADER', 'ELDER', 'MEMBER', 'NEWBIE'].includes(user?.clanMembership?.role || '');
 
@@ -49,22 +49,20 @@ export function ActivitiesPage() {
     enabled: !!clanId,
   });
 
-  const refetchActivities = () => queryClient.invalidateQueries({ queryKey: ['activities', clanId], exact: true });
+  const refetchActivities = async () => {
+    await queryClient.refetchQueries({ queryKey: ['activities', clanId], exact: true });
+  };
 
   const createMutation = useMutation({
     mutationFn: async () => (await api.post(`/clans/${clanId}/activities`, { ...form, baseDkp: Number(form.baseDkp) })).data,
-    onSuccess: () => { refetchActivities(); setShowCreate(false); toast.success('Активность создана'); },
+    onSuccess: async () => { await refetchActivities(); setShowCreate(false); toast.success('Активность создана'); },
     onError: (e) => toast.error(getErrorMessage(e)),
   });
 
   const statusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => (await api.patch(`/clans/${clanId}/activities/${id}/status`, { status })).data,
-    onSuccess: (_data, vars) => {
-      queryClient.setQueryData(['activities', clanId], (old: any) => {
-        if (!old?.data) return old;
-        return { ...old, data: old.data.map((a: any) => a.id === vars.id ? { ...a, status: vars.status } : a) };
-      });
-      refetchActivities();
+    onSuccess: async () => {
+      await refetchActivities();
       toast.success('Статус обновлён');
     },
     onError: (e) => toast.error(getErrorMessage(e)),
@@ -72,18 +70,14 @@ export function ActivitiesPage() {
 
   const joinMutation = useMutation({
     mutationFn: async (id: string) => (await api.post(`/clans/${clanId}/activities/${id}/join`)).data,
-    onSuccess: () => { refetchActivities(); toast.success('Вы присоединились'); },
+    onSuccess: async () => { await refetchActivities(); toast.success('Вы присоединились'); },
     onError: (e) => toast.error(getErrorMessage(e)),
   });
 
   const completeMutation = useMutation({
     mutationFn: async (id: string) => (await api.post(`/clans/${clanId}/activities/${id}/complete`)).data,
-    onSuccess: (_data, id) => {
-      queryClient.setQueryData(['activities', clanId], (old: any) => {
-        if (!old?.data) return old;
-        return { ...old, data: old.data.map((a: any) => a.id === id ? { ...a, status: 'COMPLETED' } : a) };
-      });
-      refetchActivities();
+    onSuccess: async () => {
+      await refetchActivities();
       toast.success('Активность завершена, DKP начислены');
     },
     onError: (e) => toast.error(getErrorMessage(e)),
@@ -91,12 +85,8 @@ export function ActivitiesPage() {
 
   const cancelMutation = useMutation({
     mutationFn: async (id: string) => (await api.patch(`/clans/${clanId}/activities/${id}/status`, { status: 'CANCELLED' })).data,
-    onSuccess: (_data, id) => {
-      queryClient.setQueryData(['activities', clanId], (old: any) => {
-        if (!old?.data) return old;
-        return { ...old, data: old.data.map((a: any) => a.id === id ? { ...a, status: 'CANCELLED' } : a) };
-      });
-      refetchActivities();
+    onSuccess: async () => {
+      await refetchActivities();
       toast.success('Активность отменена');
     },
     onError: (e) => toast.error(getErrorMessage(e)),
@@ -104,9 +94,9 @@ export function ActivitiesPage() {
 
   const updateDkpMutation = useMutation({
     mutationFn: async ({ id, baseDkp }: { id: string; baseDkp: number }) => (await api.patch(`/clans/${clanId}/activities/${id}`, { baseDkp })).data,
-    onSuccess: () => {
-      refetchActivities();
-      queryClient.invalidateQueries({ queryKey: ['activity-detail', expandedActivity], exact: true });
+    onSuccess: async () => {
+      await refetchActivities();
+      await queryClient.refetchQueries({ queryKey: ['activity-detail', expandedActivity], exact: true });
       setEditingDkp(null);
       toast.success('BaseDKP обновлен');
     },
@@ -169,7 +159,7 @@ export function ActivitiesPage() {
         <div className="space-y-4">{[...Array(3)].map((_, i) => <Skeleton key={i} className="h-24" />)}</div>
       ) : data?.data?.length ? (
         <div className="space-y-4">
-          {data.data.map((activity: any) => (
+          {(Array.isArray(data.data) ? [...new Map(data.data.map((a: any) => [a.id, a])).values()] : []).map((activity: any) => (
             <Card key={activity.id} className="hover:border-primary/20 transition-colors">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
