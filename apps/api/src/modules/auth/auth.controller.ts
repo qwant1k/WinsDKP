@@ -65,12 +65,20 @@ export class AuthController {
     return this.authService.requestPasswordReset(email);
   }
 
+  @Post('verify-reset-code')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Verify 6-digit reset code' })
+  async verifyResetCode(@Body('email') email: string, @Body('code') code: string) {
+    return this.authService.verifyResetCode(email, code);
+  }
+
   @Post('reset-password')
   @Public()
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Reset password with token' })
-  async resetPassword(@Body('token') token: string, @Body('password') password: string) {
-    return this.authService.resetPassword(token, password);
+  @ApiOperation({ summary: 'Reset password with email + code' })
+  async resetPassword(@Body('email') email: string, @Body('code') code: string, @Body('password') password: string) {
+    return this.authService.resetPassword(email, code, password);
   }
 
   @Post('change-password')

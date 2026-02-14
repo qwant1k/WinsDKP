@@ -207,44 +207,43 @@ export class AuthService {
 
   async requestPasswordReset(email: string) {
     const user = await this.prisma.user.findUnique({ where: { email } });
-    if (!user) return { message: 'If the email exists, a reset link has been sent.' };
+    if (!user) return { message: 'Если email существует, код отправлен.' };
 
-    const resetToken = crypto.randomUUID();
-    const resetTokenExp = new Date(Date.now() + 3600000);
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const resetTokenExp = new Date(Date.now() + 15 * 60 * 1000);
 
     await this.prisma.user.update({
       where: { id: user.id },
-      data: { resetToken, resetTokenExp },
+      data: { resetToken: code, resetTokenExp },
     });
 
-    const webUrl = this.config.get<string>('WEB_URL', 'http://localhost:5173');
-    const resetLink = `${webUrl}/reset-password?token=${resetToken}`;
+    await this.sendEmail(
+      email,
+      'Ymir Hub — Код для сброса пароля',
+      `<div style="font-family:sans-serif;max-width:400px;margin:0 auto;padding:20px">
+        <h2 style="color:#c9a227">Сброс пароля</h2>
+        <p>Ваш код подтверждения:</p>
+        <div style="font-size:32px;font-weight:bold;letter-spacing:8px;text-align:center;padding:20px;background:#1a1a2e;color:#c9a227;border-radius:8px">${code}</div>
+        <p style="color:#888;font-size:12px">Код действителен 15 минут. Если вы не запрашивали сброс — проигнорируйте это письмо.</p>
+      </div>`,
+    );
 
-    try {
-      const transporter = nodemailer.createTransport({
-        host: this.config.get<string>('SMTP_HOST', 'mailpit'),
-        port: this.config.get<number>('SMTP_PORT', 1025),
-        secure: false,
-      });
-      await transporter.sendMail({
-        from: this.config.get<string>('SMTP_FROM', 'noreply@ymir.local'),
-        to: email,
-        subject: 'Ymir Hub — Сброс пароля',
-        html: `<p>Для сброса пароля перейдите по ссылке:</p><p><a href="${resetLink}">${resetLink}</a></p><p>Ссылка действительна 1 час.</p>`,
-      });
-      this.logger.log(`Password reset email sent to ${email}`);
-    } catch (err) {
-      this.logger.warn(`Failed to send reset email to ${email}: ${err}`);
-    }
-
-    return { message: 'If the email exists, a reset link has been sent.' };
+    return { message: 'Если email существует, код отправлен.' };
   }
 
-  async resetPassword(token: string, newPassword: string) {
+  async verifyResetCode(email: string, code: string) {
     const user = await this.prisma.user.findFirst({
-      where: { resetToken: token, resetTokenExp: { gt: new Date() } },
+      where: { email, resetToken: code, resetTokenExp: { gt: new Date() } },
     });
-    if (!user) throw new BadRequestException('Invalid or expired reset token');
+    if (!user) throw new BadRequestException('Неверный или просроченный код');
+    return { valid: true };
+  }
+
+  async resetPassword(email: string, code: string, newPassword: string) {
+    const user = await this.prisma.user.findFirst({
+      where: { email, resetToken: code, resetTokenExp: { gt: new Date() } },
+    });
+    if (!user) throw new BadRequestException('Неверный или просроченный код');
 
     const passwordHash = await this.hashPassword(newPassword);
 
@@ -258,7 +257,34 @@ export class AuthService {
       data: { revokedAt: new Date() },
     });
 
-    return { message: 'Password reset successfully' };
+    return { message: 'Пароль успешно изменён' };
+  }
+
+  private async sendEmail(to: string, subject: string, html: string) {
+    try {
+      const smtpHost = this.config.get<string>('SMTP_HOST', 'mailpit');
+      const smtpPort = Number(this.config.get<number>('SMTP_PORT', 1025));
+      const smtpUser = this.config.get<string>('SMTP_USER', '');
+      const smtpPass = this.config.get<string>('SMTP_PASS', '');
+      const smtpSecure = this.config.get<string>('SMTP_SECURE', 'false') === 'true';
+
+      const transporter = nodemailer.createTransport({
+        host: smtpHost,
+        port: smtpPort,
+        secure: smtpSecure,
+        ...(smtpUser ? { auth: { user: smtpUser, pass: smtpPass } } : {}),
+      });
+
+      await transporter.sendMail({
+        from: this.config.get<string>('SMTP_FROM', 'noreply@ymir.local'),
+        to,
+        subject,
+        html,
+      });
+      this.logger.log(`Email sent to ${to}: ${subject}`);
+    } catch (err) {
+      this.logger.warn(`Failed to send email to ${to}: ${err}`);
+    }
   }
 
   async changePassword(userId: string, oldPassword: string, newPassword: string) {

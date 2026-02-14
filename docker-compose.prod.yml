@@ -1,0 +1,40 @@
+services:
+  migrate:
+    build:
+      target: development
+  api:
+    build:
+      target: production
+    volumes: []
+    environment:
+      NODE_OPTIONS: --max-old-space-size=384
+    mem_limit: 512m
+    memswap_limit: 768m
+  worker:
+    build:
+      target: production
+    command: ["node", "dist/src/worker.js"]
+    volumes: []
+    environment:
+      NODE_OPTIONS: --max-old-space-size=256
+    mem_limit: 384m
+    memswap_limit: 512m
+  web:
+    build:
+      target: production
+    volumes: []
+    mem_limit: 128m
+  postgres:
+    command: postgres -c shared_buffers=48MB -c work_mem=2MB -c maintenance_work_mem=24MB -c effective_cache_size=96MB -c max_connections=30
+    mem_limit: 256m
+    memswap_limit: 384m
+  redis:
+    command: redis-server --maxmemory 24mb --maxmemory-policy allkeys-lru --save ""
+    mem_limit: 64m
+  minio:
+    mem_limit: 192m
+    memswap_limit: 256m
+  nginx:
+    mem_limit: 64m
+  mailpit:
+    mem_limit: 64m

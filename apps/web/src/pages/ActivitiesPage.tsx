@@ -49,41 +49,64 @@ export function ActivitiesPage() {
     enabled: !!clanId,
   });
 
+  const refetchActivities = () => queryClient.invalidateQueries({ queryKey: ['activities', clanId], exact: true });
+
   const createMutation = useMutation({
     mutationFn: async () => (await api.post(`/clans/${clanId}/activities`, { ...form, baseDkp: Number(form.baseDkp) })).data,
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['activities'] }); setShowCreate(false); toast.success('Активность создана'); },
+    onSuccess: () => { refetchActivities(); setShowCreate(false); toast.success('Активность создана'); },
     onError: (e) => toast.error(getErrorMessage(e)),
   });
 
   const statusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => (await api.patch(`/clans/${clanId}/activities/${id}/status`, { status })).data,
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['activities'] }); toast.success('Статус обновлён'); },
+    onSuccess: (_data, vars) => {
+      queryClient.setQueryData(['activities', clanId], (old: any) => {
+        if (!old?.data) return old;
+        return { ...old, data: old.data.map((a: any) => a.id === vars.id ? { ...a, status: vars.status } : a) };
+      });
+      refetchActivities();
+      toast.success('Статус обновлён');
+    },
     onError: (e) => toast.error(getErrorMessage(e)),
   });
 
   const joinMutation = useMutation({
     mutationFn: async (id: string) => (await api.post(`/clans/${clanId}/activities/${id}/join`)).data,
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['activities'] }); toast.success('Вы присоединились'); },
+    onSuccess: () => { refetchActivities(); toast.success('Вы присоединились'); },
     onError: (e) => toast.error(getErrorMessage(e)),
   });
 
   const completeMutation = useMutation({
     mutationFn: async (id: string) => (await api.post(`/clans/${clanId}/activities/${id}/complete`)).data,
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['activities'] }); toast.success('Активность завершена, DKP начислены'); },
+    onSuccess: (_data, id) => {
+      queryClient.setQueryData(['activities', clanId], (old: any) => {
+        if (!old?.data) return old;
+        return { ...old, data: old.data.map((a: any) => a.id === id ? { ...a, status: 'COMPLETED' } : a) };
+      });
+      refetchActivities();
+      toast.success('Активность завершена, DKP начислены');
+    },
     onError: (e) => toast.error(getErrorMessage(e)),
   });
 
   const cancelMutation = useMutation({
     mutationFn: async (id: string) => (await api.patch(`/clans/${clanId}/activities/${id}/status`, { status: 'CANCELLED' })).data,
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['activities'] }); toast.success('Активность отменена'); },
+    onSuccess: (_data, id) => {
+      queryClient.setQueryData(['activities', clanId], (old: any) => {
+        if (!old?.data) return old;
+        return { ...old, data: old.data.map((a: any) => a.id === id ? { ...a, status: 'CANCELLED' } : a) };
+      });
+      refetchActivities();
+      toast.success('Активность отменена');
+    },
     onError: (e) => toast.error(getErrorMessage(e)),
   });
 
   const updateDkpMutation = useMutation({
     mutationFn: async ({ id, baseDkp }: { id: string; baseDkp: number }) => (await api.patch(`/clans/${clanId}/activities/${id}`, { baseDkp })).data,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['activities'] });
-      queryClient.invalidateQueries({ queryKey: ['activity-detail'] });
+      refetchActivities();
+      queryClient.invalidateQueries({ queryKey: ['activity-detail', expandedActivity], exact: true });
       setEditingDkp(null);
       toast.success('BaseDKP обновлен');
     },
