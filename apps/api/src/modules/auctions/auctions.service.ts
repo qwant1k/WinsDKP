@@ -306,6 +306,16 @@ export class AuctionsService {
         }
       }
 
+      await tx.auditLog.create({
+        data: {
+          actorId: userId,
+          action: 'auction.bid.created',
+          entityType: 'lot',
+          entityId: lotId,
+          after: { amount, lotId, auctionId: lot.auctionId, itemName: lot.warehouseItem?.name },
+        },
+      });
+
       this.socket.emitToAuction(lot.auctionId, 'auction.bid.created', {
         lotId,
         bidId: bid.id,
@@ -477,6 +487,16 @@ export class AuctionsService {
           status: AuctionStatus.COMPLETED,
         });
       }
+
+      await tx.auditLog.create({
+        data: {
+          actorId,
+          action: 'auction.lot.finished',
+          entityType: 'lot',
+          entityId: lotId,
+          after: { status: winningBid ? 'sold' : 'unsold', itemName: lot.warehouseItem?.name, finalPrice: winningBid ? Number(winningBid.amount) : null },
+        },
+      });
 
       return { lot, nextLotId: nextLot?.id || null };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });

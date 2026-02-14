@@ -6,20 +6,27 @@ const ACTION_DESCRIPTIONS: Record<string, string> = {
   'admin.user.created': 'создал нового пользователя',
   'admin.user.updated': 'обновил данные пользователя',
   'admin.user.deleted': 'удалил пользователя',
+  'admin.user.password_reset': 'сбросил пароль пользователя',
   'admin.clan.created': 'создал новый клан',
   'admin.setting.updated': 'изменил системную настройку',
   'admin.impersonate': 'вошёл от имени пользователя',
   'admin.coefficients.power.updated': 'обновил коэффициенты БМ',
   'admin.coefficients.level.updated': 'обновил коэффициенты уровня',
+  'user.registered': 'зарегистрировался в системе',
+  'user.login': 'вошёл в систему',
+  'clan.join_request.created': 'подал заявку на вступление в клан',
   'clan.join_request.approved': 'одобрил заявку на вступление в клан',
   'clan.join_request.rejected': 'отклонил заявку на вступление в клан',
   'clan.member.role_changed': 'изменил роль участника клана',
   'clan.member.kicked': 'исключил участника из клана',
   'dkp.credit': 'начислил DKP',
   'dkp.debit': 'списал DKP',
+  'dkp.hold': 'заморозил DKP',
+  'dkp.hold.released': 'разморозил DKP',
   'dkp.penalty.issued': 'выдал штраф DKP',
   'auction.created': 'создал аукцион',
   'auction.started': 'запустил аукцион',
+  'auction.bid.created': 'сделал ставку на аукционе',
   'auction.lot.finished': 'завершил лот аукциона',
   'randomizer.session.created': 'создал сессию рандомайзера',
   'randomizer.draw.completed': 'провёл розыгрыш рандомайзера',
@@ -36,8 +43,11 @@ const ACTION_DESCRIPTIONS: Record<string, string> = {
   'feed.created': 'опубликовал запись в ленте',
   'feed.deleted': 'удалил запись из ленты',
   'activity.created': 'создал активность',
+  'activity.updated': 'обновил активность',
   'activity.started': 'запустил активность',
+  'activity.status_changed': 'изменил статус активности',
   'activity.completed': 'завершил активность',
+  'activity.completed_and_rewarded': 'завершил и наградил участников',
   'message.sent': 'отправил личное сообщение',
 };
 
@@ -85,6 +95,7 @@ export class AuditService {
     if (query.actorId) where['actorId'] = query.actorId;
     if (query.entityType) where['entityType'] = query.entityType;
     if (query.action) where['action'] = { contains: query.action, mode: 'insensitive' };
+    if (query.category) where['action'] = { startsWith: query.category + '.', mode: 'insensitive' };
     if (query.from || query.to) {
       where['createdAt'] = {
         ...(query.from ? { gte: new Date(query.from) } : {}),
@@ -98,13 +109,17 @@ export class AuditService {
       ];
     }
 
+    const page = Number(query.page) || 1;
+    const limit = Number(query.limit) || 30;
+    const skip = (page - 1) * limit;
+
     const [logs, total] = await Promise.all([
       this.prisma.auditLog.findMany({
         where,
         include: { actor: { include: { profile: true } } },
         orderBy: { createdAt: 'desc' },
-        skip: query.skip,
-        take: query.limit,
+        skip,
+        take: limit,
       }),
       this.prisma.auditLog.count({ where }),
     ]);
@@ -117,7 +132,7 @@ export class AuditService {
       categoryLabel: CATEGORY_MAP[log.action.split('.')[0] || ''] || 'Система',
     }));
 
-    return new PaginatedResponse(enrichedLogs, total, query.page, query.limit);
+    return new PaginatedResponse(enrichedLogs, total, page, limit);
   }
 
   async getEventLogs(query: PaginationDto & { category?: string; entityType?: string; from?: string; to?: string }) {

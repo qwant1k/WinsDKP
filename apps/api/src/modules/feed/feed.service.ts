@@ -52,10 +52,12 @@ export class FeedService {
   }
 
   async create(clanId: string, authorId: string, content: string) {
-    return this.prisma.feedPost.create({
+    const post = await this.prisma.feedPost.create({
       data: { clanId, authorId, content },
       include: { author: { include: { profile: true } } },
     });
+    await this.prisma.auditLog.create({ data: { actorId: authorId, action: 'feed.created', entityType: 'feed_post', entityId: post.id, after: { content: content.slice(0, 100) } } });
+    return post;
   }
 
   async update(id: string, actorId: string, content: string) {
@@ -73,6 +75,7 @@ export class FeedService {
       where: { id },
       data: { deletedAt: new Date() },
     });
+    await this.prisma.auditLog.create({ data: { actorId, action: 'feed.deleted', entityType: 'feed_post', entityId: id } });
     return { message: 'Post deleted' };
   }
 

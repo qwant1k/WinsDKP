@@ -57,19 +57,9 @@ export function AdminAuditPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['admin', 'audit', viewMode, search, category, dateFrom, dateTo, page],
     queryFn: async () => {
-      if (viewMode === 'friendly') {
-        return (await api.get('/audit/events', { params: {
-          search: search || undefined,
-          category: category || undefined,
-          from: dateFrom || undefined,
-          to: dateTo || undefined,
-          page,
-          limit: 30,
-        }})).data;
-      }
       return (await api.get('/audit', { params: {
         search: search || undefined,
-        entityType: category || undefined,
+        category: category || undefined,
         from: dateFrom || undefined,
         to: dateTo || undefined,
         page,
@@ -135,25 +125,33 @@ export function AdminAuditPage() {
                   const cat = log.category || 'system';
                   const Icon = categoryIcons[cat] || ScrollText;
                   const colorClass = categoryColors[cat] || 'text-muted-foreground bg-secondary';
+                  const actorName = log.actor?.profile?.nickname || log.actor?.email || 'Система';
                   return (
                     <div key={log.id} className="flex items-start gap-4 px-4 py-3 hover:bg-accent/10 transition-colors">
                       <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${colorClass}`}>
                         <Icon className="h-4 w-4" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm">{log.description}</p>
+                        <p className="text-sm">
+                          <span className="font-medium">{actorName}</span>
+                          {' '}
+                          <span className="text-muted-foreground">{log.actionLabel || log.action}</span>
+                        </p>
                         <div className="mt-1 flex flex-wrap items-center gap-2">
-                          {log.entityName && (
-                            <Badge variant="outline" className="text-[10px]">{log.entityName}</Badge>
-                          )}
+                          <Badge variant="outline" className={`text-[10px] ${categoryColors[cat] || ''}`}>
+                            {log.categoryLabel || cat}
+                          </Badge>
                           <Badge variant="outline" className={`text-[10px] ${getActionBadgeColor(log.action)}`}>
                             {log.action}
                           </Badge>
+                          {log.entityType && (
+                            <Badge variant="outline" className="text-[10px]">{log.entityTypeLabel || log.entityType}</Badge>
+                          )}
                         </div>
                       </div>
                       <div className="text-right shrink-0">
                         <p className="text-xs text-muted-foreground whitespace-nowrap">{formatDateTime(log.createdAt)}</p>
-                        <p className="text-[10px] text-muted-foreground">{log.actorName}</p>
+                        {log.ip && <p className="text-[10px] text-muted-foreground font-mono">{log.ip}</p>}
                       </div>
                     </div>
                   );

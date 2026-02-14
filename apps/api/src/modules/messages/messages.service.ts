@@ -115,6 +115,8 @@ export class MessagesService {
       content,
     });
 
+    await this.prisma.auditLog.create({ data: { actorId: senderId, action: 'message.sent', entityType: 'direct_message', entityId: message.id } });
+
     return message;
   }
 
