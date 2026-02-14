@@ -23,6 +23,7 @@ COPY --from=dependencies /app/apps/api/node_modules ./apps/api/node_modules
 COPY . .
 WORKDIR /app/apps/api
 RUN npx prisma generate
+ENV NODE_OPTIONS="--max-old-space-size=512"
 RUN pnpm build
 
 FROM base AS production
