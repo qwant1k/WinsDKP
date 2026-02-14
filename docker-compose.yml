@@ -101,7 +101,12 @@ services:
       REDIS_URL: redis://redis:6379
       REDIS_HOST: redis
       MINIO_ENDPOINT: minio
-      SMTP_HOST: mailpit
+      SMTP_HOST: ${SMTP_HOST:-mailpit}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_FROM: ${SMTP_FROM:-noreply@ymir.local}
     ports:
       - "${APP_PORT:-3000}:3000"
     volumes:
@@ -132,7 +137,12 @@ services:
       REDIS_URL: redis://redis:6379
       REDIS_HOST: redis
       MINIO_ENDPOINT: minio
-      SMTP_HOST: mailpit
+      SMTP_HOST: ${SMTP_HOST:-mailpit}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_FROM: ${SMTP_FROM:-noreply@ymir.local}
     volumes:
       - ./apps/api/src:/app/apps/api/src
       - ./packages:/app/packages
