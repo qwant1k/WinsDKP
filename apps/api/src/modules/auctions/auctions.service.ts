@@ -212,6 +212,7 @@ export class AuctionsService {
         include: {
           auction: true,
           bids: { orderBy: { amount: 'desc' }, take: 1 },
+          warehouseItem: true,
         },
       });
 
