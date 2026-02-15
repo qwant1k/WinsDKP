@@ -7,34 +7,50 @@ services:
       target: production
     volumes: []
     environment:
-      NODE_OPTIONS: --max-old-space-size=384
-    mem_limit: 512m
-    memswap_limit: 768m
+      NODE_OPTIONS: --max-old-space-size=256
+      UV_THREADPOOL_SIZE: "2"
+    mem_limit: 384m
+    memswap_limit: 512m
   worker:
     build:
       target: production
     command: ["node", "dist/src/worker.js"]
     volumes: []
     environment:
-      NODE_OPTIONS: --max-old-space-size=256
-    mem_limit: 384m
-    memswap_limit: 512m
+      NODE_OPTIONS: --max-old-space-size=128
+      UV_THREADPOOL_SIZE: "2"
+    mem_limit: 192m
+    memswap_limit: 256m
   web:
     build:
       target: production
     volumes: []
-    mem_limit: 128m
-  postgres:
-    command: postgres -c shared_buffers=48MB -c work_mem=2MB -c maintenance_work_mem=24MB -c effective_cache_size=96MB -c max_connections=30
-    mem_limit: 256m
-    memswap_limit: 384m
-  redis:
-    command: redis-server --maxmemory 24mb --maxmemory-policy allkeys-lru --save ""
     mem_limit: 64m
-  minio:
+  postgres:
+    command: >-
+      postgres
+      -c shared_buffers=32MB
+      -c work_mem=1MB
+      -c maintenance_work_mem=16MB
+      -c effective_cache_size=64MB
+      -c max_connections=20
+      -c idle_in_transaction_session_timeout=30000
+      -c statement_timeout=30000
+      -c wal_buffers=2MB
+      -c checkpoint_completion_target=0.9
+      -c random_page_cost=1.1
     mem_limit: 192m
     memswap_limit: 256m
+  redis:
+    command: redis-server --maxmemory 16mb --maxmemory-policy allkeys-lru --save "" --tcp-backlog 128 --hz 10
+    mem_limit: 48m
+  minio:
+    environment:
+      MINIO_API_REQUESTS_MAX: "10"
+      GOGC: "50"
+    mem_limit: 128m
+    memswap_limit: 160m
   nginx:
-    mem_limit: 64m
+    mem_limit: 32m
   mailpit:
-    mem_limit: 64m
+    mem_limit: 32m

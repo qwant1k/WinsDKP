@@ -26,10 +26,27 @@ RUN npx prisma generate
 ENV NODE_OPTIONS="--max-old-space-size=512"
 RUN pnpm build
 
-FROM base AS production
-ENV NODE_ENV=production
+FROM base AS pruner
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/apps/api/node_modules ./apps/api/node_modules
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
+COPY --from=builder /app/apps/api/package.json ./apps/api/package.json
+COPY --from=builder /app/pnpm-lock.yaml* ./
+RUN pnpm prune --prod --no-optional 2>/dev/null || true && \
+    rm -rf node_modules/.cache node_modules/.pnpm/*/node_modules/typescript \
+    node_modules/.pnpm/*/node_modules/@types \
+    node_modules/.pnpm/*/node_modules/prettier \
+    node_modules/.pnpm/*/node_modules/eslint* \
+    node_modules/.pnpm/*/node_modules/@swc/core-linux-arm64* \
+    node_modules/.pnpm/*/node_modules/@swc/core-win32* \
+    node_modules/.pnpm/*/node_modules/@swc/core-darwin*
+
+FROM node:24-alpine AS production
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=pruner /app/node_modules ./node_modules
+COPY --from=pruner /app/apps/api/node_modules ./apps/api/node_modules
 COPY --from=builder /app/apps/api/dist ./dist
 COPY --from=builder /app/apps/api/prisma ./prisma
 COPY --from=builder /app/apps/api/package.json ./
