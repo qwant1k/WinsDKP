@@ -1,56 +1,76 @@
+## ===========================================
+## Production overrides — total target: ~1GB RAM
+## ===========================================
+## Budget:  API 220m + Worker 120m + Postgres 150m
+##          MinIO 96m + Redis 32m + Web 16m
+##          Nginx 16m + Mailpit 24m = ~674m limits
+##          Real usage typically 450-650MB
+## ===========================================
+
 services:
   migrate:
     build:
       target: development
+    mem_limit: 256m
+
   api:
     build:
       target: production
     volumes: []
     environment:
-      NODE_OPTIONS: --max-old-space-size=256
+      NODE_OPTIONS: --max-old-space-size=180
       UV_THREADPOOL_SIZE: "2"
-    mem_limit: 384m
-    memswap_limit: 512m
+    mem_limit: 220m
+    memswap_limit: 320m
+
   worker:
     build:
       target: production
     command: ["node", "dist/src/worker.js"]
     volumes: []
     environment:
-      NODE_OPTIONS: --max-old-space-size=128
+      NODE_OPTIONS: --max-old-space-size=80
       UV_THREADPOOL_SIZE: "2"
-    mem_limit: 192m
-    memswap_limit: 256m
+    mem_limit: 120m
+    memswap_limit: 180m
+
   web:
     build:
       target: production
     volumes: []
-    mem_limit: 64m
+    mem_limit: 16m
+
   postgres:
     command: >-
       postgres
-      -c shared_buffers=32MB
-      -c work_mem=1MB
-      -c maintenance_work_mem=16MB
-      -c effective_cache_size=64MB
-      -c max_connections=20
-      -c idle_in_transaction_session_timeout=30000
-      -c statement_timeout=30000
-      -c wal_buffers=2MB
+      -c shared_buffers=24MB
+      -c work_mem=512kB
+      -c maintenance_work_mem=8MB
+      -c effective_cache_size=48MB
+      -c max_connections=15
+      -c idle_in_transaction_session_timeout=15000
+      -c statement_timeout=20000
+      -c wal_buffers=1MB
       -c checkpoint_completion_target=0.9
       -c random_page_cost=1.1
-    mem_limit: 192m
-    memswap_limit: 256m
+      -c temp_buffers=2MB
+      -c log_min_duration_statement=2000
+    mem_limit: 150m
+    memswap_limit: 200m
+
   redis:
-    command: redis-server --maxmemory 16mb --maxmemory-policy allkeys-lru --save "" --tcp-backlog 128 --hz 10
-    mem_limit: 48m
+    command: redis-server --maxmemory 10mb --maxmemory-policy allkeys-lru --save "" --tcp-backlog 64 --hz 10 --io-threads 1
+    mem_limit: 32m
+
   minio:
     environment:
-      MINIO_API_REQUESTS_MAX: "10"
-      GOGC: "50"
-    mem_limit: 128m
-    memswap_limit: 160m
+      MINIO_API_REQUESTS_MAX: "5"
+      GOGC: "30"
+    mem_limit: 96m
+    memswap_limit: 128m
+
   nginx:
-    mem_limit: 32m
+    mem_limit: 16m
+
   mailpit:
-    mem_limit: 32m
+    mem_limit: 24m
