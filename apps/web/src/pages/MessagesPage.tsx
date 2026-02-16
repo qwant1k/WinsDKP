@@ -50,7 +50,7 @@ export function MessagesPage() {
   if (threadUserId) {
     const otherUser = conversations?.find((c: any) => c.userId === threadUserId);
     return (
-      <div className="flex flex-col h-[calc(100vh-7rem)]">
+      <div className="flex flex-col h-[calc(100vh-5rem)] sm:h-[calc(100vh-7rem)]">
         <div className="flex items-center gap-3 pb-4 border-b border-border">
           <Button variant="ghost" size="icon" onClick={() => navigate('/messages')}>
             <ArrowLeft className="h-4 w-4" />
@@ -76,7 +76,7 @@ export function MessagesPage() {
                 animate={{ opacity: 1, y: 0 }}
                 className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}
               >
-                <div className={`max-w-[70%] rounded-2xl px-4 py-2.5 ${
+                <div className={`max-w-[85%] sm:max-w-[70%] rounded-2xl px-3 sm:px-4 py-2 sm:py-2.5 ${
                   isMine
                     ? 'bg-primary/20 text-foreground rounded-br-md'
                     : 'bg-secondary text-foreground rounded-bl-md'
@@ -111,7 +111,7 @@ export function MessagesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-display text-3xl font-bold">Сообщения</h1>
+        <h1 className="font-display text-xl sm:text-2xl md:text-3xl font-bold">Сообщения</h1>
         <p className="mt-1 text-muted-foreground">Личные сообщения между игроками</p>
       </div>
 

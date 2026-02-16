@@ -86,14 +86,14 @@ export function WarehousePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-display text-3xl font-bold">Хранилище клана</h1>
-          <p className="mt-1 text-muted-foreground">Справочник предметов и инвентарь</p>
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <h1 className="font-display text-xl sm:text-2xl md:text-3xl font-bold">Хранилище клана</h1>
+          <p className="mt-1 text-sm text-muted-foreground hidden sm:block">Справочник предметов и инвентарь</p>
         </div>
         {canManage && (
-          <Button variant="gold" onClick={() => setShowCreate(!showCreate)}>
-            <Plus className="h-4 w-4" /> Добавить
+          <Button variant="gold" size="sm" className="shrink-0" onClick={() => setShowCreate(!showCreate)}>
+            <Plus className="h-4 w-4" /> <span className="hidden sm:inline">Добавить</span>
           </Button>
         )}
       </div>
@@ -149,9 +149,9 @@ export function WarehousePage() {
       )}
 
       {isLoading ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">{[...Array(6)].map((_, i) => <Skeleton key={i} className="h-36" />)}</div>
+        <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">{[...Array(6)].map((_, i) => <Skeleton key={i} className="h-36" />)}</div>
       ) : data?.data?.length ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           {data.data
             .sort((a: any, b: any) => (rarityOrder[a.rarity] ?? 99) - (rarityOrder[b.rarity] ?? 99))
             .map((item: any, i: number) => (

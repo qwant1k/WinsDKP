@@ -40,16 +40,16 @@ export function AuctionsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-display text-3xl font-bold">Аукционы</h1>
-          <p className="mt-1 text-muted-foreground">Распределение лута через честные аукционы</p>
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <h1 className="font-display text-xl sm:text-2xl md:text-3xl font-bold">Аукционы</h1>
+          <p className="mt-1 text-sm text-muted-foreground hidden sm:block">Распределение лута через честные аукционы</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 shrink-0">
           <Link to="/rules/auction"><Button variant="outline" size="sm">Правила</Button></Link>
           {canManage && (
-            <Button variant="gold" onClick={() => setShowCreate(!showCreate)}>
-              <Plus className="h-4 w-4" /> Создать
+            <Button variant="gold" size="sm" onClick={() => setShowCreate(!showCreate)}>
+              <Plus className="h-4 w-4" /> <span className="hidden sm:inline">Создать</span>
             </Button>
           )}
         </div>

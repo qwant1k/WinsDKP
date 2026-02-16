@@ -60,7 +60,7 @@ export function JoinClanPage() {
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-gold-400 to-gold-600 shadow-lg shadow-gold-500/20">
             <Shield className="h-8 w-8 text-black" />
           </div>
-          <h1 className="font-display text-3xl font-bold gradient-gold">Добро пожаловать, {user?.profile?.nickname || 'Воин'}!</h1>
+          <h1 className="font-display text-xl sm:text-2xl md:text-3xl font-bold gradient-gold">Добро пожаловать, {user?.profile?.nickname || 'Воин'}!</h1>
           <p className="mt-2 text-muted-foreground">Для начала работы вступите в клан. Выберите клан и отправьте заявку.</p>
         </div>
 
@@ -107,10 +107,10 @@ export function JoinClanPage() {
                         className={`cursor-pointer transition-all ${isSelected ? 'border-primary ring-1 ring-primary/30' : 'hover:border-primary/20'}`}
                         onClick={() => !isPending && setSelectedClan(isSelected ? null : clan.id)}
                       >
-                        <CardContent className="flex items-center justify-between p-4">
-                          <div className="flex items-center gap-4">
-                            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-                              <Shield className="h-6 w-6 text-primary" />
+                        <CardContent className="flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between p-4">
+                          <div className="flex items-center gap-3 sm:gap-4">
+                            <div className="flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                              <Shield className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
                             </div>
                             <div>
                               <div className="flex items-center gap-2">

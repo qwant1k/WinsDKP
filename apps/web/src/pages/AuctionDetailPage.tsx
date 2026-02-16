@@ -185,12 +185,15 @@ export function AuctionDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-display text-2xl font-bold">{auction.title}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{auction.description}</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <h1 className="font-display text-lg sm:text-2xl font-bold truncate">{auction.title}</h1>
+            <Badge variant="outline" className={`shrink-0 ${getStatusColor(auction.status)}`}>{getStatusLabel(auction.status)}</Badge>
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground hidden sm:block">{auction.description}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap shrink-0">
           {!isParticipant && auction.status !== 'DRAFT' && (
             <Button variant="gold" size="sm" onClick={() => joinMutation.mutate()} disabled={joinMutation.isPending}>
               <Users className="h-4 w-4" /> Присоединиться
@@ -199,19 +202,18 @@ export function AuctionDetailPage() {
           {canManage && auction.status === 'DRAFT' && (
             <>
               <Button variant="outline" size="sm" onClick={() => setShowAddLot(!showAddLot)}>
-                <Plus className="h-4 w-4" /> Добавить лот
+                <Plus className="h-4 w-4" /> <span className="hidden sm:inline">Добавить</span> лот
               </Button>
               <Button variant="gold" size="sm" onClick={() => startMutation.mutate()} disabled={startMutation.isPending || !auction.lots?.length}>
-                <Play className="h-4 w-4" /> Запустить аукцион
+                <Play className="h-4 w-4" /> Запустить
               </Button>
             </>
           )}
           {canManage && auction.status === 'ACTIVE' && (
             <Button variant="outline" size="sm" onClick={() => setShowAddLot(!showAddLot)}>
-              <Plus className="h-4 w-4" /> Добавить лот
+              <Plus className="h-4 w-4" /> <span className="hidden sm:inline">Добавить</span> лот
             </Button>
           )}
-          <Badge variant="outline" className={getStatusColor(auction.status)}>{getStatusLabel(auction.status)}</Badge>
         </div>
       </div>
 
@@ -266,16 +268,16 @@ export function AuctionDetailPage() {
                 const winner = result?.winner;
                 const isSold = lot.status === 'SOLD';
                 return (
-                  <div key={lot.id} className={`flex items-center justify-between rounded-lg border px-4 py-3 ${isSold ? 'border-green-500/20 bg-green-500/5' : 'border-border/30'}`}>
-                    <div className="flex items-center gap-3">
-                      <span className={`font-medium ${getRarityClass(lot.warehouseItem?.rarity)}`}>{lot.warehouseItem?.name}</span>
-                      <span className="text-xs text-muted-foreground">x{lot.quantity}</span>
+                  <div key={lot.id} className={`flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-lg border px-3 sm:px-4 py-3 ${isSold ? 'border-green-500/20 bg-green-500/5' : 'border-border/30'}`}>
+                    <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                      <span className={`font-medium text-sm truncate ${getRarityClass(lot.warehouseItem?.rarity)}`}>{lot.warehouseItem?.name}</span>
+                      <span className="text-xs text-muted-foreground shrink-0">x{lot.quantity}</span>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                       {isSold && result ? (
                         <>
-                          <div className="flex items-center gap-2">
-                            <Crown className="h-4 w-4 text-gold-400" />
+                          <div className="flex items-center gap-1.5">
+                            <Crown className="h-3.5 w-3.5 text-gold-400" />
                             <span className="text-sm font-bold text-gold-400">{winner?.profile?.nickname || result.winnerId?.slice(0, 8)}</span>
                           </div>
                           <span className="font-mono text-sm text-green-400">{formatDkp(result.finalPrice || lot.currentPrice)}</span>
@@ -293,7 +295,7 @@ export function AuctionDetailPage() {
         </Card>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-4 sm:gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-4">
           {activeLot ? (
             <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }}>
@@ -321,18 +323,18 @@ export function AuctionDetailPage() {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="grid grid-cols-3 gap-4 text-center">
+                  <div className="grid grid-cols-3 gap-2 sm:gap-4 text-center">
                     <div className="rounded-lg bg-background/50 p-3">
                       <p className="text-xs text-muted-foreground">Текущая цена</p>
-                      <p className="text-2xl font-bold text-gold-400">{formatDkp(currentPrice)}</p>
+                      <p className="text-lg sm:text-2xl font-bold text-gold-400">{formatDkp(currentPrice)}</p>
                     </div>
-                    <div className="rounded-lg bg-background/50 p-3">
-                      <p className="text-xs text-muted-foreground">Мин. ставка</p>
-                      <p className="text-2xl font-bold">{formatDkp(minBid)}</p>
+                    <div className="rounded-lg bg-background/50 p-2 sm:p-3">
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">Мин. ставка</p>
+                      <p className="text-lg sm:text-2xl font-bold">{formatDkp(minBid)}</p>
                     </div>
-                    <div className="rounded-lg bg-background/50 p-3">
-                      <p className="text-xs text-muted-foreground">Ставок</p>
-                      <p className="text-2xl font-bold">{activeLot.bids?.length || 0}</p>
+                    <div className="rounded-lg bg-background/50 p-2 sm:p-3">
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">Ставок</p>
+                      <p className="text-lg sm:text-2xl font-bold">{activeLot.bids?.length || 0}</p>
                     </div>
                   </div>
 
@@ -408,12 +410,12 @@ export function AuctionDetailPage() {
                   const lotResult = lot.result;
                   const isSold = lot.status === 'SOLD';
                   return (
-                    <div key={lot.id} className={`flex items-center justify-between rounded-lg border px-3 py-2 ${lot.status === 'ACTIVE' ? 'border-primary/30 bg-primary/5' : isSold ? 'border-green-500/20 bg-green-500/5' : 'border-border/30'}`}>
-                      <div className="flex items-center gap-3">
-                        <span className={`text-sm font-medium ${getRarityClass(lot.warehouseItem?.rarity)}`}>{lot.warehouseItem?.name}</span>
-                        <span className="text-xs text-muted-foreground">x{lot.quantity}</span>
+                    <div key={lot.id} className={`flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 rounded-lg border px-3 py-2 ${lot.status === 'ACTIVE' ? 'border-primary/30 bg-primary/5' : isSold ? 'border-green-500/20 bg-green-500/5' : 'border-border/30'}`}>
+                      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                        <span className={`text-sm font-medium truncate ${getRarityClass(lot.warehouseItem?.rarity)}`}>{lot.warehouseItem?.name}</span>
+                        <span className="text-xs text-muted-foreground shrink-0">x{lot.quantity}</span>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 shrink-0">
                         {isSold && lotResult && (
                           <span className="text-[10px] text-gold-400 font-medium">
                             <Crown className="h-3 w-3 inline mr-1" />
@@ -432,7 +434,7 @@ export function AuctionDetailPage() {
         </div>
 
         <div className="space-y-4">
-          <Card className="flex flex-col" style={{ height: '500px' }}>
+          <Card className="flex flex-col" style={{ height: 'min(500px, 60vh)' }}>
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-sm">
                 <MessageSquare className="h-4 w-4" /> Чат аукциона

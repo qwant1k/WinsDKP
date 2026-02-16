@@ -84,9 +84,9 @@ export function NotificationsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-display text-3xl font-bold">Уведомления</h1>
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <h1 className="font-display text-xl sm:text-2xl md:text-3xl font-bold">Уведомления</h1>
           <p className="mt-1 text-muted-foreground">
             {data?.unreadCount ? `${data.unreadCount} непрочитанных` : 'Все прочитано'}
           </p>
@@ -111,7 +111,7 @@ export function NotificationsPage() {
                   className={`cursor-pointer transition-all hover:border-primary/20 ${!notif.isRead ? 'border-l-2 border-l-primary bg-primary/5' : ''}`}
                   onClick={() => handleNotificationClick(notif)}
                 >
-                  <CardContent className="flex items-center gap-4 p-4">
+                  <CardContent className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4">
                     <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${!notif.isRead ? 'bg-primary/20' : 'bg-secondary'}`}>
                       <Icon className={`h-5 w-5 ${!notif.isRead ? 'text-primary' : 'text-muted-foreground'}`} />
                     </div>

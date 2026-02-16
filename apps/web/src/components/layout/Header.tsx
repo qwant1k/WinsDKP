@@ -1,8 +1,9 @@
-import { Bell, Search, CheckCheck, Coins, Trophy, Swords, Users, Dices, Newspaper } from 'lucide-react';
+import { Bell, Search, CheckCheck, Coins, Trophy, Swords, Users, Dices, Newspaper, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useAuthStore } from '@/stores/auth.store';
+import { useMobileMenuStore } from '@/stores/mobile-menu.store';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Link, useNavigate } from 'react-router-dom';
@@ -35,10 +36,12 @@ function getNotifLink(n: any): string | null {
 
 export function Header() {
   const { user } = useAuthStore();
+  const { toggle: toggleMenu } = useMobileMenuStore();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [showNotifs, setShowNotifs] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showMobileSearch, setShowMobileSearch] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
 
   const { data: unreadData } = useQuery({
@@ -83,8 +86,14 @@ export function Header() {
   const wallet = user?.dkpWallet;
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-card/80 px-6 backdrop-blur-md">
-      <div className="flex items-center gap-4">
+    <header className="sticky top-0 z-30 flex h-14 md:h-16 items-center justify-between border-b border-border bg-card/80 px-3 md:px-6 backdrop-blur-md">
+      <div className="flex items-center gap-2 md:gap-4">
+        {/* Mobile hamburger */}
+        <Button variant="ghost" size="icon" className="h-9 w-9 md:hidden" onClick={toggleMenu}>
+          <Menu className="h-5 w-5" />
+        </Button>
+
+        {/* Desktop search */}
         <div className="relative hidden md:block">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -100,13 +109,25 @@ export function Header() {
             }}
           />
         </div>
+
+        {/* Mobile search toggle */}
+        <Button variant="ghost" size="icon" className="h-9 w-9 md:hidden" onClick={() => setShowMobileSearch(!showMobileSearch)}>
+          <Search className="h-4 w-4" />
+        </Button>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 md:gap-4">
         {wallet && (
           <Link to="/dkp" className="hidden items-center gap-2 rounded-lg border border-gold-500/20 bg-gold-500/5 px-3 py-1.5 sm:flex">
             <span className="text-xs text-muted-foreground">DKP:</span>
             <span className="text-sm font-bold text-gold-400">{formatDkp(wallet.balance)}</span>
+          </Link>
+        )}
+
+        {wallet && (
+          <Link to="/dkp" className="flex items-center gap-1 sm:hidden">
+            <Coins className="h-4 w-4 text-gold-400" />
+            <span className="text-xs font-bold text-gold-400">{formatDkp(wallet.balance)}</span>
           </Link>
         )}
 
@@ -117,7 +138,7 @@ export function Header() {
         )}
 
         <div className="relative" ref={notifRef}>
-          <Button variant="ghost" size="icon" className="relative" onClick={() => setShowNotifs(!showNotifs)}>
+          <Button variant="ghost" size="icon" className="relative h-9 w-9" onClick={() => setShowNotifs(!showNotifs)}>
             <Bell className="h-5 w-5" />
             {unreadCount > 0 && (
               <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-white">
@@ -127,7 +148,7 @@ export function Header() {
           </Button>
 
           {showNotifs && (
-            <div className="absolute right-0 top-full mt-2 w-[380px] rounded-2xl border border-border bg-card shadow-2xl shadow-black/40 z-50">
+            <div className="absolute right-0 top-full mt-2 w-[calc(100vw-1.5rem)] sm:w-[380px] max-w-[380px] rounded-2xl border border-border bg-card shadow-2xl shadow-black/40 z-50">
               <div className="flex items-center justify-between border-b border-border px-4 py-3">
                 <h3 className="text-sm font-semibold">Уведомления</h3>
                 <div className="flex items-center gap-2">
@@ -141,7 +162,7 @@ export function Header() {
                   </Link>
                 </div>
               </div>
-              <div className="max-h-[400px] overflow-y-auto scrollbar-thin">
+              <div className="max-h-[60vh] sm:max-h-[400px] overflow-y-auto scrollbar-thin">
                 {notifData?.data?.length ? (
                   notifData.data.map((n: any) => {
                     const Icon = notifIcons[n.type] || Bell;
@@ -175,6 +196,30 @@ export function Header() {
           )}
         </div>
       </div>
+
+      {/* Mobile search bar (expandable) */}
+      {showMobileSearch && (
+        <div className="absolute left-0 top-full w-full border-b border-border bg-card p-3 md:hidden z-30">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Поиск..."
+              className="bg-background pl-9"
+              value={searchQuery}
+              autoFocus
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && searchQuery.trim().length >= 2) {
+                  navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+                  setSearchQuery('');
+                  setShowMobileSearch(false);
+                }
+              }}
+              onBlur={() => setTimeout(() => setShowMobileSearch(false), 200)}
+            />
+          </div>
+        </div>
+      )}
     </header>
   );
 }

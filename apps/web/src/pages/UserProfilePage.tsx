@@ -72,7 +72,7 @@ export function UserProfilePage() {
     <div className="space-y-6">
       <div className="flex items-center gap-3">
         <Link to="/clan"><Button variant="ghost" size="icon"><ArrowLeft className="h-4 w-4" /></Button></Link>
-        <h1 className="font-display text-3xl font-bold">Профиль игрока</h1>
+        <h1 className="font-display text-xl sm:text-2xl md:text-3xl font-bold">Профиль игрока</h1>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">

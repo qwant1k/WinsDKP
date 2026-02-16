@@ -87,7 +87,7 @@ export function AdminAuditPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-display text-3xl font-bold">Журнал событий</h1>
+          <h1 className="font-display text-xl sm:text-2xl md:text-3xl font-bold">Журнал событий</h1>
           <p className="mt-1 text-muted-foreground">Полная история всех действий в системе</p>
         </div>
         <div className="flex gap-2">

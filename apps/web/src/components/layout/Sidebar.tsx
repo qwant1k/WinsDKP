@@ -1,13 +1,14 @@
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth.store';
+import { useMobileMenuStore } from '@/stores/mobile-menu.store';
 import {
   LayoutDashboard, Users, Swords, Trophy, Dices, Package,
   Newspaper, MessageSquare, Mail, Bell, ScrollText, Settings,
-  Shield, LogOut, ChevronLeft, Coins, UserPlus,
+  Shield, LogOut, ChevronLeft, Coins, UserPlus, X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 const navItems = [
   { label: 'Дашборд', icon: LayoutDashboard, path: '/', requiresClan: true },
@@ -29,21 +30,20 @@ const adminItems = [
   { label: 'Настройки', icon: Settings, path: '/admin/settings' },
 ];
 
-export function Sidebar() {
+function SidebarContent({ collapsed, setCollapsed }: { collapsed: boolean; setCollapsed: (v: boolean) => void }) {
   const location = useLocation();
   const { user, logout, isAdmin } = useAuthStore();
-  const [collapsed, setCollapsed] = useState(false);
+  const { close: closeMobile } = useMobileMenuStore();
+
+  const handleNavClick = () => {
+    closeMobile();
+  };
 
   return (
-    <aside
-      className={cn(
-        'fixed left-0 top-0 z-40 flex h-screen flex-col border-r border-border bg-card transition-all duration-300',
-        collapsed ? 'w-[68px]' : 'w-[260px]',
-      )}
-    >
+    <>
       <div className="flex h-16 items-center justify-between border-b border-border px-4">
         {!collapsed && (
-          <Link to="/" className="flex items-center gap-2">
+          <Link to="/" className="flex items-center gap-2" onClick={handleNavClick}>
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-gold-400 to-gold-600">
               <span className="text-sm font-bold text-black">Y</span>
             </div>
@@ -58,10 +58,18 @@ export function Sidebar() {
         <Button
           variant="ghost"
           size="icon"
-          className={cn('h-8 w-8 shrink-0', collapsed && 'mx-auto mt-2')}
+          className={cn('h-8 w-8 shrink-0 hidden md:flex', collapsed && 'mx-auto mt-2')}
           onClick={() => setCollapsed(!collapsed)}
         >
           <ChevronLeft className={cn('h-4 w-4 transition-transform', collapsed && 'rotate-180')} />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 shrink-0 md:hidden"
+          onClick={closeMobile}
+        >
+          <X className="h-5 w-5" />
         </Button>
       </div>
 
@@ -75,6 +83,7 @@ export function Sidebar() {
               collapsed && 'justify-center px-2',
             )}
             title={collapsed ? 'Вступить в клан' : undefined}
+            onClick={handleNavClick}
           >
             <UserPlus className="h-5 w-5 shrink-0" />
             {!collapsed && <span>Вступить в клан</span>}
@@ -95,6 +104,7 @@ export function Sidebar() {
                 collapsed && 'justify-center px-2',
               )}
               title={collapsed ? item.label : undefined}
+              onClick={handleNavClick}
             >
               <item.icon className="h-5 w-5 shrink-0" />
               {!collapsed && <span>{item.label}</span>}
@@ -119,6 +129,7 @@ export function Sidebar() {
                     collapsed && 'justify-center px-2',
                   )}
                   title={collapsed ? item.label : undefined}
+                  onClick={handleNavClick}
                 >
                   <item.icon className="h-5 w-5 shrink-0" />
                   {!collapsed && <span>{item.label}</span>}
@@ -131,11 +142,11 @@ export function Sidebar() {
 
       <div className="border-t border-border p-3">
         <div className={cn('flex items-center gap-3', collapsed && 'flex-col')}>
-          <Link to="/profile" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/20 text-sm font-bold text-primary hover:ring-2 hover:ring-primary/50 transition-all" title="Мой профиль">
+          <Link to="/profile" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/20 text-sm font-bold text-primary hover:ring-2 hover:ring-primary/50 transition-all" title="Мой профиль" onClick={handleNavClick}>
             {user?.profile?.nickname?.charAt(0)?.toUpperCase() || '?'}
           </Link>
           {!collapsed && (
-            <Link to="/profile" className="flex-1 truncate hover:opacity-80 transition-opacity">
+            <Link to="/profile" className="flex-1 truncate hover:opacity-80 transition-opacity" onClick={handleNavClick}>
               <p className="truncate text-sm font-medium">{user?.profile?.nickname || 'User'}</p>
               <p className="truncate text-xs text-muted-foreground">{user?.profile?.displayName}</p>
             </Link>
@@ -151,6 +162,48 @@ export function Sidebar() {
           </Button>
         </div>
       </div>
-    </aside>
+    </>
+  );
+}
+
+export function Sidebar() {
+  const [collapsed, setCollapsed] = useState(false);
+  const { isOpen, close } = useMobileMenuStore();
+  const location = useLocation();
+
+  useEffect(() => {
+    close();
+  }, [location.pathname]);
+
+  return (
+    <>
+      {/* Desktop sidebar */}
+      <aside
+        className={cn(
+          'fixed left-0 top-0 z-40 hidden md:flex h-screen flex-col border-r border-border bg-card transition-all duration-300',
+          collapsed ? 'w-[68px]' : 'w-[260px]',
+        )}
+      >
+        <SidebarContent collapsed={collapsed} setCollapsed={setCollapsed} />
+      </aside>
+
+      {/* Mobile overlay */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden"
+          onClick={close}
+        />
+      )}
+
+      {/* Mobile drawer */}
+      <aside
+        className={cn(
+          'fixed left-0 top-0 z-50 flex h-screen w-[280px] flex-col border-r border-border bg-card transition-transform duration-300 ease-in-out md:hidden',
+          isOpen ? 'translate-x-0' : '-translate-x-full',
+        )}
+      >
+        <SidebarContent collapsed={false} setCollapsed={() => {}} />
+      </aside>
+    </>
   );
 }

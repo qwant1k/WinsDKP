@@ -48,7 +48,7 @@ export function SearchPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-display text-3xl font-bold">Поиск</h1>
+        <h1 className="font-display text-xl sm:text-2xl md:text-3xl font-bold">Поиск</h1>
         <p className="mt-1 text-muted-foreground">Поиск по всем разделам системы</p>
       </div>
 
@@ -96,7 +96,7 @@ export function SearchPage() {
             return (
               <Link key={`${item.type}-${item.id}`} to={item.url}>
                 <Card className="hover:border-primary/20 transition-all cursor-pointer">
-                  <CardContent className="flex items-center gap-4 p-4">
+                  <CardContent className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4">
                     <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${cfg.color}`}>
                       <Icon className="h-5 w-5" />
                     </div>

@@ -83,14 +83,14 @@ export function NewsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-display text-3xl font-bold">Новости клана</h1>
-          <p className="mt-1 text-muted-foreground">Важные объявления и события</p>
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <h1 className="font-display text-xl sm:text-2xl md:text-3xl font-bold">Новости клана</h1>
+          <p className="mt-1 text-sm text-muted-foreground hidden sm:block">Важные объявления и события</p>
         </div>
         {canManage && (
-          <Button variant="gold" onClick={() => setShowCreate(!showCreate)}>
-            <Plus className="h-4 w-4" /> Публикация
+          <Button variant="gold" size="sm" className="shrink-0" onClick={() => setShowCreate(!showCreate)}>
+            <Plus className="h-4 w-4" /> <span className="hidden sm:inline">Публикация</span>
           </Button>
         )}
       </div>

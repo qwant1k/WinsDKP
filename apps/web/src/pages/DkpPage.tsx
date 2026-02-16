@@ -41,17 +41,17 @@ export function DkpPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-display text-3xl font-bold">DKP Кошелёк</h1>
-          <p className="mt-1 text-muted-foreground">Управление вашими очками Dragon Kill Points</p>
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <h1 className="font-display text-xl sm:text-2xl md:text-3xl font-bold">DKP Кошелёк</h1>
+          <p className="mt-1 text-sm text-muted-foreground hidden sm:block">Управление вашими очками Dragon Kill Points</p>
         </div>
         <Link to="/rules/dkp">
           <Button variant="outline" size="sm">Правила DKP</Button>
         </Link>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
         <Card className="border-gold-500/20 bg-gradient-to-br from-gold-500/5 to-transparent">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Баланс</CardTitle>
@@ -101,8 +101,8 @@ export function DkpPage() {
               {transactions.data.map((tx: any) => {
                 const isPositive = Number(tx.amount) > 0;
                 return (
-                  <div key={tx.id} className="flex items-center justify-between rounded-lg border border-border/30 px-4 py-3 hover:bg-accent/20 transition-colors">
-                    <div className="flex items-center gap-3">
+                  <div key={tx.id} className="flex items-center justify-between gap-3 rounded-lg border border-border/30 px-3 sm:px-4 py-3 hover:bg-accent/20 transition-colors">
+                    <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                       <div className={`flex h-9 w-9 items-center justify-center rounded-full ${isPositive ? 'bg-green-500/10' : 'bg-red-500/10'}`}>
                         {isPositive ? <ArrowUpRight className="h-4 w-4 text-green-400" /> : <ArrowDownRight className="h-4 w-4 text-red-400" />}
                       </div>

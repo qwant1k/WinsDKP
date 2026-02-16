@@ -105,14 +105,14 @@ export function ActivitiesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-display text-3xl font-bold">Активности клана</h1>
-          <p className="mt-1 text-muted-foreground">Рейды, экспедиции и другие активности</p>
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <h1 className="font-display text-xl sm:text-2xl md:text-3xl font-bold">Активности клана</h1>
+          <p className="mt-1 text-sm text-muted-foreground hidden sm:block">Рейды, экспедиции и другие активности</p>
         </div>
         {canManage && (
-          <Button variant="gold" onClick={() => setShowCreate(!showCreate)}>
-            <Plus className="h-4 w-4" /> Создать
+          <Button variant="gold" size="sm" className="shrink-0" onClick={() => setShowCreate(!showCreate)}>
+            <Plus className="h-4 w-4" /> <span className="hidden sm:inline">Создать</span>
           </Button>
         )}
       </div>
@@ -162,17 +162,17 @@ export function ActivitiesPage() {
           {(Array.isArray(data.data) ? [...new Map(data.data.map((a: any) => [a.id, a])).values()] : []).map((activity: any) => (
             <Card key={activity.id} className="hover:border-primary/20 transition-colors">
               <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4 flex-1 cursor-pointer" onClick={() => setExpandedActivity(expandedActivity === activity.id ? null : activity.id)}>
-                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-                      <Swords className="h-6 w-6 text-primary" />
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                  <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0 cursor-pointer" onClick={() => setExpandedActivity(expandedActivity === activity.id ? null : activity.id)}>
+                    <div className="flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                      <Swords className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-semibold">{activity.title}</h3>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-semibold text-sm sm:text-base truncate">{activity.title}</h3>
                         <Badge variant="outline" className={getStatusColor(activity.status)}>{getStatusLabel(activity.status)}</Badge>
                       </div>
-                      <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
+                      <div className="mt-1 flex items-center gap-2 sm:gap-3 text-xs text-muted-foreground flex-wrap">
                         <span className="flex items-center gap-1"><Users className="h-3 w-3" />{activity._count?.participants || 0}</span>
                         <span>DKP: {activity.baseDkp}</span>
                         <span>{activity.type}</span>
@@ -180,31 +180,31 @@ export function ActivitiesPage() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap pl-13 sm:pl-0">
                     {canJoin && (activity.status === 'OPEN' || activity.status === 'IN_PROGRESS') && (
-                      <Button variant="outline" size="sm" onClick={() => joinMutation.mutate(activity.id)}>Участвовать</Button>
+                      <Button variant="outline" size="sm" className="h-8 text-xs sm:text-sm" onClick={() => joinMutation.mutate(activity.id)}>Участвовать</Button>
                     )}
                     {canManage && activity.status === 'DRAFT' && (
-                      <Button variant="outline" size="sm" onClick={() => statusMutation.mutate({ id: activity.id, status: 'OPEN' })}>
+                      <Button variant="outline" size="sm" className="h-8 text-xs sm:text-sm" onClick={() => statusMutation.mutate({ id: activity.id, status: 'OPEN' })}>
                         <Play className="h-3 w-3" /> Открыть
                       </Button>
                     )}
                     {canManage && activity.status === 'OPEN' && (
-                      <Button variant="outline" size="sm" onClick={() => statusMutation.mutate({ id: activity.id, status: 'IN_PROGRESS' })}>
+                      <Button variant="outline" size="sm" className="h-8 text-xs sm:text-sm" onClick={() => statusMutation.mutate({ id: activity.id, status: 'IN_PROGRESS' })}>
                         <Play className="h-3 w-3" /> Начать
                       </Button>
                     )}
                     {canManage && activity.status === 'IN_PROGRESS' && (
-                      <Button variant="gold" size="sm" onClick={() => completeMutation.mutate(activity.id)}>
+                      <Button variant="gold" size="sm" className="h-8 text-xs sm:text-sm" onClick={() => completeMutation.mutate(activity.id)}>
                         <CheckCircle className="h-3 w-3" /> Завершить
                       </Button>
                     )}
                     {canManage && activity.status !== 'COMPLETED' && activity.status !== 'CANCELLED' && (
-                      <Button variant="ghost" size="sm" className="text-red-400 hover:text-red-300" onClick={() => { if (confirm('Отменить активность?')) cancelMutation.mutate(activity.id); }}>
-                        <XCircle className="h-3 w-3" /> Отмена
+                      <Button variant="ghost" size="sm" className="h-8 text-xs sm:text-sm text-red-400 hover:text-red-300" onClick={() => { if (confirm('Отменить активность?')) cancelMutation.mutate(activity.id); }}>
+                        <XCircle className="h-3 w-3" />
                       </Button>
                     )}
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setExpandedActivity(expandedActivity === activity.id ? null : activity.id)}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => setExpandedActivity(expandedActivity === activity.id ? null : activity.id)}>
                       {expandedActivity === activity.id ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                     </Button>
                   </div>

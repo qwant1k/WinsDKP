@@ -42,7 +42,7 @@ export function DashboardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-display text-3xl font-bold">
+        <h1 className="font-display text-xl sm:text-2xl md:text-3xl font-bold">
           Добро пожаловать, <span className="gradient-gold">{user?.profile?.nickname}</span>
         </h1>
         <p className="mt-1 text-muted-foreground">
@@ -50,7 +50,7 @@ export function DashboardPage() {
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0 }}>
           <Link to="/dkp">
             <Card className="border-gold-500/20 bg-gradient-to-br from-gold-500/5 to-transparent cursor-pointer hover:shadow-lg hover:shadow-gold-500/5 transition-all">
@@ -112,7 +112,7 @@ export function DashboardPage() {
         </motion.div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-4 md:gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg">Последние активности</CardTitle>

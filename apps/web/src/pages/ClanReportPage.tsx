@@ -45,13 +45,11 @@ export function ClanReportPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Link to="/clan"><Button variant="ghost" size="icon"><ArrowLeft className="h-4 w-4" /></Button></Link>
-          <div>
-            <h1 className="font-display text-3xl font-bold">Отчёт клана</h1>
-            <p className="mt-1 text-muted-foreground">Статистика участников за выбранный период</p>
-          </div>
+      <div className="flex items-center gap-3">
+        <Link to="/clan"><Button variant="ghost" size="icon"><ArrowLeft className="h-4 w-4" /></Button></Link>
+        <div>
+          <h1 className="font-display text-xl sm:text-2xl md:text-3xl font-bold">Отчёт клана</h1>
+          <p className="mt-1 text-sm text-muted-foreground hidden sm:block">Статистика участников за выбранный период</p>
         </div>
       </div>
 
@@ -60,11 +58,11 @@ export function ClanReportPage() {
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">С:</span>
-              <Input type="date" className="w-44 text-sm" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+              <Input type="date" className="w-36 sm:w-44 text-sm" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
             </div>
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">По:</span>
-              <Input type="date" className="w-44 text-sm" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+              <Input type="date" className="w-36 sm:w-44 text-sm" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
             </div>
             <Button variant="gold" size="sm" onClick={() => refetch()}>
               <BarChart3 className="h-4 w-4" /> Сформировать

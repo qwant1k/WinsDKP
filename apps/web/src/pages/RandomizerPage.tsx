@@ -81,18 +81,16 @@ export function RandomizerPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-display text-3xl font-bold">Рандомайзер</h1>
-          <p className="mt-1 text-muted-foreground">Справедливый розыгрыш лута с приоритетом для слабых</p>
-        </div>
+      <div>
+        <h1 className="font-display text-xl sm:text-2xl md:text-3xl font-bold">Рандомайзер</h1>
+        <p className="mt-1 text-sm text-muted-foreground hidden sm:block">Справедливый розыгрыш лута с приоритетом для слабых</p>
       </div>
 
       {canManage && (
         <Card className="border-primary/20">
           <CardHeader><CardTitle className="text-lg">Новый розыгрыш</CardTitle></CardHeader>
           <CardContent>
-            <div className="flex gap-4">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
               <select
                 className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm"
                 value={selectedItemId}
@@ -137,14 +135,14 @@ export function RandomizerPage() {
           {sessions.map((session: any) => (
             <Card key={session.id} className={`transition-all ${animatingSession === session.id ? 'border-primary/50 shadow-lg shadow-primary/10' : ''}`}>
               <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className={`flex h-12 w-12 items-center justify-center rounded-lg ${animatingSession === session.id ? 'animate-spin-slow bg-primary/20' : 'bg-primary/10'}`}>
-                      <Dices className="h-6 w-6 text-primary" />
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                  <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                    <div className={`flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-lg ${animatingSession === session.id ? 'animate-spin-slow bg-primary/20' : 'bg-primary/10'}`}>
+                      <Dices className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-semibold">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-semibold text-sm sm:text-base truncate">
                           {session.warehouseItem?.name || `Розыгрыш #${session.id.slice(0, 8)}`}
                         </h3>
                         {session.warehouseItem?.rarity && (
@@ -154,14 +152,14 @@ export function RandomizerPage() {
                         )}
                         <Badge variant="outline" className={getStatusColor(session.status)}>{getStatusLabel(session.status)}</Badge>
                       </div>
-                      <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1"><Users className="h-3 w-3" />{session.entries?.length || 0} участников</span>
+                      <div className="mt-1 flex items-center gap-2 sm:gap-3 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1"><Users className="h-3 w-3" />{session.entries?.length || 0} уч.</span>
                         <span>{formatDateTime(session.createdAt)}</span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                     {session.result && (
                       <div className="flex flex-col items-end gap-1">
                         <div className="flex items-center gap-2 rounded-xl border border-gold-500/30 bg-gold-500/5 px-3 py-2">

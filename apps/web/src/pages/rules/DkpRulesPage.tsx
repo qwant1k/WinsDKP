@@ -12,7 +12,7 @@ export function DkpRulesPage() {
             <Button variant="ghost" size="icon"><ArrowLeft className="h-5 w-5" /></Button>
           </Link>
           <div>
-            <h1 className="font-display text-3xl font-bold gradient-gold">Правила DKP</h1>
+            <h1 className="font-display text-xl sm:text-2xl md:text-3xl font-bold gradient-gold">Правила DKP</h1>
             <p className="text-muted-foreground">Dragon Kill Points — система справедливого распределения</p>
           </div>
         </div>

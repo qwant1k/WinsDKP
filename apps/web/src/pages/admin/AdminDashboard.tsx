@@ -35,7 +35,7 @@ export function AdminDashboard() {
           <LayoutDashboard className="h-5 w-5 text-red-400" />
         </div>
         <div>
-          <h1 className="font-display text-3xl font-bold">Админ-панель</h1>
+          <h1 className="font-display text-xl sm:text-2xl md:text-3xl font-bold">Админ-панель</h1>
           <p className="text-sm text-muted-foreground">Управление всей системой Ymir Clan Hub</p>
         </div>
       </div>

@@ -105,7 +105,7 @@ export function AdminUsersPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-display text-3xl font-bold">Управление пользователями</h1>
+          <h1 className="font-display text-xl sm:text-2xl md:text-3xl font-bold">Управление пользователями</h1>
           <p className="mt-1 text-muted-foreground">{data?.meta?.total || 0} пользователей в системе</p>
         </div>
         <Button variant="gold" size="sm" onClick={() => setShowCreateForm(!showCreateForm)}>

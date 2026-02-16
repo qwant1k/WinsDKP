@@ -150,14 +150,14 @@ export function ClanPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="font-display text-3xl font-bold">Найти клан</h1>
+          <h1 className="font-display text-xl sm:text-2xl md:text-3xl font-bold">Найти клан</h1>
           <p className="mt-1 text-muted-foreground">Выберите клан и подайте заявку на вступление</p>
         </div>
         {clansForJoin?.data?.length ? (
           <div className="space-y-4">
             {clansForJoin.data.map((c: any) => (
               <Card key={c.id} className="hover:border-primary/20 transition-colors">
-                <CardContent className="flex items-center justify-between p-4">
+                <CardContent className="flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between p-4">
                   <div>
                     <div className="flex items-center gap-2">
                       <Badge variant="gold" className="text-xs">[{c.tag}]</Badge>
@@ -207,20 +207,20 @@ export function ClanPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-display text-3xl font-bold">{clan?.name || <Skeleton className="h-9 w-48" />}</h1>
-          <p className="mt-1 text-muted-foreground">{clan?.description || 'Загрузка...'}</p>
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <h1 className="font-display text-xl sm:text-2xl md:text-3xl font-bold truncate">{clan?.name || <Skeleton className="h-9 w-48" />}</h1>
+          <p className="mt-1 text-sm text-muted-foreground hidden sm:block">{clan?.description || 'Загрузка...'}</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           {canManage && (
             <Link to="/clan/report">
               <Button variant="outline" size="sm">
-                <BarChart3 className="h-4 w-4" /> Отчёт
+                <BarChart3 className="h-4 w-4" /> <span className="hidden sm:inline">Отчёт</span>
               </Button>
             </Link>
           )}
-          <Badge variant="gold" className="text-base px-4 py-1">
+          <Badge variant="gold" className="text-sm sm:text-base px-3 sm:px-4 py-1">
             [{clan?.tag}]
           </Badge>
         </div>
@@ -258,7 +258,7 @@ export function ClanPage() {
       )}
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
           <CardTitle className="flex items-center gap-2 text-lg">
             <Users className="h-5 w-5" />
             Участники ({members?.meta?.total || clan?._count?.memberships || 0})
@@ -266,7 +266,7 @@ export function ClanPage() {
           <input
             type="text"
             placeholder="Поиск участников..."
-            className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
+            className="w-full sm:w-auto rounded-md border border-input bg-background px-3 py-1.5 text-sm"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -430,13 +430,13 @@ export function ClanPage() {
               </div>
               <div className="space-y-2">
                 {powerRanges.map((r, i) => (
-                  <div key={i} className="flex items-center gap-2 text-xs">
-                    <span className="text-muted-foreground w-8">От</span>
-                    <Input className="h-7 w-28 text-xs" type="number" value={r.fromPower} onChange={(e) => { const nr = [...powerRanges]; nr[i] = { ...nr[i], fromPower: Number(e.target.value) }; setPowerRanges(nr); }} />
-                    <span className="text-muted-foreground w-8">До</span>
-                    <Input className="h-7 w-28 text-xs" type="number" value={r.toPower} onChange={(e) => { const nr = [...powerRanges]; nr[i] = { ...nr[i], toPower: Number(e.target.value) }; setPowerRanges(nr); }} />
-                    <span className="text-muted-foreground w-16">Коэфф.</span>
-                    <Input className="h-7 w-20 text-xs" type="number" step="0.01" value={r.coefficient} onChange={(e) => { const nr = [...powerRanges]; nr[i] = { ...nr[i], coefficient: Number(e.target.value) }; setPowerRanges(nr); }} />
+                  <div key={i} className="flex items-center gap-1.5 sm:gap-2 text-xs flex-wrap">
+                    <span className="text-muted-foreground w-6 sm:w-8">От</span>
+                    <Input className="h-7 w-16 sm:w-28 text-xs" type="number" value={r.fromPower} onChange={(e) => { const nr = [...powerRanges]; nr[i] = { ...nr[i], fromPower: Number(e.target.value) }; setPowerRanges(nr); }} />
+                    <span className="text-muted-foreground w-6 sm:w-8">До</span>
+                    <Input className="h-7 w-16 sm:w-28 text-xs" type="number" value={r.toPower} onChange={(e) => { const nr = [...powerRanges]; nr[i] = { ...nr[i], toPower: Number(e.target.value) }; setPowerRanges(nr); }} />
+                    <span className="text-muted-foreground w-6 sm:w-16">K</span>
+                    <Input className="h-7 w-14 sm:w-20 text-xs" type="number" step="0.01" value={r.coefficient} onChange={(e) => { const nr = [...powerRanges]; nr[i] = { ...nr[i], coefficient: Number(e.target.value) }; setPowerRanges(nr); }} />
                     <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setPowerRanges(powerRanges.filter((_, j) => j !== i))}><Trash2 className="h-3 w-3" /></Button>
                   </div>
                 ))}
@@ -458,13 +458,13 @@ export function ClanPage() {
               </div>
               <div className="space-y-2">
                 {levelRanges.map((r, i) => (
-                  <div key={i} className="flex items-center gap-2 text-xs">
-                    <span className="text-muted-foreground w-8">От</span>
-                    <Input className="h-7 w-28 text-xs" type="number" value={r.fromLevel} onChange={(e) => { const nr = [...levelRanges]; nr[i] = { ...nr[i], fromLevel: Number(e.target.value) }; setLevelRanges(nr); }} />
-                    <span className="text-muted-foreground w-8">До</span>
-                    <Input className="h-7 w-28 text-xs" type="number" value={r.toLevel} onChange={(e) => { const nr = [...levelRanges]; nr[i] = { ...nr[i], toLevel: Number(e.target.value) }; setLevelRanges(nr); }} />
-                    <span className="text-muted-foreground w-16">Коэфф.</span>
-                    <Input className="h-7 w-20 text-xs" type="number" step="0.01" value={r.coefficient} onChange={(e) => { const nr = [...levelRanges]; nr[i] = { ...nr[i], coefficient: Number(e.target.value) }; setLevelRanges(nr); }} />
+                  <div key={i} className="flex items-center gap-1.5 sm:gap-2 text-xs flex-wrap">
+                    <span className="text-muted-foreground w-6 sm:w-8">От</span>
+                    <Input className="h-7 w-16 sm:w-28 text-xs" type="number" value={r.fromLevel} onChange={(e) => { const nr = [...levelRanges]; nr[i] = { ...nr[i], fromLevel: Number(e.target.value) }; setLevelRanges(nr); }} />
+                    <span className="text-muted-foreground w-6 sm:w-8">До</span>
+                    <Input className="h-7 w-16 sm:w-28 text-xs" type="number" value={r.toLevel} onChange={(e) => { const nr = [...levelRanges]; nr[i] = { ...nr[i], toLevel: Number(e.target.value) }; setLevelRanges(nr); }} />
+                    <span className="text-muted-foreground w-6 sm:w-16">K</span>
+                    <Input className="h-7 w-14 sm:w-20 text-xs" type="number" step="0.01" value={r.coefficient} onChange={(e) => { const nr = [...levelRanges]; nr[i] = { ...nr[i], coefficient: Number(e.target.value) }; setLevelRanges(nr); }} />
                     <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setLevelRanges(levelRanges.filter((_, j) => j !== i))}><Trash2 className="h-3 w-3" /></Button>
                   </div>
                 ))}
