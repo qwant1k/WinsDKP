@@ -237,12 +237,12 @@ export function ClanPage() {
           <CardContent>
             <div className="space-y-3">
               {joinRequests.data.map((req: any) => (
-                <div key={req.id} className="flex items-center justify-between rounded-lg border border-border/50 p-3">
-                  <div>
-                    <p className="font-medium">{req.user?.profile?.nickname}</p>
-                    <p className="text-xs text-muted-foreground">{req.message || 'Без сообщения'}</p>
+                <div key={req.id} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-between rounded-lg border border-border/50 p-3">
+                  <div className="min-w-0">
+                    <p className="font-medium text-sm">{req.user?.profile?.nickname}</p>
+                    <p className="text-xs text-muted-foreground truncate">{req.message || 'Без сообщения'}</p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 shrink-0">
                     <Button size="sm" variant="outline" className="text-green-400 border-green-500/30 hover:bg-green-500/10" onClick={() => reviewMutation.mutate({ requestId: req.id, approved: true })}>
                       <Check className="h-4 w-4" />
                     </Button>
@@ -277,132 +277,165 @@ export function ClanPage() {
               {[...Array(5)].map((_, i) => (<Skeleton key={i} className="h-16" />))}
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border text-left text-muted-foreground">
-                    <th className="pb-3 font-medium">Игрок</th>
-                    <th className="pb-3 font-medium">Роль</th>
-                    <th className="pb-3 font-medium text-right">БМ</th>
-                    <th className="pb-3 font-medium text-right">Уровень</th>
-                    <th className="pb-3 font-medium text-right">DKP</th>
-                    {canManage && <th className="pb-3 font-medium text-right">Действия</th>}
-                  </tr>
-                </thead>
-                <tbody>
-                  {(members?.data || clan?.memberships)?.map((m: any) => {
-                    const member = m.user || m;
-                    const profile = member.profile;
-                    const wallet = member.dkpWallet;
-                    const role = m.role;
-                    return (
-                      <tr key={m.id} className="border-b border-border/30 hover:bg-accent/30 transition-colors">
-                        <td className="py-3">
-                          <Link to={`/users/${member.id}`} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/20 text-xs font-bold text-primary">
-                              {profile?.nickname?.charAt(0)?.toUpperCase() || '?'}
-                            </div>
-                            <div>
-                              <p className="font-medium hover:text-primary transition-colors">{profile?.nickname}</p>
-                              <p className="text-xs text-muted-foreground">{profile?.displayName}</p>
-                            </div>
-                          </Link>
-                        </td>
-                        <td className="py-3">
-                          <Badge variant={getRoleBadgeVariant(role)} className="gap-1">
-                            {getRoleIcon(role)}
-                            {getRoleLabel(role)}
-                          </Badge>
-                        </td>
-                        <td className="py-3 text-right font-mono">{profile?.bm?.toLocaleString() || '—'}</td>
-                        <td className="py-3 text-right font-mono">{profile?.level || '—'}</td>
-                        <td className="py-3 text-right font-mono text-gold-400">{wallet ? formatDkp(wallet.balance) : '—'}</td>
-                        {canManage && (
-                          <td className="py-3 text-right">
-                            <div className="flex items-center justify-end gap-1">
-                              {role !== 'CLAN_LEADER' && (
-                                <>
-                                  {isLeader && (
-                                    <div className="relative">
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
-                                        onClick={() => setRoleChangeTarget(roleChangeTarget === member.id ? null : member.id)}
-                                        title="Изменить роль"
-                                      >
-                                        <ChevronDown className="h-4 w-4" />
-                                      </Button>
-                                      {roleChangeTarget === member.id && (
-                                        <div className="absolute right-0 top-full z-10 mt-1 w-40 rounded-lg border border-border bg-popover p-1 shadow-lg">
-                                          {['ELDER', 'MEMBER', 'NEWBIE'].filter(r => r !== role).map((r) => (
-                                            <button
-                                              key={r}
-                                              className="flex w-full items-center gap-2 rounded px-3 py-1.5 text-xs hover:bg-accent transition-colors"
-                                              onClick={() => changeRoleMutation.mutate({ userId: member.id, role: r })}
-                                            >
-                                              {getRoleLabel(r)}
-                                            </button>
-                                          ))}
-                                        </div>
-                                      )}
-                                    </div>
-                                  )}
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="text-yellow-400 hover:text-yellow-300 hover:bg-yellow-500/10"
-                                    onClick={() => setPenaltyTarget(penaltyTarget === member.id ? null : member.id)}
-                                    title="Штраф DKP"
-                                  >
-                                    <AlertTriangle className="h-4 w-4" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                                    onClick={() => { if (confirm('Исключить участника?')) kickMutation.mutate(member.id); }}
-                                    title="Исключить"
-                                  >
-                                    <UserMinus className="h-4 w-4" />
-                                  </Button>
-                                </>
+            <>
+              {/* Mobile: card layout */}
+              <div className="md:hidden space-y-3">
+                {(members?.data || clan?.memberships)?.map((m: any) => {
+                  const member = m.user || m;
+                  const profile = member.profile;
+                  const wallet = member.dkpWallet;
+                  const role = m.role;
+                  return (
+                    <div key={m.id} className="rounded-lg border border-border/30 p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Link to={`/users/${member.id}`} className="flex items-center gap-2.5 min-w-0">
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-bold text-primary">
+                            {profile?.nickname?.charAt(0)?.toUpperCase() || '?'}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-medium text-sm truncate">{profile?.nickname}</p>
+                            {profile?.displayName && <p className="text-[10px] text-muted-foreground truncate">{profile?.displayName}</p>}
+                          </div>
+                        </Link>
+                        <Badge variant={getRoleBadgeVariant(role)} className="gap-1 shrink-0 text-[10px]">
+                          {getRoleIcon(role)}
+                          {getRoleLabel(role)}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex gap-3 text-muted-foreground">
+                          <span>БМ: <span className="text-foreground font-mono">{profile?.bm?.toLocaleString() || '—'}</span></span>
+                          <span>Ур: <span className="text-foreground font-mono">{profile?.level || '—'}</span></span>
+                        </div>
+                        <span className="font-mono text-gold-400 font-medium">{wallet ? formatDkp(wallet.balance) : '—'} DKP</span>
+                      </div>
+                      {canManage && role !== 'CLAN_LEADER' && (
+                        <div className="flex items-center gap-1 pt-1 border-t border-border/20">
+                          {isLeader && (
+                            <div className="relative">
+                              <Button variant="ghost" size="sm" className="h-7 text-xs text-blue-400" onClick={() => setRoleChangeTarget(roleChangeTarget === member.id ? null : member.id)}>
+                                <ChevronDown className="h-3.5 w-3.5 mr-1" /> Роль
+                              </Button>
+                              {roleChangeTarget === member.id && (
+                                <div className="absolute left-0 top-full z-10 mt-1 w-36 rounded-lg border border-border bg-popover p-1 shadow-lg">
+                                  {['ELDER', 'MEMBER', 'NEWBIE'].filter(r => r !== role).map((r) => (
+                                    <button key={r} className="flex w-full items-center gap-2 rounded px-3 py-1.5 text-xs hover:bg-accent transition-colors" onClick={() => changeRoleMutation.mutate({ userId: member.id, role: r })}>
+                                      {getRoleLabel(r)}
+                                    </button>
+                                  ))}
+                                </div>
                               )}
                             </div>
-                            {penaltyTarget === member.id && (
-                              <div className="mt-2 flex items-center gap-2 rounded-lg border border-yellow-500/30 bg-yellow-500/5 p-2">
-                                <Input
-                                  type="number"
-                                  placeholder="DKP"
-                                  className="w-20 h-7 text-xs"
-                                  value={penaltyForm.amount}
-                                  onChange={(e) => setPenaltyForm({ ...penaltyForm, amount: e.target.value })}
-                                />
-                                <Input
-                                  placeholder="Причина..."
-                                  className="flex-1 h-7 text-xs"
-                                  value={penaltyForm.reason}
-                                  onChange={(e) => setPenaltyForm({ ...penaltyForm, reason: e.target.value })}
-                                />
-                                <Button
-                                  size="sm"
-                                  variant="destructive"
-                                  className="h-7 text-xs"
-                                  disabled={!penaltyForm.amount || !penaltyForm.reason || penaltyMutation.isPending}
-                                  onClick={() => penaltyMutation.mutate()}
-                                >
-                                  Штраф
-                                </Button>
+                          )}
+                          <Button variant="ghost" size="sm" className="h-7 text-xs text-yellow-400" onClick={() => setPenaltyTarget(penaltyTarget === member.id ? null : member.id)}>
+                            <AlertTriangle className="h-3.5 w-3.5 mr-1" /> Штраф
+                          </Button>
+                          <Button variant="ghost" size="sm" className="h-7 text-xs text-red-400" onClick={() => { if (confirm('Исключить участника?')) kickMutation.mutate(member.id); }}>
+                            <UserMinus className="h-3.5 w-3.5 mr-1" /> Кик
+                          </Button>
+                        </div>
+                      )}
+                      {penaltyTarget === member.id && (
+                        <div className="flex flex-col gap-2 rounded-lg border border-yellow-500/30 bg-yellow-500/5 p-2">
+                          <div className="flex gap-2">
+                            <Input type="number" placeholder="DKP" className="w-20 h-7 text-xs" value={penaltyForm.amount} onChange={(e) => setPenaltyForm({ ...penaltyForm, amount: e.target.value })} />
+                            <Input placeholder="Причина..." className="flex-1 h-7 text-xs" value={penaltyForm.reason} onChange={(e) => setPenaltyForm({ ...penaltyForm, reason: e.target.value })} />
+                          </div>
+                          <Button size="sm" variant="destructive" className="h-7 text-xs w-full" disabled={!penaltyForm.amount || !penaltyForm.reason || penaltyMutation.isPending} onClick={() => penaltyMutation.mutate()}>Назначить штраф</Button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Desktop: table layout */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border text-left text-muted-foreground">
+                      <th className="pb-3 font-medium">Игрок</th>
+                      <th className="pb-3 font-medium">Роль</th>
+                      <th className="pb-3 font-medium text-right">БМ</th>
+                      <th className="pb-3 font-medium text-right">Уровень</th>
+                      <th className="pb-3 font-medium text-right">DKP</th>
+                      {canManage && <th className="pb-3 font-medium text-right">Действия</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(members?.data || clan?.memberships)?.map((m: any) => {
+                      const member = m.user || m;
+                      const profile = member.profile;
+                      const wallet = member.dkpWallet;
+                      const role = m.role;
+                      return (
+                        <tr key={m.id} className="border-b border-border/30 hover:bg-accent/30 transition-colors">
+                          <td className="py-3">
+                            <Link to={`/users/${member.id}`} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+                              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/20 text-xs font-bold text-primary">
+                                {profile?.nickname?.charAt(0)?.toUpperCase() || '?'}
                               </div>
-                            )}
+                              <div>
+                                <p className="font-medium hover:text-primary transition-colors">{profile?.nickname}</p>
+                                <p className="text-xs text-muted-foreground">{profile?.displayName}</p>
+                              </div>
+                            </Link>
                           </td>
-                        )}
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                          <td className="py-3">
+                            <Badge variant={getRoleBadgeVariant(role)} className="gap-1">
+                              {getRoleIcon(role)}
+                              {getRoleLabel(role)}
+                            </Badge>
+                          </td>
+                          <td className="py-3 text-right font-mono">{profile?.bm?.toLocaleString() || '—'}</td>
+                          <td className="py-3 text-right font-mono">{profile?.level || '—'}</td>
+                          <td className="py-3 text-right font-mono text-gold-400">{wallet ? formatDkp(wallet.balance) : '—'}</td>
+                          {canManage && (
+                            <td className="py-3 text-right">
+                              <div className="flex items-center justify-end gap-1">
+                                {role !== 'CLAN_LEADER' && (
+                                  <>
+                                    {isLeader && (
+                                      <div className="relative">
+                                        <Button variant="ghost" size="sm" className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/10" onClick={() => setRoleChangeTarget(roleChangeTarget === member.id ? null : member.id)} title="Изменить роль">
+                                          <ChevronDown className="h-4 w-4" />
+                                        </Button>
+                                        {roleChangeTarget === member.id && (
+                                          <div className="absolute right-0 top-full z-10 mt-1 w-40 rounded-lg border border-border bg-popover p-1 shadow-lg">
+                                            {['ELDER', 'MEMBER', 'NEWBIE'].filter(r => r !== role).map((r) => (
+                                              <button key={r} className="flex w-full items-center gap-2 rounded px-3 py-1.5 text-xs hover:bg-accent transition-colors" onClick={() => changeRoleMutation.mutate({ userId: member.id, role: r })}>
+                                                {getRoleLabel(r)}
+                                              </button>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                    <Button variant="ghost" size="sm" className="text-yellow-400 hover:text-yellow-300 hover:bg-yellow-500/10" onClick={() => setPenaltyTarget(penaltyTarget === member.id ? null : member.id)} title="Штраф DKP">
+                                      <AlertTriangle className="h-4 w-4" />
+                                    </Button>
+                                    <Button variant="ghost" size="sm" className="text-red-400 hover:text-red-300 hover:bg-red-500/10" onClick={() => { if (confirm('Исключить участника?')) kickMutation.mutate(member.id); }} title="Исключить">
+                                      <UserMinus className="h-4 w-4" />
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
+                              {penaltyTarget === member.id && (
+                                <div className="mt-2 flex items-center gap-2 rounded-lg border border-yellow-500/30 bg-yellow-500/5 p-2">
+                                  <Input type="number" placeholder="DKP" className="w-20 h-7 text-xs" value={penaltyForm.amount} onChange={(e) => setPenaltyForm({ ...penaltyForm, amount: e.target.value })} />
+                                  <Input placeholder="Причина..." className="flex-1 h-7 text-xs" value={penaltyForm.reason} onChange={(e) => setPenaltyForm({ ...penaltyForm, reason: e.target.value })} />
+                                  <Button size="sm" variant="destructive" className="h-7 text-xs" disabled={!penaltyForm.amount || !penaltyForm.reason || penaltyMutation.isPending} onClick={() => penaltyMutation.mutate()}>Штраф</Button>
+                                </div>
+                              )}
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
@@ -411,20 +444,20 @@ export function ClanPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               <Calculator className="h-5 w-5" />
-              DKP Формула: (kLVL × kBM) + BaseDKP
+              <span className="hidden sm:inline">DKP Формула: </span>(kLVL × kBM) + BaseDKP
             </CardTitle>
             <p className="text-xs text-muted-foreground">Настройте коэффициенты грейдов для расчёта DKP наград после активностей</p>
           </CardHeader>
           <CardContent className="space-y-6">
             <div>
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="text-sm font-semibold">kBM — Коэффициент боевой мощи</h4>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-between mb-3">
+                <h4 className="text-sm font-semibold">kBM — Коэф. боевой мощи</h4>
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setPowerRanges([...powerRanges, { fromPower: 0, toPower: 0, coefficient: 1 }])}>
                     <Plus className="h-3 w-3" /> Диапазон
                   </Button>
                   <Button variant="gold" size="sm" className="h-7 text-xs" onClick={() => savePowerMutation.mutate()} disabled={savePowerMutation.isPending}>
-                    <Save className="h-3 w-3" /> Сохранить
+                    <Save className="h-3 w-3" /> Сохр.
                   </Button>
                 </div>
               </div>
@@ -445,14 +478,14 @@ export function ClanPage() {
             </div>
 
             <div className="border-t border-border pt-4">
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="text-sm font-semibold">kLVL — Коэффициент уровня</h4>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-between mb-3">
+                <h4 className="text-sm font-semibold">kLVL — Коэф. уровня</h4>
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setLevelRanges([...levelRanges, { fromLevel: 0, toLevel: 0, coefficient: 1 }])}>
                     <Plus className="h-3 w-3" /> Диапазон
                   </Button>
                   <Button variant="gold" size="sm" className="h-7 text-xs" onClick={() => saveLevelMutation.mutate()} disabled={saveLevelMutation.isPending}>
-                    <Save className="h-3 w-3" /> Сохранить
+                    <Save className="h-3 w-3" /> Сохр.
                   </Button>
                 </div>
               </div>
