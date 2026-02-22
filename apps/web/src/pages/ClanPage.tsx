@@ -444,7 +444,7 @@ export function ClanPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               <Calculator className="h-5 w-5" />
-              <span className="hidden sm:inline">DKP Формула: </span>(kLVL × kBM) + BaseDKP
+              <span className="hidden sm:inline">DKP Формула: </span>(kBM + kLVL) * BaseDKP
             </CardTitle>
             <p className="text-xs text-muted-foreground">Настройте коэффициенты грейдов для расчёта DKP наград после активностей</p>
           </CardHeader>

@@ -5,7 +5,7 @@ import { useMobileMenuStore } from '@/stores/mobile-menu.store';
 import {
   LayoutDashboard, Users, Swords, Trophy, Dices, Package,
   Newspaper, MessageSquare, Mail, Bell, ScrollText, Settings,
-  Shield, LogOut, ChevronLeft, Coins, UserPlus, X,
+  Shield, LogOut, ChevronLeft, Coins, UserPlus, X, Skull,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect } from 'react';
@@ -22,6 +22,7 @@ const navItems = [
   { label: 'Лента', icon: MessageSquare, path: '/feed', requiresClan: true },
   { label: 'Сообщения', icon: Mail, path: '/messages', requiresClan: false },
   { label: 'Уведомления', icon: Bell, path: '/notifications', requiresClan: false },
+  { label: 'Трекер боссов', icon: Skull, path: '/boss-tracker', requiresClan: true },
 ];
 
 const adminItems = [

@@ -30,7 +30,7 @@ function getNotifLink(n: any): string | null {
     case 'CLAN_ROLE_CHANGED': case 'CLAN_KICKED': return '/clan';
     case 'NEWS_POSTED': return '/news';
     case 'MESSAGE_RECEIVED': return data.senderId ? `/messages/${data.senderId}` : '/messages';
-    default: return null;
+    default: return typeof data.link === 'string' ? data.link : null;
   }
 }
 
@@ -50,7 +50,7 @@ export function Header() {
       const { data } = await api.get('/notifications/unread-count');
       return data as { count: number };
     },
-    refetchInterval: 30000,
+    staleTime: Infinity,
   });
 
   const { data: notifData } = useQuery({

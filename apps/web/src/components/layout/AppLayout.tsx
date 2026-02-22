@@ -1,8 +1,11 @@
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
+import { useNotificationsSocket } from '@/hooks/useNotificationsSocket';
 
 export function AppLayout() {
+  useNotificationsSocket();
+
   return (
     <div className="flex min-h-screen">
       <Sidebar />

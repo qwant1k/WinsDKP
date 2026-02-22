@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { PrismaModule } from './common/prisma/prisma.module';
 import { RedisModule } from './common/redis/redis.module';
 import { AuthModule } from './modules/auth/auth.module';
@@ -26,6 +27,7 @@ import { SocketModule } from './common/socket/socket.module';
       isGlobal: true,
       envFilePath: ['.env', '../../.env'],
     }),
+    ScheduleModule.forRoot(),
     PrismaModule,
     RedisModule,
     SocketModule,

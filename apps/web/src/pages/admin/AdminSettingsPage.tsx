@@ -158,7 +158,7 @@ export function AdminSettingsPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             <Calculator className="h-5 w-5" />
-            DKP Формула: (kLVL × kBM) + BaseDKP
+            DKP Формула: (kBM + kLVL) * BaseDKP
           </CardTitle>
           <div className="flex items-center gap-3 mt-2">
             <p className="text-xs text-muted-foreground">Настройте коэффициенты для расчёта DKP наград</p>

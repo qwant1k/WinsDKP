@@ -19,6 +19,7 @@ import { WarehousePage } from '@/pages/WarehousePage';
 import { NewsPage } from '@/pages/NewsPage';
 import { FeedPage } from '@/pages/FeedPage';
 import { NotificationsPage } from '@/pages/NotificationsPage';
+import { BossTrackerPage } from '@/pages/BossTrackerPage';
 import { ProfilePage } from '@/pages/ProfilePage';
 import { UserProfilePage } from '@/pages/UserProfilePage';
 import { MessagesPage } from '@/pages/MessagesPage';
@@ -92,6 +93,7 @@ export default function App() {
           <Route path="news" element={<NewsPage />} />
           <Route path="feed" element={<FeedPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
+          <Route path="boss-tracker" element={<BossTrackerPage />} />
           <Route path="search" element={<SearchPage />} />
           <Route path="profile" element={<ProfilePage />} />
           <Route path="users/:id" element={<UserProfilePage />} />

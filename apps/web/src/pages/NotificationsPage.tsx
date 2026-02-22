@@ -52,7 +52,7 @@ function getNotificationLink(notif: any): string | null {
     case 'MESSAGE_RECEIVED':
       return data.senderId ? `/messages/${data.senderId}` : '/messages';
     default:
-      return null;
+      return typeof data.link === 'string' ? data.link : null;
   }
 }
 

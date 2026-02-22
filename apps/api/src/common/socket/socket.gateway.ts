@@ -11,6 +11,8 @@ import { Logger } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { PrismaService } from '../prisma/prisma.service';
+import { NotificationType } from '@prisma/client';
 
 interface AuthenticatedSocket extends Socket {
   userId?: string;
@@ -36,6 +38,7 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly prisma: PrismaService,
   ) {}
 
   async handleConnection(client: AuthenticatedSocket) {
@@ -124,6 +127,43 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() data: { sessionId: string },
   ) {
     client.join(`randomizer:${data.sessionId}`);
+  }
+
+  @SubscribeMessage('clan:boss-notification')
+  async handleClanBossNotification(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() data: { title?: string; text?: string; kind?: string },
+  ) {
+    const clanId = client.clanId;
+    if (!clanId || !client.userId) return;
+
+    const title = (data.title || '').trim();
+    const text = (data.text || '').trim();
+    const kind = (data.kind || 'system').trim();
+
+    if (!title) return;
+
+    const members = await this.prisma.clanMembership.findMany({
+      where: { clanId, isActive: true },
+      select: { userId: true },
+    });
+
+    if (!members.length) return;
+
+    await Promise.all(
+      members.map(async (member) => {
+        const notification = await this.prisma.notification.create({
+          data: {
+        userId: member.userId,
+        type: NotificationType.SYSTEM,
+        title,
+        body: text || null,
+        data: { link: '/boss-tracker', kind },
+          },
+        });
+        this.emitToUser(member.userId, 'notification.created', notification);
+      }),
+    );
   }
 
   emitToUser(userId: string, event: string, data: unknown) {

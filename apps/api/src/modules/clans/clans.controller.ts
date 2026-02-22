@@ -98,4 +98,42 @@ export class ClansController {
   ) {
     return this.clansService.kickMember(clanId, userId, user.sub);
   }
+
+  @Post(':clanId/boss-tracker/respawn-notify')
+  @ApiOperation({ summary: 'Broadcast boss respawn notification to all clan members' })
+  async notifyBossRespawn(
+    @Param('clanId') clanId: string,
+    @CurrentUser() user: JwtPayload,
+    @Body('bossName') bossName: string,
+    @Body('location') location?: string,
+  ) {
+    return this.clansService.notifyBossRespawn(clanId, user.sub, bossName, location);
+  }
+
+  @Get(':clanId/boss-tracker/state')
+  @ApiOperation({ summary: 'Get clan boss tracker state' })
+  async getBossTrackerState(
+    @Param('clanId') clanId: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.clansService.getBossTrackerState(clanId, user.sub);
+  }
+
+  @Post(':clanId/boss-tracker/state')
+  @ApiOperation({ summary: 'Save clan boss tracker state' })
+  async saveBossTrackerState(
+    @Param('clanId') clanId: string,
+    @CurrentUser() user: JwtPayload,
+    @Body('bosses') bosses: Array<{
+      id: number;
+      name: string;
+      location: string;
+      respawnSeconds: number;
+      killedAt: number | null;
+      emoji: string;
+    }>,
+    @Body('nextId') nextId: number,
+  ) {
+    return this.clansService.saveBossTrackerState(clanId, user.sub, bosses, nextId);
+  }
 }
