@@ -28,7 +28,6 @@ import { AdminAuditPage } from '@/pages/admin/AdminAuditPage';
 import { AdminSettingsPage } from '@/pages/admin/AdminSettingsPage';
 import { DkpRulesPage } from '@/pages/rules/DkpRulesPage';
 import { AuctionRulesPage } from '@/pages/rules/AuctionRulesPage';
-import { JoinClanPage } from '@/pages/JoinClanPage';
 import { Suspense, useEffect } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -43,12 +42,6 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isAdmin } = useAuthStore();
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   if (!isAdmin()) return <Navigate to="/" replace />;
-  return <>{children}</>;
-}
-
-function ClanRequiredRoute({ children }: { children: React.ReactNode }) {
-  const { user, isAdmin } = useAuthStore();
-  if (!user?.clanMembership && !isAdmin()) return <Navigate to="/join-clan" replace />;
   return <>{children}</>;
 }
 
@@ -86,22 +79,20 @@ export default function App() {
         <Route path="/rules/dkp" element={<DkpRulesPage />} />
         <Route path="/rules/auction" element={<AuctionRulesPage />} />
 
-        <Route path="/join-clan" element={<ProtectedRoute><JoinClanPage /></ProtectedRoute>} />
-
         <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-          <Route index element={<ClanRequiredRoute><DashboardPage /></ClanRequiredRoute>} />
-          <Route path="clan" element={<ClanRequiredRoute><ClanPage /></ClanRequiredRoute>} />
-          <Route path="clan/report" element={<ClanRequiredRoute><ClanReportPage /></ClanRequiredRoute>} />
-          <Route path="dkp" element={<ClanRequiredRoute><DkpPage /></ClanRequiredRoute>} />
-          <Route path="activities" element={<ClanRequiredRoute><ActivitiesPage /></ClanRequiredRoute>} />
-          <Route path="auctions" element={<ClanRequiredRoute><AuctionsPage /></ClanRequiredRoute>} />
-          <Route path="auctions/:id" element={<ClanRequiredRoute><AuctionDetailPage /></ClanRequiredRoute>} />
-          <Route path="randomizer" element={<ClanRequiredRoute><RandomizerPage /></ClanRequiredRoute>} />
-          <Route path="warehouse" element={<ClanRequiredRoute><WarehousePage /></ClanRequiredRoute>} />
-          <Route path="news" element={<ClanRequiredRoute><NewsPage /></ClanRequiredRoute>} />
-          <Route path="feed" element={<ClanRequiredRoute><FeedPage /></ClanRequiredRoute>} />
+          <Route index element={<DashboardPage />} />
+          <Route path="clan" element={<ClanPage />} />
+          <Route path="clan/report" element={<ClanReportPage />} />
+          <Route path="dkp" element={<DkpPage />} />
+          <Route path="activities" element={<ActivitiesPage />} />
+          <Route path="auctions" element={<AuctionsPage />} />
+          <Route path="auctions/:id" element={<AuctionDetailPage />} />
+          <Route path="randomizer" element={<RandomizerPage />} />
+          <Route path="warehouse" element={<WarehousePage />} />
+          <Route path="news" element={<NewsPage />} />
+          <Route path="feed" element={<FeedPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
-          <Route path="search" element={<ClanRequiredRoute><SearchPage /></ClanRequiredRoute>} />
+          <Route path="search" element={<SearchPage />} />
           <Route path="profile" element={<ProfilePage />} />
           <Route path="users/:id" element={<UserProfilePage />} />
           <Route path="messages" element={<MessagesPage />} />

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Body, Param, Query } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ActivitiesService } from './activities.service';
 import { CurrentUser, JwtPayload } from '../../common/decorators/current-user.decorator';
@@ -83,5 +83,16 @@ export class ActivitiesController {
   @ApiOperation({ summary: 'Complete activity and distribute DKP rewards' })
   async complete(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     return this.activitiesService.completeAndReward(id, user.sub);
+  }
+
+  @Delete(':id')
+  @Roles('ELDER')
+  @ApiOperation({ summary: 'Delete activity: cancelled is hard-deleted, completed is hidden from UI' })
+  async hardDelete(
+    @Param('clanId') clanId: string,
+    @Param('id') id: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.activitiesService.hardDeleteActivity(clanId, id, user.sub);
   }
 }

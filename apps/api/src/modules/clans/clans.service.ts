@@ -66,14 +66,6 @@ export class ClansService {
     return new PaginatedResponse(members, total, query.page, query.limit);
   }
 
-  async getMyJoinRequests(userId: string) {
-    return this.prisma.clanJoinRequest.findMany({
-      where: { userId },
-      include: { clan: true },
-      orderBy: { createdAt: 'desc' },
-    });
-  }
-
   async requestJoin(clanId: string, userId: string, message?: string) {
     const existing = await this.prisma.clanMembership.findUnique({
       where: { userId_clanId: { userId, clanId } },

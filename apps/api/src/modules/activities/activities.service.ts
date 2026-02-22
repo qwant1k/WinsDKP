@@ -241,7 +241,7 @@ export class ActivitiesService {
       const powerCoef = this.findCoefficient(powerRanges, profile.bm, 'power');
       const levelCoef = this.findCoefficient(levelRanges, profile.level, 'level');
 
-      const dkpEarned = Math.round(((levelCoef * powerCoef) + baseDkp) * 100) / 100;
+      const dkpEarned = Math.round(((powerCoef + levelCoef) * baseDkp) * 100) / 100;
 
       await this.dkpService.creditDkp({
         userId: participant.userId,
@@ -288,6 +288,50 @@ export class ActivitiesService {
 
     this.logger.log(`Activity ${activityId} completed. ${activity.participants.length} participants rewarded.`);
     return updated;
+  }
+
+  async hardDeleteActivity(clanId: string, activityId: string, actorId: string) {
+    const activity = await this.prisma.activity.findUnique({ where: { id: activityId } });
+    if (!activity || activity.clanId !== clanId) throw new NotFoundException('Activity not found');
+    if (activity.status !== ActivityStatus.COMPLETED && activity.status !== ActivityStatus.CANCELLED) {
+      throw new BadRequestException('Only completed or cancelled activities can be deleted');
+    }
+
+    if (activity.status === ActivityStatus.COMPLETED) {
+      const hidden = await this.prisma.activity.update({
+        where: { id: activityId },
+        data: { deletedAt: new Date() },
+      });
+
+      await this.prisma.auditLog.create({
+        data: {
+          actorId,
+          action: 'activity.hidden_from_ui',
+          entityType: 'activity',
+          entityId: activityId,
+          after: { status: hidden.status, deletedAt: hidden.deletedAt },
+        },
+      });
+
+      this.logger.log(`Activity ${activityId} hidden from UI by ${actorId}`);
+      return { success: true, deletedId: hidden.id, mode: 'hidden' as const };
+    }
+
+    const deleted = await this.prisma.$transaction(async (tx) => {
+      await tx.activityLog.deleteMany({ where: { activityId } });
+      await tx.activityParticipant.deleteMany({ where: { activityId } });
+      await tx.auditLog.deleteMany({
+        where: {
+          entityType: 'activity',
+          entityId: activityId,
+        },
+      });
+
+      return tx.activity.delete({ where: { id: activityId } });
+    });
+
+    this.logger.log(`Cancelled activity ${activityId} hard-deleted by ${actorId}`);
+    return { success: true, deletedId: deleted.id, mode: 'hard_deleted' as const };
   }
 
   private findCoefficient(

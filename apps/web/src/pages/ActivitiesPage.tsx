@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDateTime, getStatusLabel, getStatusColor } from '@/lib/utils';
-import { Swords, Plus, Play, Square, CheckCircle, Users, Clock, ChevronDown, ChevronUp, Pencil, XCircle, Save } from 'lucide-react';
+import { Swords, Plus, Play, Square, CheckCircle, Users, Clock, ChevronDown, ChevronUp, Pencil, XCircle, Save, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -99,6 +99,18 @@ export function ActivitiesPage() {
       await queryClient.refetchQueries({ queryKey: ['activity-detail', expandedActivity], exact: true });
       setEditingDkp(null);
       toast.success('BaseDKP обновлен');
+    },
+    onError: (e) => toast.error(getErrorMessage(e)),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => (await api.delete(`/clans/${clanId}/activities/${id}`)).data,
+    onSuccess: async (_data, deletedId) => {
+      await refetchActivities();
+      if (expandedActivity === deletedId) {
+        setExpandedActivity(null);
+      }
+      toast.success('Activity removed from list');
     },
     onError: (e) => toast.error(getErrorMessage(e)),
   });
@@ -204,6 +216,21 @@ export function ActivitiesPage() {
                         <XCircle className="h-3 w-3" />
                       </Button>
                     )}
+                    {canManage && (activity.status === 'COMPLETED' || activity.status === 'CANCELLED') && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 text-xs sm:text-sm text-red-400 hover:text-red-300"
+                        onClick={() => {
+                          if (confirm('Remove this activity from UI list? Cancelled will be deleted permanently.')) {
+                            deleteMutation.mutate(activity.id);
+                          }
+                        }}
+                        disabled={deleteMutation.isPending}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    )}
                     <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => setExpandedActivity(expandedActivity === activity.id ? null : activity.id)}>
                       {expandedActivity === activity.id ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                     </Button>
@@ -226,7 +253,7 @@ export function ActivitiesPage() {
                         )) : <span className="text-xs text-muted-foreground">Нет участников</span>}
                       </div>
                       <div className="mt-3 flex items-center gap-2">
-                        <p className="text-xs text-muted-foreground">Формула: (kLVL × kBM) + {activityDetail.baseDkp} BaseDKP</p>
+                        <p className="text-xs text-muted-foreground">Формула: (kBM + kLVL) * {activityDetail.baseDkp} BaseDKP</p>
                         {canManage && activity.status !== 'COMPLETED' && activity.status !== 'CANCELLED' && (
                           editingDkp === activity.id ? (
                             <div className="flex items-center gap-1">
