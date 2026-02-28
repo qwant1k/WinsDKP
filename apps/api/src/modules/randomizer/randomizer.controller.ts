@@ -28,13 +28,14 @@ export class RandomizerController {
   async create(
     @Param('clanId') clanId: string,
     @CurrentUser() user: JwtPayload,
-    @Body() body: { warehouseItemId: string; quantity?: number },
+    @Body() body: { warehouseItemId: string; quantity?: number; participantIds?: string[] },
     @Headers('x-idempotency-key') idempotencyKey?: string,
   ) {
     return this.randomizerService.createSession({
       clanId,
       warehouseItemId: body.warehouseItemId,
       quantity: body.quantity,
+      participantIds: body.participantIds,
       createdBy: user.sub,
       idempotencyKey,
     });
@@ -47,3 +48,4 @@ export class RandomizerController {
     return this.randomizerService.runDraw(id, user.sub);
   }
 }
+

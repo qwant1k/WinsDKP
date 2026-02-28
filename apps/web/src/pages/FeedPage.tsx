@@ -10,6 +10,7 @@ import { MessageSquare, Heart, Send, Flag, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import { ChampionNickname } from '@/components/common/ChampionNickname';
 
 export function FeedPage() {
   const { user } = useAuthStore();
@@ -99,7 +100,9 @@ export function FeedPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium text-sm">{post.author?.profile?.nickname}</span>
+                        <span className="font-medium text-sm">
+                          <ChampionNickname nickname={post.author?.profile?.nickname} isChampion={post.author?.profile?.isServerChampion} />
+                        </span>
                         <span className="text-xs text-muted-foreground">{formatTimeAgo(post.createdAt)}</span>
                         {post.isReported && <AlertTriangle className="h-3 w-3 text-yellow-400" />}
                       </div>
@@ -124,7 +127,9 @@ export function FeedPage() {
                                 {c.author?.profile?.nickname?.charAt(0)?.toUpperCase()}
                               </div>
                               <div>
-                                <span className="font-medium text-xs">{c.author?.profile?.nickname}</span>
+                                <span className="font-medium text-xs">
+                                  <ChampionNickname nickname={c.author?.profile?.nickname} isChampion={c.author?.profile?.isServerChampion} />
+                                </span>
                                 <p className="text-xs text-muted-foreground">{c.content}</p>
                               </div>
                             </div>

@@ -1,11 +1,94 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { PaginationDto, PaginatedResponse } from '../../common/dto/pagination.dto';
-import { ItemRarity, WarehouseMovementType } from '@prisma/client';
+import { ItemRarity, LotStatus, WarehouseMovementType } from '@prisma/client';
 
 @Injectable()
 export class WarehouseService {
   constructor(private readonly prisma: PrismaService) {}
+
+  async importFromExcel(
+    clanId: string,
+    rows: Array<{ name?: string; quantity?: number | string; source?: string }>,
+    actorId: string,
+  ) {
+    if (!Array.isArray(rows) || rows.length === 0) {
+      throw new BadRequestException('Import rows are required');
+    }
+
+    const normalizedRows: Array<{ name: string; source?: string; quantity: number; rarity: ItemRarity }> = [];
+
+    for (const row of rows) {
+      const name = (row.name || '').trim();
+      if (!name) continue;
+
+      const quantity = this.parsePositiveQuantity(row.quantity);
+      if (!quantity) continue;
+
+      const source = (row.source || '').trim() || undefined;
+      normalizedRows.push({
+        name,
+        source,
+        quantity,
+        rarity: this.detectRarityFromName(name),
+      });
+    }
+
+    if (normalizedRows.length === 0) {
+      throw new BadRequestException('No valid rows to import');
+    }
+
+    let created = 0;
+    let updated = 0;
+
+    await this.prisma.$transaction(async (tx) => {
+      for (const item of normalizedRows) {
+        const createdItem = await tx.warehouseItem.create({
+          data: {
+            clanId,
+            name: item.name,
+            quantity: item.quantity,
+            rarity: item.rarity,
+            source: item.source,
+          },
+        });
+
+        await tx.warehouseItemMovement.create({
+          data: {
+            itemId: createdItem.id,
+            type: WarehouseMovementType.INCOMING,
+            quantity: item.quantity,
+            reason: 'Excel import',
+            performedBy: actorId,
+          },
+        });
+
+        created += 1;
+      }
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        actorId,
+        action: 'warehouse.import.excel',
+        entityType: 'warehouse',
+        metadata: {
+          clanId,
+          sourceRows: rows.length,
+          processedRows: normalizedRows.length,
+          created,
+          updated,
+        },
+      },
+    });
+
+    return {
+      sourceRows: rows.length,
+      processedRows: normalizedRows.length,
+      created,
+      updated,
+    };
+  }
 
   async findAll(clanId: string, query: PaginationDto) {
     const where = {
@@ -142,12 +225,13 @@ export class WarehouseService {
     if (!item) throw new NotFoundException('Item not found');
     if (item.quantity < quantity) throw new BadRequestException('Insufficient quantity');
 
-    await this.prisma.$transaction([
-      this.prisma.warehouseItem.update({
+    await this.prisma.$transaction(async (tx) => {
+      await tx.warehouseItem.update({
         where: { id },
         data: { quantity: { decrement: quantity } },
-      }),
-      this.prisma.warehouseItemMovement.create({
+      });
+
+      await tx.warehouseItemMovement.create({
         data: {
           itemId: id,
           type: WarehouseMovementType.WRITE_OFF,
@@ -155,8 +239,8 @@ export class WarehouseService {
           reason,
           performedBy: actorId,
         },
-      }),
-    ]);
+      });
+    });
 
     return this.findById(id);
   }
@@ -187,10 +271,19 @@ export class WarehouseService {
     const item = await this.prisma.warehouseItem.findUnique({ where: { id } });
     if (!item) throw new NotFoundException('Item not found');
 
-    await this.prisma.warehouseItem.update({
-      where: { id },
-      data: { deletedAt: new Date() },
+    const linkedActiveOrPendingLot = await this.prisma.lot.findFirst({
+      where: {
+        warehouseItemId: id,
+        status: { in: [LotStatus.PENDING, LotStatus.ACTIVE] },
+        deletedAt: null,
+      },
+      select: { id: true },
     });
+    if (linkedActiveOrPendingLot) {
+      throw new BadRequestException('Cannot delete item: it is used in active or pending auction lots');
+    }
+
+    await this.prisma.warehouseItem.delete({ where: { id } });
 
     await this.prisma.auditLog.create({
       data: {
@@ -205,6 +298,57 @@ export class WarehouseService {
     return { message: 'Item deleted' };
   }
 
+  async softDeleteAll(clanId: string, actorId: string) {
+    const items = await this.prisma.warehouseItem.findMany({
+      where: { clanId },
+      select: { id: true },
+    });
+
+    if (items.length === 0) {
+      return { message: 'Warehouse already empty', deleted: 0 };
+    }
+
+    const ids = items.map((i) => i.id);
+    const linkedActiveOrPendingLots = await this.prisma.lot.findMany({
+      where: {
+        warehouseItemId: { in: ids },
+        status: { in: [LotStatus.PENDING, LotStatus.ACTIVE] },
+        deletedAt: null,
+      },
+      select: { warehouseItemId: true },
+      distinct: ['warehouseItemId'],
+    });
+    const blockedIds = new Set(linkedActiveOrPendingLots.map((l) => l.warehouseItemId).filter((id): id is string => !!id));
+    const deletableIds = ids.filter((id) => !blockedIds.has(id));
+
+    if (deletableIds.length > 0) {
+      await this.prisma.warehouseItem.deleteMany({
+        where: { id: { in: deletableIds } },
+      });
+    }
+
+    await this.prisma.auditLog.create({
+      data: {
+        actorId,
+        action: 'warehouse.items.deleted_all',
+        entityType: 'warehouse',
+        metadata: {
+          clanId,
+          deletedCount: deletableIds.length,
+          skippedCount: blockedIds.size,
+        },
+      },
+    });
+
+    return {
+      message: blockedIds.size > 0
+        ? 'Warehouse cleared partially: some items are used in auction lots and were skipped'
+        : 'Warehouse cleared',
+      deleted: deletableIds.length,
+      skipped: blockedIds.size,
+    };
+  }
+
   async getMovements(itemId: string, query: PaginationDto) {
     const where = { itemId };
     const [movements, total] = await Promise.all([
@@ -217,5 +361,35 @@ export class WarehouseService {
       this.prisma.warehouseItemMovement.count({ where }),
     ]);
     return new PaginatedResponse(movements, total, query.page, query.limit);
+  }
+
+  private parsePositiveQuantity(quantity: number | string | undefined) {
+    if (typeof quantity === 'number') {
+      if (!Number.isFinite(quantity) || quantity <= 0) return 0;
+      return Math.floor(quantity);
+    }
+
+    const normalized = String(quantity || '')
+      .replace(',', '.')
+      .replace(/[^\d.]/g, '');
+    if (!normalized) return 0;
+
+    const parsed = Number(normalized);
+    if (!Number.isFinite(parsed) || parsed <= 0) return 0;
+    return Math.floor(parsed);
+  }
+
+  private detectRarityFromName(name: string): ItemRarity {
+    const normalized = name.toLowerCase();
+
+    if (normalized.includes('высш')) return ItemRarity.LEGENDARY;
+    if (normalized.includes('редк')) return ItemRarity.EPIC;
+    if (normalized.includes('необ')) return ItemRarity.RARE;
+    if (normalized.includes('ср.')) return ItemRarity.UNCOMMON;
+    if (normalized.includes('ср ')) return ItemRarity.UNCOMMON;
+    if (normalized.includes('сред')) return ItemRarity.UNCOMMON;
+    if (normalized.includes('низк')) return ItemRarity.COMMON;
+
+    return ItemRarity.COMMON;
   }
 }

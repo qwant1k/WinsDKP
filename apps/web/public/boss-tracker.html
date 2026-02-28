@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Клановый трекер боссов — Legend of Ymir</title>
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;900&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Exo+2:ital,wght@0,300;0,400;0,600;0,700;0,900;1,300&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg: #0a0b0f;
@@ -15,6 +15,7 @@
     --gold-dim: #7a6229;
     --red: #c84b4b;
     --green: #4bc87a;
+    --blue: #4b8bc8;
     --text: #e8e0cc;
     --text-dim: #6b6456;
     --glow: rgba(200, 168, 75, 0.15);
@@ -25,546 +26,669 @@
   body {
     background: var(--bg);
     color: var(--text);
-    font-family: 'Crimson Pro', Georgia, serif;
+    font-family: 'DM Sans', sans-serif;
     min-height: 100vh;
-    background-image: 
+    background-image:
       radial-gradient(ellipse at 20% 0%, rgba(200,168,75,0.06) 0%, transparent 50%),
       radial-gradient(ellipse at 80% 100%, rgba(200,75,75,0.04) 0%, transparent 50%),
       url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.015'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
   }
 
-  header {
-    text-align: center;
-    padding: 48px 24px 32px;
-    position: relative;
-  }
+  .container { max-width: none; padding: 20px 20px 60px; }
 
-  .header-rune {
-    font-size: 11px;
-    letter-spacing: 6px;
-    text-transform: uppercase;
-    color: var(--gold-dim);
-    font-family: 'Cinzel', serif;
-    margin-bottom: 12px;
+  /* ── Location Tabs ── */
+  .locations-bar {
+    display: flex;
+    align-items: stretch;
+    gap: 4px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-bottom: 0;
   }
+  .locations-bar::-webkit-scrollbar { display: none; }
 
-  h1 {
-    font-family: 'Cinzel', serif;
-    font-weight: 900;
-    font-size: clamp(28px, 5vw, 52px);
-    color: var(--gold);
-    text-shadow: 0 0 40px rgba(200,168,75,0.4), 0 2px 0 rgba(0,0,0,0.8);
-    letter-spacing: 3px;
-    line-height: 1.1;
-  }
-
-  .subtitle {
-    font-size: 14px;
-    color: var(--text-dim);
-    margin-top: 8px;
-    letter-spacing: 2px;
-    font-style: italic;
-  }
-
-  .divider {
+  .loc-tab {
     display: flex;
     align-items: center;
-    gap: 16px;
-    max-width: 600px;
-    margin: 24px auto 0;
-    opacity: 0.4;
-  }
-  .divider::before, .divider::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: linear-gradient(to right, transparent, var(--gold));
-  }
-  .divider::after { background: linear-gradient(to left, transparent, var(--gold)); }
-  .divider-icon { color: var(--gold); font-size: 18px; }
-
-  .container { max-width: 1000px; margin: 0 auto; padding: 0 20px 60px; }
-
-  /* Add boss button */
-  .top-bar {
-    display: flex;
-    justify-content: flex-end;
-    margin-bottom: 20px;
-  }
-
-  .btn-add {
-    background: linear-gradient(135deg, #1a1c26, #252836);
-    border: 1px solid var(--gold-dim);
-    color: var(--gold);
-    font-family: 'Cinzel', serif;
+    gap: 8px;
+    padding: 12px 22px;
+    font-family: 'Exo 2', sans-serif;
     font-size: 12px;
     letter-spacing: 2px;
-    padding: 10px 24px;
-    cursor: pointer;
-    transition: all 0.3s;
     text-transform: uppercase;
+    color: var(--text-dim);
+    background: transparent;
+    border: 1px solid transparent;
+    border-bottom: none;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
     position: relative;
-    overflow: hidden;
+    bottom: -1px;
   }
-  .btn-add::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: var(--glow);
-    opacity: 0;
-    transition: opacity 0.3s;
+  .loc-tab:hover { color: var(--text); background: rgba(255,255,255,0.03); }
+  .loc-tab.active {
+    color: var(--gold);
+    background: var(--surface);
+    border-color: var(--border);
+    border-bottom-color: var(--surface);
   }
-  .btn-add:hover { border-color: var(--gold); color: #e8c96a; }
-  .btn-add:hover::before { opacity: 1; }
+  /* Drop target highlight on location tabs */
+  .loc-tab.drag-over-tab {
+    color: var(--gold);
+    background: rgba(200,168,75,0.12);
+    border-color: var(--gold-dim);
+    box-shadow: 0 0 16px rgba(200,168,75,0.2);
+  }
 
-  /* Boss table */
-  .boss-list { display: flex; flex-direction: column; gap: 8px; }
+  .loc-tab .tab-count {
+    font-size: 10px;
+    background: rgba(200,168,75,0.15);
+    color: var(--gold-dim);
+    padding: 1px 6px;
+    border-radius: 20px;
+    font-family: 'DM Sans', sans-serif;
+    font-style: normal;
+    letter-spacing: 0;
+  }
+  .loc-tab.active .tab-count { background: rgba(200,168,75,0.25); color: var(--gold); }
+
+  .btn-add-loc {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 16px;
+    font-family: 'Exo 2', sans-serif;
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    color: var(--text-dim);
+    background: transparent;
+    border: 1px dashed rgba(100,100,120,0.4);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+    margin-left: 4px;
+    align-self: center;
+  }
+  .btn-add-loc:hover { color: var(--gold); border-color: var(--gold-dim); }
+
+  /* ── Location Panel ── */
+  .location-panel {
+    display: none;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-top: none;
+    padding: 20px 20px 10px;
+  }
+  .location-panel.active { display: block; }
+
+  .loc-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+
+  .btn-add-floor {
+    padding: 7px 14px;
+    font-family: 'Exo 2', sans-serif;
+    font-size: 11px;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    background: transparent;
+    border: 1px dashed rgba(100,100,120,0.4);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+  }
+  .btn-add-floor:hover { color: var(--gold); border-color: var(--gold-dim); }
+
+  .loc-actions { display: flex; gap: 8px; align-items: center; }
+
+  .btn-add-boss {
+    background: linear-gradient(135deg, rgba(200,168,75,0.15), rgba(200,168,75,0.06));
+    border: 1px solid var(--gold-dim);
+    color: var(--gold);
+    font-family: 'Exo 2', sans-serif;
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    padding: 8px 18px;
+    cursor: pointer;
+    transition: all 0.25s;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .btn-add-boss:hover { border-color: var(--gold); background: rgba(200,168,75,0.22); }
+
+  .btn-icon-danger {
+    background: transparent;
+    border: 1px solid rgba(200,75,75,0.3);
+    color: rgba(200,75,75,0.6);
+    font-size: 14px;
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+  }
+  .btn-icon-danger:hover { border-color: var(--red); color: var(--red); background: rgba(200,75,75,0.08); }
+
+  /* ── Boss table ── */
+  .floor-section { margin-top: 8px; }
+  .floor-section-title {
+    font-family: 'Exo 2', sans-serif;
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--gold-dim);
+    padding: 10px 16px;
+    background: rgba(200,168,75,0.04);
+    border: 1px solid rgba(200,168,75,0.12);
+    border-left: 3px solid var(--gold-dim);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .floor-section-title .floor-del-btn {
+    background: transparent;
+    border: none;
+    color: rgba(200,75,75,0.4);
+    cursor: pointer;
+    font-size: 12px;
+    padding: 2px 6px;
+    transition: color 0.2s;
+    font-family: 'Exo 2', sans-serif;
+    letter-spacing: 1px;
+  }
+  .floor-section-title .floor-del-btn:hover { color: var(--red); }
+
+  .boss-header {
+    display: grid;
+    grid-template-columns: 32px 1fr 160px 160px 160px auto;
+    padding: 0;
+    margin-bottom: 4px;
+  }
+  .boss-header-cell {
+    padding: 6px 20px;
+    font-size: 10px;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    font-family: 'Exo 2', sans-serif;
+  }
+
+  .boss-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 16px;
+    min-height: 20px;
+    position: relative;
+  }
+
+  /* ── Drop zone indicator inside boss-list ── */
+  .boss-list.drag-over {
+    outline: 1px dashed rgba(200,168,75,0.35);
+    outline-offset: 2px;
+    background: rgba(200,168,75,0.025);
+  }
+
+  /* Drop ghost: the blue line that shows WHERE the item will land */
+  .drop-indicator {
+    height: 3px;
+    background: var(--gold);
+    border-radius: 2px;
+    box-shadow: 0 0 10px rgba(200,168,75,0.7);
+    pointer-events: none;
+    margin: -3px 0;
+    transition: opacity 0.15s;
+  }
+
+  /* ── Drag handle ── */
+  .drag-handle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: grab;
+    color: var(--text-dim);
+    font-size: 14px;
+    padding: 0 8px;
+    opacity: 0.4;
+    transition: opacity 0.2s, color 0.2s;
+    user-select: none;
+    touch-action: none;
+  }
+  .drag-handle:hover { opacity: 1; color: var(--gold); }
+  .drag-handle:active { cursor: grabbing; }
 
   .boss-row {
     position: relative;
-    background: var(--surface);
+    background: var(--bg);
     border: 1px solid var(--border);
+    border-left: 3px solid transparent;
     display: grid;
-    grid-template-columns: 1fr 160px 160px 160px auto;
+    grid-template-columns: 32px 1fr 160px 160px 160px auto;
     align-items: center;
     gap: 0;
-    transition: border-color 0.3s, opacity 0.3s;
+    transition: border-color 0.3s, opacity 0.3s, transform 0.15s, box-shadow 0.15s;
     overflow: hidden;
   }
+  .boss-row:hover { border-color: #3a3d50; border-left-color: var(--gold-dim); }
+  .boss-row.dead { opacity: 1; border-left-color: var(--red) !important; }
 
-  .boss-row:hover { border-color: #3a3d50; }
-
-  .boss-row.dead { opacity: 0.55; }
+  /* Dragging states */
+  .boss-row.dragging {
+    opacity: 0.35;
+    border-color: var(--gold-dim) !important;
+    border-left-color: var(--gold) !important;
+    transform: scale(0.99);
+  }
+  .boss-row.drag-ghost {
+    opacity: 0.8;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.7), 0 0 20px rgba(200,168,75,0.25);
+    border-color: var(--gold-dim) !important;
+    pointer-events: none;
+  }
 
   .boss-cell {
-    padding: 16px 20px;
+    padding: 14px 20px;
     border-right: 1px solid var(--border);
     position: relative;
     z-index: 1;
   }
   .boss-cell:last-child { border-right: none; }
 
+  .boss-row.dead .boss-cell:nth-child(2) { z-index: 3; }
+  .boss-row.dead .boss-name {
+    color: #ffffff;
+    text-shadow: 0 0 22px rgba(255,107,74,0.85), 0 0 44px rgba(255,107,74,0.45);
+  }
+  .boss-row.dead .boss-skull { filter: drop-shadow(0 0 8px rgba(255,107,74,0.9)); }
+
   .boss-name {
-    font-family: 'Cinzel', serif;
-    font-size: 15px;
-    color: var(--text);
-    font-weight: 600;
+    font-family: 'Exo 2', sans-serif;
+    font-size: 16px;
+    color: #ffffff;
+    font-weight: 700;
     display: flex;
     align-items: center;
     gap: 10px;
+    letter-spacing: 0.3px;
+    text-shadow: 0 1px 8px rgba(0,0,0,0.8);
   }
-  .boss-skull { font-size: 18px; opacity: 0.7; }
-
-  .boss-location {
-    font-size: 12px;
-    color: var(--text-dim);
-    margin-top: 4px;
-    font-style: italic;
-    letter-spacing: 0.5px;
-  }
+  .boss-skull { font-size: 20px; opacity: 1; filter: drop-shadow(0 0 6px rgba(200,168,75,0.5)); }
+  .boss-location { font-size: 12px; color: var(--text-dim); margin-top: 3px; font-style: italic; }
 
   .label {
     font-size: 10px;
     letter-spacing: 2px;
     text-transform: uppercase;
     color: var(--text-dim);
-    margin-bottom: 4px;
-    font-family: 'Cinzel', serif;
+    margin-bottom: 3px;
+    font-family: 'Exo 2', sans-serif;
   }
+  .respawn-time { font-size: 20px; font-family: 'Exo 2', sans-serif; color: var(--gold); letter-spacing: 1px; font-weight: 600; }
 
-  .respawn-time {
-    font-size: 20px;
-    font-family: 'Cinzel', serif;
-    color: var(--gold);
-    letter-spacing: 1px;
-  }
-
-  .status-cell { text-align: center; padding: 16px 12px; }
-
+  .status-cell { text-align: center; padding: 14px 12px; }
   .status-badge {
     display: inline-flex;
     align-items: center;
     gap: 6px;
     font-size: 11px;
     letter-spacing: 1.5px;
-    font-family: 'Cinzel', serif;
+    font-family: 'Exo 2', sans-serif;
     text-transform: uppercase;
-    padding: 5px 12px;
+    padding: 4px 10px;
+    font-weight: 600;
   }
-
-  .status-badge.alive {
-    color: var(--green);
-    background: rgba(75, 200, 122, 0.08);
-    border: 1px solid rgba(75, 200, 122, 0.3);
-  }
-  .status-badge.dead-badge {
-    color: var(--red);
-    background: rgba(200, 75, 75, 0.08);
-    border: 1px solid rgba(200, 75, 75, 0.3);
-  }
+  .status-badge.alive { color: var(--green); background: rgba(75,200,122,0.08); border: 1px solid rgba(75,200,122,0.3); }
+  .status-badge.dead-badge { color: var(--red); background: rgba(200,75,75,0.08); border: 1px solid rgba(200,75,75,0.3); }
 
   .dot { width: 6px; height: 6px; border-radius: 50%; }
   .dot.green { background: var(--green); box-shadow: 0 0 8px var(--green); animation: pulse-green 2s infinite; }
   .dot.red { background: var(--red); }
-
-  @keyframes pulse-green {
-    0%, 100% { opacity: 1; } 50% { opacity: 0.4; }
-  }
+  @keyframes pulse-green { 0%,100%{opacity:1}50%{opacity:0.4} }
 
   .timer-display {
-    font-family: 'Cinzel', serif;
-    font-size: 22px;
-    color: #e8745a;
-    letter-spacing: 2px;
-    text-shadow: 0 0 20px rgba(232, 116, 90, 0.5);
+    font-family: 'Exo 2', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: #ff6b4a;
+    letter-spacing: 3px;
+    font-variant-numeric: tabular-nums;
   }
 
-  /* Kill button */
   .btn-kill {
-    background: linear-gradient(135deg, rgba(75,200,122,0.1), rgba(75,200,122,0.05));
-    border: 1px solid rgba(75, 200, 122, 0.4);
+    background: linear-gradient(135deg,rgba(75,200,122,0.1),rgba(75,200,122,0.05));
+    border: 1px solid rgba(75,200,122,0.4);
     color: var(--green);
-    font-family: 'Cinzel', serif;
+    font-family: 'Exo 2',serif;
     font-size: 10px;
     letter-spacing: 2px;
-    padding: 9px 16px;
+    padding: 8px 14px;
     cursor: pointer;
     text-transform: uppercase;
     transition: all 0.25s;
     white-space: nowrap;
   }
-  .btn-kill:hover {
-    background: rgba(75,200,122,0.2);
-    border-color: var(--green);
-    box-shadow: 0 0 20px rgba(75,200,122,0.2);
-  }
+  .btn-kill:hover { background:rgba(75,200,122,0.2); border-color:var(--green); box-shadow:0 0 20px rgba(75,200,122,0.2); }
 
   .btn-reset {
-    background: linear-gradient(135deg, rgba(200,75,75,0.1), rgba(200,75,75,0.05));
+    background: linear-gradient(135deg,rgba(200,75,75,0.1),rgba(200,75,75,0.05));
     border: 1px solid rgba(200,75,75,0.3);
     color: #e08080;
-    font-family: 'Cinzel', serif;
+    font-family: 'Exo 2',serif;
     font-size: 10px;
     letter-spacing: 1px;
-    padding: 9px 16px;
+    padding: 8px 14px;
     cursor: pointer;
     text-transform: uppercase;
     transition: all 0.25s;
     white-space: nowrap;
   }
-  .btn-reset:hover { background: rgba(200,75,75,0.2); border-color: var(--red); }
+  .btn-reset:hover { background:rgba(200,75,75,0.2); border-color:var(--red); }
+
+  .btn-edit {
+    background: linear-gradient(135deg,rgba(75,139,200,0.1),rgba(75,139,200,0.05));
+    border: 1px solid rgba(75,139,200,0.35);
+    color: #7fb3e8;
+    font-family: 'Exo 2',serif;
+    font-size: 10px;
+    letter-spacing: 1px;
+    padding: 8px 14px;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.25s;
+    white-space: nowrap;
+  }
+  .btn-edit:hover { background:rgba(75,139,200,0.2); border-color:var(--blue); color: #a8d0f8; }
+
+  .btn-delete {
+    background: transparent;
+    border: 1px solid rgba(180,180,180,0.2);
+    color: #6b6456;
+    font-family: 'Exo 2',serif;
+    font-size: 10px;
+    letter-spacing: 1px;
+    padding: 8px 14px;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.25s;
+    white-space: nowrap;
+    margin-left: 6px;
+  }
+  .btn-delete:hover { border-color: var(--red); color: var(--red); background: rgba(200,75,75,0.06); }
+
+  .action-btns { display: flex; align-items: center; padding: 10px 14px; flex-wrap: wrap; gap: 4px; }
 
   /* Timer overlay */
   .timer-overlay {
-    position: absolute;
-    inset: 0;
-    background: rgba(10, 11, 15, 0.6);
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    position: absolute; inset: 0;
+    background: linear-gradient(90deg, rgba(10,11,15,0.92) 0%, rgba(15,12,10,0.88) 100%);
+    display: flex; align-items: center; justify-content: center;
     z-index: 2;
-    backdrop-filter: blur(1px);
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.5s;
+    pointer-events: none; opacity: 0; transition: opacity 0.4s;
   }
-  .boss-row.dead .timer-overlay { opacity: 1; pointer-events: none; }
+  .boss-row.dead .timer-overlay { opacity: 1; }
 
-  .timer-big {
-    font-family: 'Cinzel', serif;
-    font-size: clamp(20px, 3vw, 32px);
-    color: #e8a87a;
-    letter-spacing: 4px;
-    text-shadow: 0 0 30px rgba(232, 168, 122, 0.6);
-    display: flex;
-    align-items: center;
-    gap: 16px;
+  .timer-big { display: flex; align-items: center; gap: 6px; }
+  .timer-block { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .timer-digit {
+    font-family: 'Exo 2', sans-serif;
+    font-size: clamp(22px, 2.8vw, 38px);
+    font-weight: 800;
+    color: #ff6b4a;
+    letter-spacing: 1px;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    text-shadow: 0 0 20px rgba(255,107,74,0.6), 0 0 40px rgba(255,107,74,0.3);
   }
-
-  .timer-label-big {
-    font-size: 10px;
-    letter-spacing: 3px;
-    color: rgba(232,168,122,0.6);
-    text-transform: uppercase;
-    font-family: 'Cinzel', serif;
-    margin-top: 4px;
-    text-align: center;
-  }
-
-  .timer-block { text-align: center; }
-  .timer-sep { color: rgba(232,168,122,0.4); font-size: 24px; margin-top: -8px; }
-
-  /* Table header */
-  .boss-header {
-    display: grid;
-    grid-template-columns: 1fr 160px 160px 160px auto;
-    padding: 0;
-    margin-bottom: 4px;
-  }
-  .boss-header-cell {
-    padding: 8px 20px;
-    font-size: 10px;
+  .timer-unit {
+    font-family: 'Exo 2', sans-serif;
+    font-size: 9px;
+    font-weight: 500;
     letter-spacing: 2.5px;
     text-transform: uppercase;
-    color: var(--text-dim);
-    font-family: 'Cinzel', serif;
+    color: rgba(255,107,74,0.45);
+  }
+  .timer-sep {
+    font-family: 'Exo 2', sans-serif;
+    font-size: clamp(20px, 2.5vw, 32px);
+    font-weight: 800;
+    color: rgba(255,107,74,0.3);
+    margin-bottom: 14px;
+    line-height: 1;
   }
 
-  /* Modal */
+  /* Empty state */
+  .empty-state { text-align: center; padding: 40px 24px; color: var(--text-dim); border: 1px dashed var(--border); }
+  .empty-icon { font-size: 36px; margin-bottom: 12px; opacity: 0.4; }
+  .empty-text { font-family: 'Exo 2',serif; font-size: 13px; letter-spacing: 2px; }
+
+  /* Drop zone empty list */
+  .boss-list-empty-drop {
+    padding: 20px;
+    border: 1px dashed rgba(200,168,75,0.2);
+    text-align: center;
+    color: var(--text-dim);
+    font-family: 'Exo 2', sans-serif;
+    font-size: 11px;
+    letter-spacing: 2px;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .boss-list-empty-drop.drag-over {
+    border-color: var(--gold-dim);
+    background: rgba(200,168,75,0.05);
+    color: var(--gold-dim);
+  }
+
+  .no-locations {
+    text-align: center;
+    padding: 80px 24px;
+    color: var(--text-dim);
+  }
+  .no-loc-icon { font-size: 56px; margin-bottom: 20px; opacity: 0.3; }
+  .no-loc-text { font-family: 'Exo 2',serif; font-size: 15px; letter-spacing: 3px; margin-bottom: 8px; color: var(--text-dim); }
+  .no-loc-sub { font-size: 14px; opacity: 0.5; margin-bottom: 28px; }
+
+  /* ── Modals ── */
   .modal-overlay {
-    position: fixed;
-    inset: 0;
+    position: fixed; inset: 0;
     background: rgba(0,0,0,0.85);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 100;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.3s;
-    backdrop-filter: blur(4px);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100; opacity: 0; pointer-events: none;
+    transition: opacity 0.3s; backdrop-filter: blur(4px);
   }
   .modal-overlay.open { opacity: 1; pointer-events: all; }
-
   .modal {
     background: var(--surface);
     border: 1px solid var(--gold-dim);
-    width: 100%;
-    max-width: 480px;
-    padding: 40px;
-    position: relative;
-    transform: translateY(20px);
-    transition: transform 0.3s;
+    width: 100%; max-width: 480px;
+    padding: 40px; position: relative;
+    transform: translateY(20px); transition: transform 0.3s;
     box-shadow: 0 0 80px rgba(200,168,75,0.1);
   }
   .modal-overlay.open .modal { transform: translateY(0); }
+  .modal-sm { max-width: 360px; }
 
-  .modal-title {
-    font-family: 'Cinzel', serif;
-    font-size: 20px;
-    color: var(--gold);
-    letter-spacing: 2px;
-    margin-bottom: 32px;
-    text-align: center;
-  }
+  .modal-title { font-family:'Exo 2',sans-serif; font-size:18px; color:var(--gold); letter-spacing:2px; margin-bottom:28px; text-align:center; }
 
-  .form-group { margin-bottom: 20px; }
-  .form-label {
-    display: block;
-    font-size: 10px;
-    letter-spacing: 2.5px;
-    text-transform: uppercase;
-    color: var(--text-dim);
-    font-family: 'Cinzel', serif;
-    margin-bottom: 8px;
-  }
-  .form-input {
-    width: 100%;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    color: var(--text);
-    font-family: 'Crimson Pro', serif;
-    font-size: 16px;
-    padding: 10px 14px;
-    outline: none;
-    transition: border-color 0.2s;
-  }
-  .form-input:focus { border-color: var(--gold-dim); }
+  .form-group { margin-bottom: 18px; }
+  .form-label { display:block; font-size:10px; letter-spacing:2.5px; text-transform:uppercase; color:var(--text-dim); font-family:'Exo 2',sans-serif; margin-bottom:7px; }
+  .form-input { width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text); font-family:'DM Sans',sans-serif; font-size:16px; padding:10px 14px; outline:none; transition:border-color 0.2s; }
+  .form-input:focus { border-color:var(--gold-dim); }
+  .form-select { width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text); font-family:'DM Sans',sans-serif; font-size:16px; padding:10px 14px; outline:none; transition:border-color 0.2s; cursor:pointer; }
+  .form-select:focus { border-color:var(--gold-dim); }
+  .form-row { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; }
 
-  .form-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
-
-  .modal-actions {
-    display: flex;
-    gap: 12px;
-    margin-top: 32px;
-  }
-
-  .btn-submit {
-    flex: 1;
-    background: linear-gradient(135deg, rgba(200,168,75,0.2), rgba(200,168,75,0.08));
-    border: 1px solid var(--gold-dim);
-    color: var(--gold);
-    font-family: 'Cinzel', serif;
-    font-size: 12px;
-    letter-spacing: 2px;
-    padding: 12px;
-    cursor: pointer;
-    text-transform: uppercase;
-    transition: all 0.25s;
-  }
-  .btn-submit:hover { background: rgba(200,168,75,0.25); border-color: var(--gold); }
-
-  .btn-cancel {
-    background: transparent;
-    border: 1px solid var(--border);
-    color: var(--text-dim);
-    font-family: 'Cinzel', serif;
-    font-size: 12px;
-    letter-spacing: 2px;
-    padding: 12px 24px;
-    cursor: pointer;
-    text-transform: uppercase;
-    transition: all 0.25s;
-  }
-  .btn-cancel:hover { border-color: #4a4d5a; color: var(--text); }
+  .modal-actions { display:flex; gap:12px; margin-top:28px; }
+  .btn-submit { flex:1; background:linear-gradient(135deg,rgba(200,168,75,0.2),rgba(200,168,75,0.08)); border:1px solid var(--gold-dim); color:var(--gold); font-family:'Exo 2',sans-serif; font-size:12px; letter-spacing:2px; padding:11px; cursor:pointer; text-transform:uppercase; transition:all 0.25s; }
+  .btn-submit:hover { background:rgba(200,168,75,0.25); border-color:var(--gold); }
+  .btn-cancel { background:transparent; border:1px solid var(--border); color:var(--text-dim); font-family:'Exo 2',sans-serif; font-size:12px; letter-spacing:2px; padding:11px 20px; cursor:pointer; text-transform:uppercase; transition:all 0.25s; }
+  .btn-cancel:hover { border-color:#4a4d5a; color:var(--text); }
 
   /* Emoji picker */
-  .emoji-picker-btn {
-    width: 56px;
-    height: 56px;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    font-size: 28px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: border-color 0.2s;
-    flex-shrink: 0;
-  }
-  .emoji-picker-btn:hover { border-color: var(--gold-dim); }
+  .emoji-picker-btn { width:48px; height:48px; background:var(--bg); border:1px solid var(--border); font-size:24px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:border-color 0.2s; flex-shrink:0; }
+  .emoji-picker-btn:hover { border-color:var(--gold-dim); }
+  .emoji-field-row { display:flex; gap:12px; align-items:flex-end; }
+  .emoji-field-row .form-group { flex:1; margin-bottom:0; }
+  .emoji-grid-popup { position:absolute; background:var(--surface2); border:1px solid var(--border); box-shadow:0 8px 40px rgba(0,0,0,0.7); padding:10px; display:none; grid-template-columns:repeat(8,34px); gap:3px; z-index:200; top:calc(100% + 6px); left:0; }
+  .emoji-grid-popup.show { display:grid; }
+  .emoji-option { width:34px; height:34px; font-size:18px; display:flex; align-items:center; justify-content:center; cursor:pointer; border-radius:3px; transition:background 0.15s; border:1px solid transparent; }
+  .emoji-option:hover { background:rgba(200,168,75,0.1); border-color:var(--gold-dim); }
+  .emoji-option.selected { background:rgba(200,168,75,0.2); border-color:var(--gold); }
 
-  .emoji-field-row {
-    display: flex;
-    gap: 12px;
-    align-items: flex-end;
+  /* Edit modal destination selector */
+  .dest-selector {
+    margin-bottom: 18px;
   }
-  .emoji-field-row .form-group { flex: 1; margin-bottom: 0; }
-
-  .emoji-grid-popup {
-    position: absolute;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    box-shadow: 0 8px 40px rgba(0,0,0,0.7);
-    padding: 12px;
-    display: grid;
-    grid-template-columns: repeat(8, 36px);
-    gap: 4px;
-    z-index: 200;
-    top: calc(100% + 6px);
-    left: 0;
-    display: none;
-  }
-  .emoji-grid-popup.show { display: grid; }
-
-  .emoji-option {
-    width: 36px;
-    height: 36px;
-    font-size: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    border-radius: 4px;
-    transition: background 0.15s;
-    border: 1px solid transparent;
-  }
-  .emoji-option:hover { background: rgba(200,168,75,0.1); border-color: var(--gold-dim); }
-  .emoji-option.selected { background: rgba(200,168,75,0.2); border-color: var(--gold); }
-
-  /* Notification */
-  .notif-container {
-    position: fixed;
-    top: 24px;
-    right: 24px;
-    z-index: 200;
+  .dest-selector .form-label { margin-bottom: 10px; }
+  .dest-grid {
     display: flex;
     flex-direction: column;
+    gap: 6px;
+    max-height: 200px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  .dest-option {
+    display: flex;
+    align-items: center;
     gap: 10px;
-  }
-
-  .notif {
-    background: var(--surface2);
-    border: 1px solid var(--green);
-    border-left: 3px solid var(--green);
-    padding: 14px 20px;
-    max-width: 320px;
-    box-shadow: 0 0 30px rgba(75,200,122,0.15);
-    animation: slideIn 0.4s ease, fadeOut 0.4s ease 3.6s forwards;
+    padding: 9px 14px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    font-family: 'DM Sans', sans-serif;
     font-size: 14px;
-    line-height: 1.5;
   }
+  .dest-option:hover { border-color: var(--gold-dim); background: rgba(200,168,75,0.04); }
+  .dest-option.selected { border-color: var(--gold); background: rgba(200,168,75,0.1); }
+  .dest-option-label { font-family: 'Exo 2', sans-serif; font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-dim); margin-right: 4px; }
+  .dest-option-name { color: var(--text); }
+  .dest-option-sub { font-size: 12px; color: var(--text-dim); font-style: italic; }
 
-  .notif-title {
-    font-family: 'Cinzel', serif;
-    font-size: 11px;
-    letter-spacing: 2px;
-    color: var(--green);
-    text-transform: uppercase;
-    margin-bottom: 4px;
+  /* Custom confirm dialog */
+  .confirm-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 300; opacity: 0; pointer-events: none;
+    transition: opacity 0.2s; backdrop-filter: blur(3px);
   }
-
-  @keyframes slideIn {
-    from { transform: translateX(40px); opacity: 0; }
-    to { transform: translateX(0); opacity: 1; }
-  }
-  @keyframes fadeOut {
-    to { transform: translateX(40px); opacity: 0; }
-  }
-
-  .empty-state {
+  .confirm-overlay.open { opacity: 1; pointer-events: all; }
+  .confirm-box {
+    background: var(--surface);
+    border: 1px solid var(--red);
+    padding: 32px;
+    max-width: 340px; width: 100%;
     text-align: center;
-    padding: 60px 24px;
-    color: var(--text-dim);
-    border: 1px dashed var(--border);
+    box-shadow: 0 0 60px rgba(200,75,75,0.2);
+    transform: scale(0.95); transition: transform 0.2s;
   }
-  .empty-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.4; }
-  .empty-text { font-family: 'Cinzel', serif; font-size: 14px; letter-spacing: 2px; }
+  .confirm-overlay.open .confirm-box { transform: scale(1); }
+  .confirm-text { font-family: 'Exo 2', sans-serif; font-size: 13px; letter-spacing: 1px; color: var(--text); margin-bottom: 24px; line-height: 1.6; }
+  .confirm-actions { display: flex; gap: 10px; justify-content: center; }
+  .confirm-ok { background: rgba(200,75,75,0.15); border: 1px solid var(--red); color: var(--red); font-family: 'Exo 2', sans-serif; font-size: 11px; letter-spacing: 2px; padding: 10px 24px; cursor: pointer; text-transform: uppercase; transition: all 0.2s; }
+  .confirm-ok:hover { background: rgba(200,75,75,0.3); }
+  .confirm-cancel { background: transparent; border: 1px solid var(--border); color: var(--text-dim); font-family: 'Exo 2', sans-serif; font-size: 11px; letter-spacing: 2px; padding: 10px 20px; cursor: pointer; text-transform: uppercase; transition: all 0.2s; }
+  .confirm-cancel:hover { border-color: #4a4d5a; color: var(--text); }
 
-  @media (max-width: 700px) {
-    .boss-row, .boss-header { grid-template-columns: 1fr auto; }
-    .boss-cell:not(:first-child):not(:last-child) { display: none; }
-    .boss-header-cell:not(:first-child):not(:last-child) { display: none; }
-    .timer-big { font-size: 18px; letter-spacing: 2px; }
-    .form-row { grid-template-columns: 1fr; }
+  /* Notifications */
+  .notif-container { position:fixed; top:24px; right:24px; z-index:200; display:flex; flex-direction:column; gap:10px; }
+  .notif { background:var(--surface2); border:1px solid var(--green); border-left:3px solid var(--green); padding:12px 18px; max-width:300px; box-shadow:0 0 30px rgba(75,200,122,0.15); animation:slideIn 0.4s ease, fadeOut 0.4s ease 3.6s forwards; font-size:14px; line-height:1.5; }
+  .notif-title { font-family:'Exo 2',sans-serif; font-size:11px; letter-spacing:2px; color:var(--green); text-transform:uppercase; margin-bottom:3px; }
+  @keyframes slideIn { from{transform:translateX(40px);opacity:0} to{transform:translateX(0);opacity:1} }
+  @keyframes fadeOut { to{transform:translateX(40px);opacity:0} }
+
+  @media (max-width:700px) {
+    .boss-row,.boss-header { grid-template-columns: 32px 1fr auto; }
+    .boss-cell:not(:first-child):not(:nth-child(2)):not(:last-child) { display:none; }
+    .boss-header-cell:not(:first-child):not(:nth-child(2)):not(:last-child) { display:none; }
+    .form-row { grid-template-columns:1fr; }
   }
 </style>
 </head>
 <body>
 
-<header>
-  <div class="header-rune">⚔ Клан Трекер ⚔</div>
-  <h1>Legend of Ymir</h1>
-  <div class="subtitle">Журнал боссов — отслеживание респауна</div>
-  <div class="divider"><span class="divider-icon">☽</span></div>
-</header>
-
 <div class="container">
-  <div class="top-bar">
-    <button class="btn-add" onclick="openModal()">+ Добавить босса</button>
+
+  <!-- Location tabs -->
+  <div class="locations-bar" id="locationsBar">
+    <button class="btn-add-loc" onclick="openAddLocModal()">＋ Локация</button>
   </div>
 
-  <div class="boss-header">
-    <div class="boss-header-cell">Босс / Локация</div>
-    <div class="boss-header-cell">Респаун</div>
-    <div class="boss-header-cell">Статус</div>
-    <div class="boss-header-cell">Таймер</div>
-    <div class="boss-header-cell"></div>
+  <!-- Location panels -->
+  <div id="locationPanels"></div>
+
+  <!-- No locations state -->
+  <div id="noLocations" style="display:none;">
+    <div class="no-locations">
+      <div class="no-loc-icon">🗺️</div>
+      <div class="no-loc-text">Локации не добавлены</div>
+      <div class="no-loc-sub">Создайте первую локацию чтобы начать отслеживать боссов</div>
+      <button class="btn-add-boss" onclick="openAddLocModal()">＋ Добавить локацию</button>
+    </div>
   </div>
 
-  <div class="boss-list" id="bossList"></div>
 </div>
 
-<!-- Modal -->
-<div class="modal-overlay" id="modalOverlay">
+<!-- Modal: Add Location -->
+<div class="modal-overlay" id="modalAddLoc">
+  <div class="modal modal-sm">
+    <div class="modal-title">🗺 Новая Локация</div>
+    <div class="form-group">
+      <label class="form-label">Название локации</label>
+      <input class="form-input" id="fl-name" type="text" placeholder="Замок Тьмы, Пещера Льда...">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('modalAddLoc')">Отмена</button>
+      <button class="btn-submit" onclick="submitAddLocation()">Создать</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Add Floor -->
+<div class="modal-overlay" id="modalAddFloor">
+  <div class="modal modal-sm">
+    <div class="modal-title">🏰 Новый Этаж</div>
+    <div class="form-group">
+      <label class="form-label">Название этажа</label>
+      <input class="form-input" id="ff-name" type="text" placeholder="1 этаж, Подземелье, Крыша...">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('modalAddFloor')">Отмена</button>
+      <button class="btn-submit" onclick="submitAddFloor()">Создать</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Add Boss -->
+<div class="modal-overlay" id="modalAddBoss">
   <div class="modal">
     <div class="modal-title">⚔ Новый Босс</div>
     <div class="form-group">
       <label class="form-label">Имя босса</label>
-      <input class="form-input" id="f-name" type="text" placeholder="Нидхёгг, Страж Бездны...">
-    </div>
-    <div class="form-group">
-      <label class="form-label">Локация</label>
-      <input class="form-input" id="f-location" type="text" placeholder="Долина Теней, Пещера Льда...">
+      <input class="form-input" id="fb-name" type="text" placeholder="Нидхёгг, Страж Бездны...">
     </div>
     <div class="form-group">
       <label class="form-label">Иконка босса</label>
       <div class="emoji-field-row">
         <div style="position:relative;">
-          <button type="button" class="emoji-picker-btn" id="emojiBtn" onclick="toggleEmojiPicker()">🐉</button>
+          <button type="button" class="emoji-picker-btn" id="emojiBtn" onclick="toggleEmojiPicker('emojiGrid', 'emojiBtn')">🐉</button>
           <div class="emoji-grid-popup" id="emojiGrid"></div>
         </div>
-        <div style="font-size:13px;color:var(--text-dim);font-style:italic;padding-bottom:8px;">Нажми чтобы выбрать эмодзи</div>
+        <div style="font-size:13px;color:var(--text-dim);font-style:italic;padding-bottom:8px;">Нажми чтобы выбрать</div>
       </div>
     </div>
     <div class="form-group">
@@ -572,21 +696,78 @@
       <div class="form-row">
         <div>
           <label class="form-label">Часы</label>
-          <input class="form-input" id="f-hours" type="number" min="0" max="99" placeholder="0">
+          <input class="form-input" id="fb-hours" type="number" min="0" max="99" placeholder="0">
         </div>
         <div>
           <label class="form-label">Минуты</label>
-          <input class="form-input" id="f-minutes" type="number" min="0" max="59" placeholder="30">
+          <input class="form-input" id="fb-minutes" type="number" min="0" max="59" placeholder="30">
         </div>
         <div>
           <label class="form-label">Секунды</label>
-          <input class="form-input" id="f-seconds" type="number" min="0" max="59" placeholder="0">
+          <input class="form-input" id="fb-seconds" type="number" min="0" max="59" placeholder="0">
         </div>
       </div>
     </div>
     <div class="modal-actions">
-      <button class="btn-cancel" onclick="closeModal()">Отмена</button>
-      <button class="btn-submit" onclick="addBoss()">Добавить босса</button>
+      <button class="btn-cancel" onclick="closeModal('modalAddBoss')">Отмена</button>
+      <button class="btn-submit" onclick="submitAddBoss()">Добавить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Edit Boss -->
+<div class="modal-overlay" id="modalEditBoss">
+  <div class="modal">
+    <div class="modal-title">✏️ Изменить Босса</div>
+    <div class="form-group">
+      <label class="form-label">Имя босса</label>
+      <input class="form-input" id="eb-name" type="text" placeholder="Нидхёгг, Страж Бездны...">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Иконка босса</label>
+      <div class="emoji-field-row">
+        <div style="position:relative;">
+          <button type="button" class="emoji-picker-btn" id="editEmojiBtn" onclick="toggleEmojiPicker('editEmojiGrid', 'editEmojiBtn')">🐉</button>
+          <div class="emoji-grid-popup" id="editEmojiGrid"></div>
+        </div>
+        <div style="font-size:13px;color:var(--text-dim);font-style:italic;padding-bottom:8px;">Нажми чтобы выбрать</div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Время респауна</label>
+      <div class="form-row">
+        <div>
+          <label class="form-label">Часы</label>
+          <input class="form-input" id="eb-hours" type="number" min="0" max="99" placeholder="0">
+        </div>
+        <div>
+          <label class="form-label">Минуты</label>
+          <input class="form-input" id="eb-minutes" type="number" min="0" max="59" placeholder="30">
+        </div>
+        <div>
+          <label class="form-label">Секунды</label>
+          <input class="form-input" id="eb-seconds" type="number" min="0" max="59" placeholder="0">
+        </div>
+      </div>
+    </div>
+    <!-- Destination selector -->
+    <div class="dest-selector">
+      <label class="form-label">Переместить в</label>
+      <div class="dest-grid" id="destGrid"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('modalEditBoss')">Отмена</button>
+      <button class="btn-submit" onclick="submitEditBoss()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-box">
+    <div class="confirm-text" id="confirmText"></div>
+    <div class="confirm-actions">
+      <button class="confirm-cancel" onclick="confirmResolve(false)">Отмена</button>
+      <button class="confirm-ok" onclick="confirmResolve(true)">Удалить</button>
     </div>
   </div>
 </div>
@@ -594,22 +775,43 @@
 <div class="notif-container" id="notifContainer"></div>
 
 <script>
-  // Default bosses
-  let bosses = [
-    { id: 1, name: 'Нидхёгг Проклятый', location: 'Корни Иггдрасиля', respawnSeconds: 7200, killedAt: null, emoji: '🐉' },
-    { id: 2, name: 'Страж Бездны', location: 'Пещера Льда, Сектор 3', respawnSeconds: 3600, killedAt: null, emoji: '💀' },
-    { id: 3, name: 'Йормунганд', location: 'Берег Мёртвого Моря', respawnSeconds: 14400, killedAt: null, emoji: '🐍' },
-    { id: 4, name: 'Хримтурс', location: 'Замёрзшие Равнины', respawnSeconds: 1800, killedAt: null, emoji: '❄️' },
-  ];
+  // ── State ──
+  let locations = [];
+  let nextLocationId = 1;
+  let nextFloorId = 1;
+  let nextBossId = 1;
+  let activeLocId = null;
+  let activeFloorIds = {};
+  let pendingFloorLocId = null;
+  let pendingBossLocId = null;
+  let pendingBossFloorId = null;
 
-  let nextId = 5;
+  // ── Edit boss state ──
+  let editingBossId = null;
+  let editSelectedEmoji = '🐉';
+  let editDestLocId = null;
+  let editDestFloorId = null; // null = root bosses of location
+
+  // ── Drag state ──
+  let dragBossId = null;
+  let dragSourceLocId = null;
+  let dragSourceFloorId = null; // null = root
+
+  // ── Helpers ──
+  function getLocation(id) { return locations.find(l => l.id === id); }
+  function getFloor(loc, id) { return loc?.floors.find(f => f.id === id); }
+  function getAllBossesForLoc(loc) {
+    const all = [...loc.bosses];
+    loc.floors.forEach(f => all.push(...f.bosses));
+    return all;
+  }
 
   function formatRespawn(sec) {
     const h = Math.floor(sec / 3600);
     const m = Math.floor((sec % 3600) / 60);
     const s = sec % 60;
     if (h > 0) return `${h}ч ${m}м`;
-    if (m > 0) return `${m}м ${s > 0 ? s+'с' : ''}`;
+    if (m > 0) return `${m}м${s > 0 ? ' '+s+'с' : ''}`;
     return `${s}с`;
   }
 
@@ -621,96 +823,527 @@
   }
 
   function formatTimer(sec) {
-    const h = String(Math.floor(sec / 3600)).padStart(2, '0');
-    const m = String(Math.floor((sec % 3600) / 60)).padStart(2, '0');
-    const s = String(sec % 60).padStart(2, '0');
-    return { h, m, s };
+    return {
+      h: String(Math.floor(sec / 3600)).padStart(2,'0'),
+      m: String(Math.floor((sec % 3600) / 60)).padStart(2,'0'),
+      s: String(sec % 60).padStart(2,'0'),
+    };
   }
 
+  function countAliveBosses(loc) {
+    const all = getAllBossesForLoc(loc);
+    return all.filter(b => getRemaining(b) === null).length;
+  }
+
+  // Find boss + its container array + its loc/floor ids
+  function findBossAndContainer(bossId) {
+    for (const loc of locations) {
+      const bi = loc.bosses.findIndex(b => b.id === bossId);
+      if (bi !== -1) return { arr: loc.bosses, idx: bi, boss: loc.bosses[bi], locId: loc.id, floorId: null };
+      for (const fl of loc.floors) {
+        const fi = fl.bosses.findIndex(b => b.id === bossId);
+        if (fi !== -1) return { arr: fl.bosses, idx: fi, boss: fl.bosses[fi], locId: loc.id, floorId: fl.id };
+      }
+    }
+    return null;
+  }
+
+  // ── Render ──
   function render() {
-    const list = document.getElementById('bossList');
-    if (bosses.length === 0) {
-      list.innerHTML = `<div class="empty-state"><div class="empty-icon">⚔️</div><div class="empty-text">Боссы не добавлены</div></div>`;
+    renderLocationTabs();
+    renderLocationPanels();
+    const noLoc = document.getElementById('noLocations');
+    noLoc.style.display = locations.length === 0 ? 'block' : 'none';
+  }
+
+  function renderLocationTabs() {
+    const bar = document.getElementById('locationsBar');
+    const addBtn = bar.querySelector('.btn-add-loc');
+    bar.querySelectorAll('.loc-tab').forEach(el => el.remove());
+    locations.forEach(loc => {
+      const alive = countAliveBosses(loc);
+      const total = getAllBossesForLoc(loc).length;
+      const tab = document.createElement('button');
+      tab.className = 'loc-tab' + (loc.id === activeLocId ? ' active' : '');
+      tab.dataset.locId = loc.id;
+      tab.innerHTML = `${loc.name}<span class="tab-count">${alive}/${total}</span>`;
+      tab.onclick = () => setActiveLocation(loc.id);
+
+      // Drag-over on tabs to switch location
+      tab.addEventListener('dragover', (e) => {
+        if (!dragBossId) return;
+        e.preventDefault();
+        tab.classList.add('drag-over-tab');
+        // Switch active location so user sees the destination
+        if (loc.id !== activeLocId) setActiveLocation(loc.id);
+      });
+      tab.addEventListener('dragleave', () => tab.classList.remove('drag-over-tab'));
+      tab.addEventListener('drop', (e) => {
+        e.preventDefault();
+        tab.classList.remove('drag-over-tab');
+        // Drop into root of this location
+        moveBossTo(dragBossId, loc.id, null, null);
+      });
+
+      bar.insertBefore(tab, addBtn);
+    });
+  }
+
+  function renderLocationPanels() {
+    const container = document.getElementById('locationPanels');
+    container.innerHTML = '';
+    locations.forEach(loc => {
+      const isActive = loc.id === activeLocId;
+      const panel = document.createElement('div');
+      panel.className = 'location-panel' + (isActive ? ' active' : '');
+      panel.id = `panel-loc-${loc.id}`;
+      panel.innerHTML = `
+        <div class="loc-header-row">
+          <button class="btn-add-floor" onclick="openAddFloorModal(${loc.id})">＋ Этаж</button>
+          <button class="btn-add-boss" onclick="openAddBossModal(${loc.id}, null)">＋ Добавить босса</button>
+          <button class="btn-icon-danger" title="Удалить локацию" onclick="deleteLocation(${loc.id})">🗑</button>
+        </div>
+        <div id="boss-content-${loc.id}"></div>
+      `;
+      container.appendChild(panel);
+      renderBossContent(loc, panel.querySelector(`#boss-content-${loc.id}`));
+    });
+  }
+
+  function renderBossContent(loc, el) {
+    el.innerHTML = '';
+    const hasAnything = loc.bosses.length > 0 || loc.floors.some(f => f.bosses.length > 0);
+
+    if (!hasAnything && loc.floors.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'boss-list-empty-drop';
+      empty.id = `drop-root-${loc.id}`;
+      empty.innerHTML = `<div class="empty-icon" style="font-size:28px;opacity:0.3;margin-bottom:8px;">⚔️</div><div>Боссы не добавлены — перетащи сюда или нажми кнопку выше</div>`;
+      setupDropZone(empty, loc.id, null, null);
+      el.appendChild(empty);
       return;
     }
-    list.innerHTML = bosses.map(boss => {
-      const remaining = getRemaining(boss);
-      const isDead = remaining !== null && remaining > 0;
-      const t = isDead ? formatTimer(remaining) : null;
-      return `
-      <div class="boss-row ${isDead ? 'dead' : ''}" id="row-${boss.id}">
-        <div class="boss-cell">
-          <div class="boss-name"><span class="boss-skull">${boss.emoji}</span>${boss.name}</div>
-          <div class="boss-location">📍 ${boss.location}</div>
-        </div>
-        <div class="boss-cell">
-          <div class="label">Респаун</div>
-          <div class="respawn-time">${formatRespawn(boss.respawnSeconds)}</div>
-        </div>
-        <div class="boss-cell status-cell">
-          ${isDead
-            ? `<span class="status-badge dead-badge"><span class="dot red"></span>Мёртв</span>`
-            : `<span class="status-badge alive"><span class="dot green"></span>Живой</span>`
-          }
-        </div>
-        <div class="boss-cell">
-          ${isDead
-            ? `<div class="label">Осталось</div><div class="timer-display" id="timer-${boss.id}">${t.h}:${t.m}:${t.s}</div>`
-            : `<div style="color:var(--text-dim);font-size:13px;font-style:italic;">—</div>`
-          }
-        </div>
-        <div class="boss-cell" style="padding:12px 16px;">
-          ${isDead
-            ? `<button class="btn-reset" onclick="resetBoss(${boss.id})">Отменить</button>`
-            : `<button class="btn-kill" onclick="killBoss(${boss.id})">☠ Убит</button>`
-          }
-        </div>
 
-        ${isDead ? `
-        <div class="timer-overlay">
-          <div>
-            <div class="timer-big">
-              <div class="timer-block"><span id="ot-h-${boss.id}">${t.h}</span><div style="font-size:9px;letter-spacing:2px;color:rgba(232,168,122,0.4);font-family:'Cinzel',serif;margin-top:2px;">ЧАСЫ</div></div>
-              <div class="timer-sep">:</div>
-              <div class="timer-block"><span id="ot-m-${boss.id}">${t.m}</span><div style="font-size:9px;letter-spacing:2px;color:rgba(232,168,122,0.4);font-family:'Cinzel',serif;margin-top:2px;">МИН</div></div>
-              <div class="timer-sep">:</div>
-              <div class="timer-block"><span id="ot-s-${boss.id}">${t.s}</span><div style="font-size:9px;letter-spacing:2px;color:rgba(232,168,122,0.4);font-family:'Cinzel',serif;margin-top:2px;">СЕК</div></div>
-            </div>
-            <div class="timer-label-big">${boss.name} — Ожидание респауна</div>
+    // Root bosses
+    if (loc.bosses.length > 0 || loc.floors.length === 0) {
+      el.appendChild(buildBossTable(loc.bosses, loc.id, null));
+    }
+
+    // Floors
+    loc.floors.forEach(fl => {
+      const wrap = document.createElement('div');
+      wrap.className = 'floor-section';
+      const header = document.createElement('div');
+      header.className = 'floor-section-title';
+      header.innerHTML = `
+        <span>🏰 ${fl.name}</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <button class="btn-add-boss" style="padding:4px 12px;font-size:10px;" onclick="openAddBossModal(${loc.id}, ${fl.id})">＋ Босс</button>
+          <button class="floor-del-btn" onclick="deleteFloor(${loc.id}, ${fl.id})">✕ Удалить</button>
+        </div>
+      `;
+      wrap.appendChild(header);
+      wrap.appendChild(buildBossTable(fl.bosses, loc.id, fl.id));
+      el.appendChild(wrap);
+    });
+  }
+
+  function buildBossTable(bosses, locId, floorId) {
+    const wrap = document.createElement('div');
+
+    const header = document.createElement('div');
+    header.className = 'boss-header';
+    header.innerHTML = `
+      <div class="boss-header-cell"></div>
+      <div class="boss-header-cell"></div>
+      <div class="boss-header-cell"></div>
+      <div class="boss-header-cell"></div>
+      <div class="boss-header-cell"></div>
+      <div class="boss-header-cell"></div>
+    `;
+    wrap.appendChild(header);
+
+    const list = document.createElement('div');
+    list.className = 'boss-list';
+    list.id = `list-${locId}-${floorId === null ? 'root' : floorId}`;
+
+    if (bosses.length === 0) {
+      const placeholder = document.createElement('div');
+      placeholder.className = 'boss-list-empty-drop';
+      placeholder.textContent = 'Перетащи босса сюда';
+      setupDropZone(placeholder, locId, floorId, null);
+      list.appendChild(placeholder);
+    } else {
+      bosses.forEach((boss, idx) => {
+        list.appendChild(buildBossRow(boss, locId, floorId, idx, bosses.length));
+      });
+    }
+
+    setupDropZone(list, locId, floorId, null);
+    wrap.appendChild(list);
+    return wrap;
+  }
+
+  function buildBossRow(boss, locId, floorId, idx, total) {
+    const remaining = getRemaining(boss);
+    const isDead = remaining !== null && remaining > 0;
+    const t = isDead ? formatTimer(remaining) : null;
+
+    const row = document.createElement('div');
+    row.className = 'boss-row' + (isDead ? ' dead' : '');
+    row.id = `row-${boss.id}`;
+    row.draggable = true;
+    row.dataset.bossId = boss.id;
+    row.dataset.locId = locId;
+    row.dataset.floorId = floorId === null ? '' : floorId;
+
+    row.innerHTML = `
+      <div class="drag-handle boss-cell" title="Перетащи для сортировки">⠿</div>
+      <div class="boss-cell">
+        <div class="boss-name"><span class="boss-skull">${boss.emoji}</span>${boss.name}</div>
+      </div>
+      <div class="boss-cell">
+        <div class="label">Респаун</div>
+        <div class="respawn-time">${formatRespawn(boss.respawnSeconds)}</div>
+      </div>
+      <div class="boss-cell status-cell">
+        ${isDead
+          ? `<span class="status-badge dead-badge"><span class="dot red"></span>Мёртв</span>`
+          : `<span class="status-badge alive"><span class="dot green"></span>Живой</span>`}
+      </div>
+      <div class="boss-cell">
+        ${isDead
+          ? `<div class="label">Осталось</div><div class="timer-display" id="timer-${boss.id}">${t.h}:${t.m}:${t.s}</div>`
+          : `<div style="color:var(--text-dim);font-size:13px;font-style:italic;"></div>`}
+      </div>
+      <div class="action-btns">
+        ${isDead
+          ? `<button class="btn-reset" onclick="resetBoss(${boss.id})">Отменить</button>`
+          : `<button class="btn-kill" onclick="killBoss(${boss.id})">☠ Убит</button>`}
+        <button class="btn-edit" onclick="openEditBossModal(${boss.id})">✏ Изменить</button>
+        <button class="btn-delete" onclick="deleteBossGlobal(${boss.id})">Удалить</button>
+      </div>
+      ${isDead ? `
+      <div class="timer-overlay">
+        <div class="timer-big">
+          <div class="timer-block">
+            <span class="timer-digit" id="ot-h-${boss.id}">${t.h}</span>
+            <span class="timer-unit">часы</span>
           </div>
-        </div>` : ''}
-      </div>`;
-    }).join('');
+          <div class="timer-sep">:</div>
+          <div class="timer-block">
+            <span class="timer-digit" id="ot-m-${boss.id}">${t.m}</span>
+            <span class="timer-unit">мин</span>
+          </div>
+          <div class="timer-sep">:</div>
+          <div class="timer-block">
+            <span class="timer-digit" id="ot-s-${boss.id}">${t.s}</span>
+            <span class="timer-unit">сек</span>
+          </div>
+        </div>
+      </div>` : ''}
+    `;
+
+    // Drag events on row
+    row.addEventListener('dragstart', (e) => {
+      dragBossId = boss.id;
+      dragSourceLocId = locId;
+      dragSourceFloorId = floorId;
+      row.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', String(boss.id));
+    });
+
+    row.addEventListener('dragend', () => {
+      dragBossId = null;
+      dragSourceLocId = null;
+      dragSourceFloorId = null;
+      row.classList.remove('dragging');
+      document.querySelectorAll('.drop-indicator').forEach(el => el.remove());
+      document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+    });
+
+    // Allow dropping ON a row to reorder (insert before this row)
+    row.addEventListener('dragover', (e) => {
+      if (!dragBossId || dragBossId === boss.id) return;
+      e.preventDefault();
+      e.stopPropagation();
+      // Show a line indicator above this row
+      const list = row.parentElement;
+      document.querySelectorAll('.drop-indicator').forEach(el => el.remove());
+      const indicator = document.createElement('div');
+      indicator.className = 'drop-indicator';
+      const rect = row.getBoundingClientRect();
+      const listRect = list.getBoundingClientRect();
+      const midY = rect.top + rect.height / 2;
+      if (e.clientY < midY) {
+        list.insertBefore(indicator, row);
+      } else {
+        list.insertBefore(indicator, row.nextSibling);
+      }
+    });
+
+    row.addEventListener('drop', (e) => {
+      if (!dragBossId || dragBossId === boss.id) return;
+      e.preventDefault();
+      e.stopPropagation();
+      document.querySelectorAll('.drop-indicator').forEach(el => el.remove());
+
+      // Determine insert before or after
+      const rect = row.getBoundingClientRect();
+      const midY = rect.top + rect.height / 2;
+      const insertBefore = e.clientY < midY;
+
+      moveBossTo(dragBossId, locId, floorId, { relativeTo: boss.id, before: insertBefore });
+    });
+
+    return row;
+  }
+
+  // ── Drop zone setup ──
+  function setupDropZone(el, locId, floorId, insertIndex) {
+    el.addEventListener('dragover', (e) => {
+      if (!dragBossId) return;
+      e.preventDefault();
+      el.classList.add('drag-over');
+    });
+    el.addEventListener('dragleave', (e) => {
+      // only remove if leaving the element itself (not entering a child)
+      if (!el.contains(e.relatedTarget)) el.classList.remove('drag-over');
+    });
+    el.addEventListener('drop', (e) => {
+      e.preventDefault();
+      el.classList.remove('drag-over');
+      document.querySelectorAll('.drop-indicator').forEach(i => i.remove());
+      if (!dragBossId) return;
+      moveBossTo(dragBossId, locId, floorId, null);
+    });
+  }
+
+  // ── Move boss ──
+  function moveBossTo(bossId, targetLocId, targetFloorId, position) {
+    const found = findBossAndContainer(bossId);
+    if (!found) return;
+
+    // Don't move if same container and no relative position
+    if (found.locId === targetLocId && found.floorId === targetFloorId && !position) return;
+
+    const boss = found.boss;
+
+    // Remove from source
+    found.arr.splice(found.idx, 1);
+
+    // Get target array
+    const targetLoc = getLocation(targetLocId);
+    if (!targetLoc) return;
+
+    let targetArr;
+    if (targetFloorId === null || targetFloorId === undefined) {
+      targetArr = targetLoc.bosses;
+    } else {
+      const targetFloor = getFloor(targetLoc, targetFloorId);
+      if (!targetFloor) return;
+      targetArr = targetFloor.bosses;
+    }
+
+    if (position && position.relativeTo !== undefined) {
+      const relIdx = targetArr.findIndex(b => b.id === position.relativeTo);
+      if (relIdx !== -1) {
+        const insertIdx = position.before ? relIdx : relIdx + 1;
+        targetArr.splice(insertIdx, 0, boss);
+      } else {
+        targetArr.push(boss);
+      }
+    } else {
+      targetArr.push(boss);
+    }
+
+    render();
+    showNotif('↕ Перемещено', `${boss.emoji} ${boss.name} перемещён`, 'alive');
+  }
+
+  // ── Tab switching ──
+  function setActiveLocation(id) {
+    activeLocId = id;
+    render();
+  }
+
+  // ── Custom confirm ──
+  let _confirmResolve = null;
+  function showConfirm(text) {
+    return new Promise(resolve => {
+      _confirmResolve = resolve;
+      document.getElementById('confirmText').textContent = text;
+      document.getElementById('confirmOverlay').classList.add('open');
+    });
+  }
+  function confirmResolve(result) {
+    document.getElementById('confirmOverlay').classList.remove('open');
+    if (_confirmResolve) { _confirmResolve(result); _confirmResolve = null; }
+  }
+  function showAlert(text) { showNotif('⚠', text, 'warn'); }
+
+  // ── CRUD ──
+  async function deleteLocation(id) {
+    const ok = await showConfirm('Удалить локацию и всех её боссов?');
+    if (!ok) return;
+    locations = locations.filter(l => l.id !== id);
+    if (activeLocId === id) activeLocId = locations.length > 0 ? locations[0].id : null;
+    render();
+  }
+
+  async function deleteFloor(locId, floorId) {
+    const ok = await showConfirm('Удалить этаж и всех его боссов?');
+    if (!ok) return;
+    const loc = getLocation(locId);
+    if (!loc) return;
+    loc.floors = loc.floors.filter(f => f.id !== floorId);
+    render();
   }
 
   function killBoss(id) {
-    const boss = bosses.find(b => b.id === id);
-    if (!boss) return;
-    boss.killedAt = Date.now();
+    const found = findBossAndContainer(id);
+    if (!found) return;
+    found.boss.killedAt = Date.now();
     render();
-    showNotif(`☠ ${boss.name} убит!`, `Таймер запущен. Босс возродится через ${formatRespawn(boss.respawnSeconds)}.`, 'dead');
+    showNotif(`☠ ${found.boss.name} убит!`, `Босс возродится через ${formatRespawn(found.boss.respawnSeconds)}.`, 'dead');
   }
 
   function resetBoss(id) {
-    const boss = bosses.find(b => b.id === id);
-    if (!boss) return;
-    boss.killedAt = null;
+    const found = findBossAndContainer(id);
+    if (!found) return;
+    found.boss.killedAt = null;
     render();
   }
 
-  // Tick timers
+  function deleteBossGlobal(id) {
+    const found = findBossAndContainer(id);
+    if (!found) return;
+    found.arr.splice(found.idx, 1);
+    render();
+  }
+
+  // ── Edit Boss ──
+  function openEditBossModal(bossId) {
+    const found = findBossAndContainer(bossId);
+    if (!found) return;
+    const boss = found.boss;
+
+    editingBossId = bossId;
+    editSelectedEmoji = boss.emoji;
+    editDestLocId = found.locId;
+    editDestFloorId = found.floorId;
+
+    document.getElementById('eb-name').value = boss.name;
+    document.getElementById('editEmojiBtn').textContent = boss.emoji;
+
+    const h = Math.floor(boss.respawnSeconds / 3600);
+    const m = Math.floor((boss.respawnSeconds % 3600) / 60);
+    const s = boss.respawnSeconds % 60;
+    document.getElementById('eb-hours').value = h || '';
+    document.getElementById('eb-minutes').value = m || '';
+    document.getElementById('eb-seconds').value = s || '';
+
+    buildDestGrid(found.locId, found.floorId);
+    openModal('modalEditBoss');
+    setTimeout(() => document.getElementById('eb-name').focus(), 50);
+  }
+
+  function buildDestGrid(currentLocId, currentFloorId) {
+    const grid = document.getElementById('destGrid');
+    grid.innerHTML = '';
+
+    locations.forEach(loc => {
+      // Root of location
+      const rootOpt = document.createElement('div');
+      rootOpt.className = 'dest-option' + (loc.id === currentLocId && currentFloorId === null ? ' selected' : '');
+      rootOpt.dataset.locId = loc.id;
+      rootOpt.dataset.floorId = '';
+      rootOpt.innerHTML = `<span class="dest-option-label">Лок.</span><span class="dest-option-name">📍 ${loc.name}</span><span class="dest-option-sub" style="margin-left:auto;">(корень)</span>`;
+      rootOpt.onclick = () => {
+        grid.querySelectorAll('.dest-option').forEach(o => o.classList.remove('selected'));
+        rootOpt.classList.add('selected');
+        editDestLocId = loc.id;
+        editDestFloorId = null;
+      };
+      grid.appendChild(rootOpt);
+
+      // Floors of this location
+      loc.floors.forEach(fl => {
+        const opt = document.createElement('div');
+        opt.className = 'dest-option' + (loc.id === currentLocId && fl.id === currentFloorId ? ' selected' : '');
+        opt.dataset.locId = loc.id;
+        opt.dataset.floorId = fl.id;
+        opt.innerHTML = `<span class="dest-option-label">Этаж</span><span class="dest-option-name" style="padding-left:14px;">🏰 ${fl.name}</span><span class="dest-option-sub" style="margin-left:auto;font-size:11px;opacity:0.6;">${loc.name}</span>`;
+        opt.onclick = () => {
+          grid.querySelectorAll('.dest-option').forEach(o => o.classList.remove('selected'));
+          opt.classList.add('selected');
+          editDestLocId = loc.id;
+          editDestFloorId = fl.id;
+        };
+        grid.appendChild(opt);
+      });
+    });
+  }
+
+  function submitEditBoss() {
+    const name = document.getElementById('eb-name').value.trim();
+    const h = parseInt(document.getElementById('eb-hours').value) || 0;
+    const m = parseInt(document.getElementById('eb-minutes').value) || 0;
+    const s = parseInt(document.getElementById('eb-seconds').value) || 0;
+    const totalSeconds = h * 3600 + m * 60 + s;
+
+    if (!name) { showAlert('Введите имя босса'); return; }
+    if (totalSeconds === 0) { showAlert('Укажите время респауна'); return; }
+
+    const found = findBossAndContainer(editingBossId);
+    if (!found) return;
+
+    found.boss.name = name;
+    found.boss.respawnSeconds = totalSeconds;
+    found.boss.emoji = editSelectedEmoji;
+
+    // Move to destination if changed
+    const destLocId = editDestLocId;
+    const destFloorId = editDestFloorId;
+    if (destLocId !== found.locId || destFloorId !== found.floorId) {
+      // Remove from current
+      found.arr.splice(found.idx, 1);
+      // Add to destination
+      const targetLoc = getLocation(destLocId);
+      if (targetLoc) {
+        if (destFloorId === null || destFloorId === undefined) {
+          targetLoc.bosses.push(found.boss);
+        } else {
+          const targetFloor = getFloor(targetLoc, destFloorId);
+          if (targetFloor) targetFloor.bosses.push(found.boss);
+          else targetLoc.bosses.push(found.boss);
+        }
+      }
+    }
+
+    closeModal('modalEditBoss');
+    render();
+    showNotif('✏ Изменено', `${found.boss.emoji} ${found.boss.name} обновлён`, 'alive');
+  }
+
+  // ── Tick ──
   setInterval(() => {
-    bosses.forEach(boss => {
+    let needsRender = false;
+    const allBosses = [];
+    locations.forEach(loc => {
+      allBosses.push(...loc.bosses);
+      loc.floors.forEach(fl => allBosses.push(...fl.bosses));
+    });
+
+    allBosses.forEach(boss => {
       const remaining = getRemaining(boss);
       if (remaining === null) return;
-
       if (remaining === 0) {
-        // Respawned
         boss.killedAt = null;
-        render();
+        needsRender = true;
         return;
       }
-
       const t = formatTimer(remaining);
       const hEl = document.getElementById(`ot-h-${boss.id}`);
       const mEl = document.getElementById(`ot-m-${boss.id}`);
@@ -721,52 +1354,105 @@
       if (sEl) sEl.textContent = t.s;
       if (tEl) tEl.textContent = `${t.h}:${t.m}:${t.s}`;
     });
+
+    if (needsRender) render();
   }, 1000);
 
+  // ── Notifications ──
   function showNotif(title, text, type) {
-    window.parent.postMessage({
-      type: 'boss-notification',
-      title,
-      text,
-      kind: type
-    }, '*');
-    return;
-
+    if (type !== 'warn') {
+      window.parent.postMessage({ type: 'boss-notification', title, text, kind: type }, '*');
+    }
+    const colors = { alive: 'var(--green)', dead: 'var(--red)', warn: 'var(--gold)' };
+    const color = colors[type] || 'var(--green)';
     const c = document.getElementById('notifContainer');
     const el = document.createElement('div');
     el.className = 'notif';
-    el.style.borderColor = type === 'alive' ? 'var(--green)' : 'var(--red)';
-    el.style.borderLeftColor = type === 'alive' ? 'var(--green)' : 'var(--red)';
-    el.innerHTML = `<div class="notif-title" style="color:${type==='alive'?'var(--green)':'var(--red)'}">${title}</div><div>${text}</div>`;
+    el.style.borderColor = color;
+    el.style.borderLeftColor = color;
+    el.innerHTML = `<div class="notif-title" style="color:${color}">${title}</div>${text ? `<div>${text}</div>` : ''}`;
     c.appendChild(el);
     setTimeout(() => el.remove(), 4200);
-
-    // Browser notification
-    if (Notification.permission === 'granted') {
-      new Notification(title, { body: text, icon: '⚔️' });
-    }
   }
 
-  // Modal
-  function openModal() {
-    document.getElementById('modalOverlay').classList.add('open');
-  }
-  function closeModal() {
-    document.getElementById('modalOverlay').classList.remove('open');
-    document.getElementById('f-name').value = '';
-    document.getElementById('f-location').value = '';
-    document.getElementById('f-hours').value = '';
-    document.getElementById('f-minutes').value = '';
-    document.getElementById('f-seconds').value = '';
-    selectedEmoji = '🐉';
-    document.getElementById('emojiBtn').textContent = '🐉';
-  }
+  // ── Modals ──
+  function openModal(id) { document.getElementById(id).classList.add('open'); }
+  function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
-  document.getElementById('modalOverlay').addEventListener('click', function(e) {
-    if (e.target === this) closeModal();
+  document.querySelectorAll('.modal-overlay').forEach(overlay => {
+    overlay.addEventListener('click', function(e) {
+      if (e.target === this) this.classList.remove('open');
+    });
   });
 
-  // Emoji picker
+  // Add Location
+  function openAddLocModal() { openModal('modalAddLoc'); setTimeout(() => document.getElementById('fl-name').focus(), 50); }
+  function submitAddLocation() {
+    const name = document.getElementById('fl-name').value.trim();
+    if (!name) { showAlert('Введите название локации'); return; }
+    const loc = { id: nextLocationId++, name, floors: [], bosses: [] };
+    locations.push(loc);
+    activeLocId = loc.id;
+    document.getElementById('fl-name').value = '';
+    closeModal('modalAddLoc');
+    render();
+  }
+
+  // Add Floor
+  function openAddFloorModal(locId) {
+    pendingFloorLocId = locId;
+    openModal('modalAddFloor');
+    setTimeout(() => document.getElementById('ff-name').focus(), 50);
+  }
+  function submitAddFloor() {
+    const name = document.getElementById('ff-name').value.trim();
+    if (!name) { showAlert('Введите название этажа'); return; }
+    const loc = getLocation(pendingFloorLocId);
+    if (!loc) return;
+    const fl = { id: nextFloorId++, name, bosses: [] };
+    loc.floors.push(fl);
+    document.getElementById('ff-name').value = '';
+    closeModal('modalAddFloor');
+    render();
+  }
+
+  // Add Boss
+  let selectedEmoji = '🐉';
+  function openAddBossModal(locId, floorId) {
+    pendingBossLocId = locId;
+    pendingBossFloorId = floorId;
+    selectedEmoji = '🐉';
+    document.getElementById('emojiBtn').textContent = '🐉';
+    document.getElementById('fb-name').value = '';
+    document.getElementById('fb-hours').value = '';
+    document.getElementById('fb-minutes').value = '';
+    document.getElementById('fb-seconds').value = '';
+    openModal('modalAddBoss');
+    setTimeout(() => document.getElementById('fb-name').focus(), 50);
+  }
+  function submitAddBoss() {
+    const name = document.getElementById('fb-name').value.trim();
+    const h = parseInt(document.getElementById('fb-hours').value) || 0;
+    const m = parseInt(document.getElementById('fb-minutes').value) || 0;
+    const s = parseInt(document.getElementById('fb-seconds').value) || 0;
+    const totalSeconds = h * 3600 + m * 60 + s;
+    if (!name) { showAlert('Введите имя босса'); return; }
+    if (totalSeconds === 0) { showAlert('Укажите время респауна'); return; }
+    const boss = { id: nextBossId++, name, respawnSeconds: totalSeconds, killedAt: null, emoji: selectedEmoji };
+    const loc = getLocation(pendingBossLocId);
+    if (!loc) return;
+    if (pendingBossFloorId) {
+      const floor = getFloor(loc, pendingBossFloorId);
+      if (floor) floor.bosses.push(boss);
+      else loc.bosses.push(boss);
+    } else {
+      loc.bosses.push(boss);
+    }
+    closeModal('modalAddBoss');
+    render();
+  }
+
+  // ── Emoji picker (shared) ──
   const allEmojis = [
     '🐉','💀','🐍','❄️','🔥','⚡','👁️','🗡️','🛡️','☠️',
     '🦇','🕷️','🦂','🐺','🦁','🐗','🐻','🦅',
@@ -775,99 +1461,99 @@
     '🧟','🧛','🧙','🦾','💥','🌀','🩸','⚰️'
   ];
 
-  let selectedEmoji = '🐉';
-
-  function buildEmojiGrid() {
-    const grid = document.getElementById('emojiGrid');
-    grid.innerHTML = allEmojis.map(e => 
-      `<div class="emoji-option ${e === selectedEmoji ? 'selected' : ''}" onclick="selectEmoji('${e}')">${e}</div>`
+  // gridId = which grid element, btnId = which button to update, also which var to set
+  function toggleEmojiPicker(gridId, btnId) {
+    document.querySelectorAll('.emoji-grid-popup').forEach(g => {
+      if (g.id !== gridId) g.classList.remove('show');
+    });
+    const grid = document.getElementById(gridId);
+    const isAdd = gridId === 'emojiGrid';
+    const currentEmoji = isAdd ? selectedEmoji : editSelectedEmoji;
+    grid.innerHTML = allEmojis.map(e =>
+      `<div class="emoji-option ${e === currentEmoji ? 'selected' : ''}" onclick="selectEmoji('${e}','${gridId}','${btnId}')">${e}</div>`
     ).join('');
-  }
-
-  function toggleEmojiPicker() {
-    const grid = document.getElementById('emojiGrid');
-    buildEmojiGrid();
     grid.classList.toggle('show');
   }
 
-  function selectEmoji(emoji) {
-    selectedEmoji = emoji;
-    document.getElementById('emojiBtn').textContent = emoji;
-    document.getElementById('emojiGrid').classList.remove('show');
+  function selectEmoji(emoji, gridId, btnId) {
+    if (gridId === 'emojiGrid') selectedEmoji = emoji;
+    else editSelectedEmoji = emoji;
+    document.getElementById(btnId).textContent = emoji;
+    document.getElementById(gridId).classList.remove('show');
   }
 
-  // Close picker when clicking outside
   document.addEventListener('click', function(e) {
-    if (!e.target.closest('#emojiBtn') && !e.target.closest('#emojiGrid')) {
-      document.getElementById('emojiGrid')?.classList.remove('show');
+    if (!e.target.closest('#emojiBtn') && !e.target.closest('#emojiGrid') &&
+        !e.target.closest('#editEmojiBtn') && !e.target.closest('#editEmojiGrid')) {
+      document.querySelectorAll('.emoji-grid-popup').forEach(g => g.classList.remove('show'));
     }
   });
 
-  function addBoss() {
-    const name = document.getElementById('f-name').value.trim();
-    const location = document.getElementById('f-location').value.trim();
-    const h = parseInt(document.getElementById('f-hours').value) || 0;
-    const m = parseInt(document.getElementById('f-minutes').value) || 0;
-    const s = parseInt(document.getElementById('f-seconds').value) || 0;
-    const totalSeconds = h * 3600 + m * 60 + s;
+  // Enter to submit
+  document.getElementById('fl-name').addEventListener('keydown', e => { if(e.key==='Enter') submitAddLocation(); });
+  document.getElementById('ff-name').addEventListener('keydown', e => { if(e.key==='Enter') submitAddFloor(); });
+  document.getElementById('fb-name').addEventListener('keydown', e => { if(e.key==='Enter') submitAddBoss(); });
+  document.getElementById('eb-name').addEventListener('keydown', e => { if(e.key==='Enter') submitEditBoss(); });
 
-    if (!name) { alert('Введите имя босса'); return; }
-    if (totalSeconds === 0) { alert('Укажите время респауна'); return; }
-
-    bosses.push({
-      id: nextId++,
-      name,
-      location: location || 'Неизвестная локация',
-      respawnSeconds: totalSeconds,
-      killedAt: null,
-      emoji: selectedEmoji
-    });
-
-    closeModal();
-    render();
-
-    // Request notification permission
-    if (Notification.permission === 'default') {
-      Notification.requestPermission();
-    }
-  }
-
-  // External bridge for app integration (state sync, persistence)
+  // ── Bridge ──
   window.__bossTrackerBridge = {
     getState: function() {
       return {
-        bosses: JSON.parse(JSON.stringify(bosses)),
-        nextId: nextId,
+        locations: JSON.parse(JSON.stringify(locations)),
+        nextLocationId, nextFloorId, nextBossId,
+        bosses: (() => {
+          const all = [];
+          locations.forEach(loc => {
+            all.push(...loc.bosses);
+            loc.floors.forEach(fl => all.push(...fl.bosses));
+          });
+          return JSON.parse(JSON.stringify(all));
+        })(),
+        nextId: nextBossId,
       };
     },
     setState: function(state) {
-      if (!state || !Array.isArray(state.bosses) || typeof state.nextId !== 'number') return;
-      bosses = state.bosses.map(function(b) {
-        return {
-          id: Number(b.id),
-          name: String(b.name || ''),
-          location: String(b.location || ''),
-          respawnSeconds: Number(b.respawnSeconds || 0),
-          killedAt: b.killedAt === null ? null : Number(b.killedAt),
-          emoji: String(b.emoji || '🐉'),
-        };
-      });
-      nextId = Number(state.nextId);
-      render();
+      if (!state) return;
+      if (Array.isArray(state.locations)) {
+        locations = state.locations.map(loc => ({
+          id: Number(loc.id),
+          name: String(loc.name || ''),
+          floors: (loc.floors || []).map(fl => ({
+            id: Number(fl.id),
+            name: String(fl.name || ''),
+            bosses: (fl.bosses || []).map(normBoss),
+          })),
+          bosses: (loc.bosses || []).map(normBoss),
+        }));
+        nextLocationId = Number(state.nextLocationId || 1);
+        nextFloorId = Number(state.nextFloorId || 1);
+        nextBossId = Number(state.nextBossId || 1);
+        if (!activeLocId && locations.length > 0) activeLocId = locations[0].id;
+        render();
+        return;
+      }
+      if (Array.isArray(state.bosses) && state.bosses.length > 0) {
+        const legacyLoc = { id: nextLocationId++, name: 'Главная', floors: [], bosses: state.bosses.map(normBoss) };
+        locations = [legacyLoc];
+        nextBossId = Number(state.nextId || 1);
+        activeLocId = legacyLoc.id;
+        render();
+      }
     },
-    deleteBoss: function(id) {
-      bosses = bosses.filter(function(b) { return b.id !== id; });
-      render();
-    },
+    deleteBoss: function(id) { deleteBossGlobal(id); },
   };
 
-  // Init
-  render();
-
-  // Ask for notification permission on load
-  if (Notification.permission === 'default') {
-    setTimeout(() => Notification.requestPermission(), 2000);
+  function normBoss(b) {
+    return {
+      id: Number(b.id),
+      name: String(b.name || ''),
+      respawnSeconds: Number(b.respawnSeconds || 0),
+      killedAt: b.killedAt === null ? null : Number(b.killedAt),
+      emoji: String(b.emoji || '🐉'),
+    };
   }
+
+  render();
 </script>
 </body>
 </html>

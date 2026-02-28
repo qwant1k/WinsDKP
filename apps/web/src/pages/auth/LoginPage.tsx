@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/auth.store';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { getErrorMessage } from '@/lib/api';
 import { toast } from 'sonner';
 import { Eye, EyeOff, LogIn } from 'lucide-react';
+import { useI18n } from '@/lib/i18n';
 
 export function LoginPage() {
   const [email, setEmail] = useState('');
@@ -14,17 +15,22 @@ export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const { login, isLoading } = useAuthStore();
   const navigate = useNavigate();
+  const { t } = useI18n();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       await login(email, password);
-      const { mustChangePassword } = useAuthStore.getState();
+      const { mustChangePassword, user } = useAuthStore.getState();
       if (mustChangePassword) {
         navigate('/force-change-password');
         return;
       }
-      toast.success('Добро пожаловать!');
+      if (!user?.clanMembership) {
+        navigate('/join-clan');
+        return;
+      }
+      toast.success(t('auth.welcome'));
       navigate('/');
     } catch (error) {
       toast.error(getErrorMessage(error));
@@ -38,14 +44,14 @@ export function LoginPage() {
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-gold-400 to-gold-600 shadow-lg shadow-gold-500/20">
             <span className="font-display text-2xl font-bold text-black">Y</span>
           </div>
-          <h1 className="font-display text-3xl font-bold gradient-gold">Ymir Clan Hub</h1>
-          <p className="mt-2 text-sm text-muted-foreground">Система управления кланом Legend of Ymir</p>
+          <h1 className="font-display text-3xl font-bold gradient-gold">{t('auth.title')}</h1>
+          <p className="mt-2 text-sm text-muted-foreground">{t('auth.subtitle')}</p>
         </div>
 
         <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
           <CardHeader>
-            <CardTitle className="text-xl">Вход в систему</CardTitle>
-            <CardDescription>Введите ваш email и пароль</CardDescription>
+            <CardTitle className="text-xl">{t('auth.login')}</CardTitle>
+            <CardDescription>{t('auth.loginDesc')}</CardDescription>
           </CardHeader>
           <form onSubmit={handleSubmit}>
             <CardContent className="space-y-4">
@@ -62,7 +68,7 @@ export function LoginPage() {
                 />
               </div>
               <div className="space-y-2">
-                <label htmlFor="password" className="text-sm font-medium">Пароль</label>
+                <label htmlFor="password" className="text-sm font-medium">{t('auth.password')}</label>
                 <div className="relative">
                   <Input
                     id="password"
@@ -85,27 +91,18 @@ export function LoginPage() {
                 </div>
               </div>
 
-              <div className="rounded-lg border border-border/50 bg-secondary/30 p-3 text-xs text-muted-foreground">
-                <p className="font-medium text-foreground mb-1">Демо-аккаунты (пароль: Password123!)</p>
-                <div className="grid grid-cols-2 gap-1">
-                  <button type="button" className="text-left hover:text-primary transition-colors" onClick={() => { setEmail('admin@ymir.local'); setPassword('Password123!'); }}>admin@ymir.local</button>
-                  <button type="button" className="text-left hover:text-primary transition-colors" onClick={() => { setEmail('leader@ymir.local'); setPassword('Password123!'); }}>leader@ymir.local</button>
-                  <button type="button" className="text-left hover:text-primary transition-colors" onClick={() => { setEmail('elder@ymir.local'); setPassword('Password123!'); }}>elder@ymir.local</button>
-                  <button type="button" className="text-left hover:text-primary transition-colors" onClick={() => { setEmail('member@ymir.local'); setPassword('Password123!'); }}>member@ymir.local</button>
-                </div>
-              </div>
             </CardContent>
             <CardFooter className="flex-col gap-3">
               <Button type="submit" variant="gold" className="w-full" disabled={isLoading}>
                 <LogIn className="h-4 w-4" />
-                {isLoading ? 'Вход...' : 'Войти'}
+                {isLoading ? t('auth.signingIn') : t('auth.signIn')}
               </Button>
               <Link to="/forgot-password" className="text-sm text-muted-foreground hover:text-primary">
-                Забыли пароль?
+                {t('auth.forgot')}
               </Link>
               <p className="text-sm text-muted-foreground">
-                Нет аккаунта?{' '}
-                <Link to="/register" className="text-primary hover:underline">Регистрация</Link>
+                {t('auth.noAccount')}{' '}
+                <Link to="/register" className="text-primary hover:underline">{t('auth.register')}</Link>
               </p>
             </CardFooter>
           </form>
@@ -114,3 +111,4 @@ export function LoginPage() {
     </div>
   );
 }
+

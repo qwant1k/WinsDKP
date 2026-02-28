@@ -98,14 +98,39 @@ export function BossTrackerPage() {
       const style = iframeDocument.createElement('style');
       style.id = 'boss-tracker-delete-style';
       style.textContent = `
+        /* Tracker tuning: hide legacy header and keep moderate readable scale */
+        header {
+          display: none !important;
+        }
+        .container {
+          padding-top: 16px !important;
+        }
+        .container .boss-name,
+        .container .respawn-time,
+        .container .boss-location,
+        .container .status-badge,
+        .container .timer-unit,
+        .container .boss-header-cell,
+        .container .subtitle,
+        .container .header-rune,
+        .container .btn-main,
+        .container .btn-add-location {
+          font-size: 1.45em !important;
+        }
+        .container .timer-unit,
+        .container .boss-header-cell,
+        .container .subtitle,
+        .container .header-rune {
+          letter-spacing: 0.06em;
+        }
         .btn-delete {
           background: transparent;
           border: 1px solid rgba(180, 180, 180, 0.35);
           color: #b0b0b0;
           font-family: 'Cinzel', serif;
-          font-size: 10px;
+          font-size: 14px;
           letter-spacing: 1px;
-          padding: 9px 16px;
+          padding: 8px 14px;
           cursor: pointer;
           text-transform: uppercase;
           transition: all 0.25s;

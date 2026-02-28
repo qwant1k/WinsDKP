@@ -35,6 +35,17 @@ export class WarehouseController {
     return this.warehouseService.create(clanId, body, user.sub);
   }
 
+  @Post('import/excel')
+  @Roles('ELDER')
+  @ApiOperation({ summary: 'Import warehouse items from Excel rows' })
+  async importExcel(
+    @Param('clanId') clanId: string,
+    @CurrentUser() user: JwtPayload,
+    @Body() body: { rows: Array<{ name?: string; quantity?: number | string; source?: string }> },
+  ) {
+    return this.warehouseService.importFromExcel(clanId, body.rows, user.sub);
+  }
+
   @Patch(':id')
   @Roles('ELDER')
   @ApiOperation({ summary: 'Update warehouse item' })
@@ -84,6 +95,16 @@ export class WarehouseController {
   @ApiOperation({ summary: 'Delete warehouse item (soft)' })
   async remove(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     return this.warehouseService.softDelete(id, user.sub);
+  }
+
+  @Delete()
+  @Roles('ELDER')
+  @ApiOperation({ summary: 'Delete all warehouse items (soft)' })
+  async removeAll(
+    @Param('clanId') clanId: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.warehouseService.softDeleteAll(clanId, user.sub);
   }
 
   @Get(':id/movements')

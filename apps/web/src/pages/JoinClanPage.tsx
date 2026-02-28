@@ -1,181 +1,139 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMemo, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, getErrorMessage } from '@/lib/api';
-import { useAuthStore } from '@/stores/auth.store';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Users, Search, Send, UserPlus, Shield, Clock, CheckCircle2 } from 'lucide-react';
-import { useState } from 'react';
+import { Shield } from 'lucide-react';
 import { toast } from 'sonner';
-import { Link } from 'react-router-dom';
+import { useAuthStore } from '@/stores/auth.store';
+import { useNavigate } from 'react-router-dom';
+
+type ClanListItem = {
+  id: string;
+  name: string;
+  tag: string;
+  description?: string | null;
+};
 
 export function JoinClanPage() {
-  const { user, fetchMe } = useAuthStore();
   const queryClient = useQueryClient();
-  const [search, setSearch] = useState('');
+  const navigate = useNavigate();
+  const logout = useAuthStore((s) => s.logout);
   const [joinMessage, setJoinMessage] = useState('');
-  const [selectedClan, setSelectedClan] = useState<string | null>(null);
 
-  const { data: clansData, isLoading } = useQuery({
-    queryKey: ['clans-list', search],
-    queryFn: async () => (await api.get('/clans', { params: { search: search || undefined, limit: 20 } })).data,
+  const { data, isLoading } = useQuery({
+    queryKey: ['clans-list-for-join'],
+    queryFn: async () => (await api.get('/clans', { params: { limit: 1 } })).data,
   });
 
-  const { data: myRequests } = useQuery({
-    queryKey: ['my-join-requests'],
-    queryFn: async () => {
-      try {
-        return (await api.get('/clans/my-requests')).data;
-      } catch {
-        return [];
-      }
-    },
-  });
+  const clan: ClanListItem | null = useMemo(() => {
+    const list = data?.data || data || [];
+    return Array.isArray(list) && list.length > 0 ? list[0] : null;
+  }, [data]);
 
   const joinMutation = useMutation({
-    mutationFn: async ({ clanId, message }: { clanId: string; message?: string }) =>
-      (await api.post(`/clans/${clanId}/join`, { message })).data,
+    mutationFn: async (payload: { clanId: string; message?: string }) =>
+      (await api.post(`/clans/${payload.clanId}/join`, { message: payload.message })).data,
     onSuccess: () => {
-      toast.success('Заявка отправлена!');
-      setSelectedClan(null);
-      setJoinMessage('');
+      toast.success('Заявка на вступление отправлена');
       queryClient.invalidateQueries({ queryKey: ['my-join-requests'] });
     },
-    onError: (e) => toast.error(getErrorMessage(e)),
+    onError: (error) => toast.error(getErrorMessage(error)),
   });
 
-  const clans = clansData?.data || clansData || [];
-  const pendingClanIds = new Set(
-    (Array.isArray(myRequests) ? myRequests : myRequests?.data || [])
-      .filter((r: any) => r.status === 'PENDING')
-      .map((r: any) => r.clanId),
-  );
-
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
-      <div className="w-full max-w-2xl space-y-6">
-        <div className="text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-gold-400 to-gold-600 shadow-lg shadow-gold-500/20">
-            <Shield className="h-8 w-8 text-black" />
-          </div>
-          <h1 className="font-display text-xl sm:text-2xl md:text-3xl font-bold gradient-gold">Добро пожаловать, {user?.profile?.nickname || 'Воин'}!</h1>
-          <p className="mt-2 text-muted-foreground">Для начала работы вступите в клан. Выберите клан и отправьте заявку.</p>
-        </div>
-
-        <div className="flex gap-3">
-          <Link to="/profile">
-            <Button variant="outline" size="sm">
-              <UserPlus className="mr-2 h-4 w-4" />
-              Редактировать профиль
-            </Button>
-          </Link>
-        </div>
-
-        <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center p-4">
+        <Card className="w-full max-w-2xl">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Доступные кланы
-            </CardTitle>
-            <CardDescription>Выберите клан для вступления</CardDescription>
+            <Skeleton className="h-8 w-56" />
+            <Skeleton className="h-4 w-80" />
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Поиск клана..."
-                className="pl-10"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
-
-            {isLoading ? (
-              <div className="space-y-3">
-                {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-20" />)}
-              </div>
-            ) : clans.length > 0 ? (
-              <div className="space-y-3">
-                {clans.map((clan: any) => {
-                  const isPending = pendingClanIds.has(clan.id);
-                  const isSelected = selectedClan === clan.id;
-                  return (
-                    <div key={clan.id}>
-                      <Card
-                        className={`cursor-pointer transition-all ${isSelected ? 'border-primary ring-1 ring-primary/30' : 'hover:border-primary/20'}`}
-                        onClick={() => !isPending && setSelectedClan(isSelected ? null : clan.id)}
-                      >
-                        <CardContent className="flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between p-4">
-                          <div className="flex items-center gap-3 sm:gap-4">
-                            <div className="flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-                              <Shield className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <h3 className="font-semibold">{clan.name}</h3>
-                                <Badge variant="outline" className="text-[10px]">[{clan.tag}]</Badge>
-                              </div>
-                              {clan.description && (
-                                <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">{clan.description}</p>
-                              )}
-                              <p className="mt-1 text-xs text-muted-foreground">
-                                <Users className="inline h-3 w-3 mr-1" />
-                                {clan._count?.memberships ?? '?'} участников
-                              </p>
-                            </div>
-                          </div>
-                          {isPending ? (
-                            <Badge variant="secondary" className="gap-1">
-                              <Clock className="h-3 w-3" />
-                              Заявка на рассмотрении
-                            </Badge>
-                          ) : (
-                            <Button
-                              variant={isSelected ? 'gold' : 'outline'}
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedClan(isSelected ? null : clan.id);
-                              }}
-                            >
-                              <Send className="mr-1 h-3 w-3" />
-                              Вступить
-                            </Button>
-                          )}
-                        </CardContent>
-                      </Card>
-
-                      {isSelected && (
-                        <div className="mt-2 rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-3">
-                          <Input
-                            placeholder="Сообщение для главы клана (необязательно)..."
-                            value={joinMessage}
-                            onChange={(e) => setJoinMessage(e.target.value)}
-                          />
-                          <Button
-                            variant="gold"
-                            className="w-full"
-                            disabled={joinMutation.isPending}
-                            onClick={() => joinMutation.mutate({ clanId: clan.id, message: joinMessage || undefined })}
-                          >
-                            {joinMutation.isPending ? 'Отправка...' : 'Отправить заявку'}
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="flex flex-col items-center py-8 text-muted-foreground">
-                <Users className="h-12 w-12 opacity-30" />
-                <p className="mt-3">Кланы не найдены</p>
-              </div>
-            )}
+            <Skeleton className="h-16 w-full" />
+            <Skeleton className="h-32 w-full" />
+            <Skeleton className="h-14 w-full" />
           </CardContent>
         </Card>
+      </div>
+    );
+  }
+
+  if (!clan) {
+    return (
+      <div className="flex min-h-screen items-center justify-center p-4">
+        <Card className="w-full max-w-2xl">
+          <CardHeader>
+            <CardTitle>Клан не найден</CardTitle>
+            <CardDescription>Обратитесь к администратору, чтобы создать клан для вступления.</CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-background to-primary/10 p-4">
+      <Card className="w-full max-w-2xl border-primary/30">
+        <CardHeader className="text-center">
+          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10">
+            <Shield className="h-7 w-7 text-primary" />
+          </div>
+          <CardTitle className="text-2xl">Вступление в клан</CardTitle>
+          <CardDescription>Для доступа к системе отправьте заявку на вступление</CardDescription>
+        </CardHeader>
+
+        <CardContent className="space-y-4">
+          <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-center">
+            <p className="text-sm text-muted-foreground">Клан</p>
+            <p className="mt-1 text-2xl font-bold">
+              {clan.name} <span className="text-base text-muted-foreground">[{clan.tag}]</span>
+            </p>
+            {clan.description ? (
+              <p className="mt-2 text-sm text-muted-foreground">{clan.description}</p>
+            ) : null}
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="join-message" className="text-sm font-medium">
+              Сообщение для вступления
+            </label>
+            <textarea
+              id="join-message"
+              className="min-h-32 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              placeholder="Напишите короткое сообщение лидеру клана..."
+              value={joinMessage}
+              onChange={(e) => setJoinMessage(e.target.value)}
+            />
+          </div>
+
+          <Button
+            type="button"
+            variant="gold"
+            className="h-14 w-full animate-pulse text-lg font-semibold"
+            disabled={joinMutation.isPending}
+            onClick={() => joinMutation.mutate({ clanId: clan.id, message: joinMessage || undefined })}
+          >
+            {joinMutation.isPending ? 'Отправка...' : 'Вступить'}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <div className="fixed bottom-4 right-4 flex flex-col gap-2">
+        <Button type="button" variant="outline" onClick={() => navigate('/profile')}>
+          Личный профиль
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={() => {
+            logout();
+            navigate('/login');
+          }}
+        >
+          Выйти
+        </Button>
       </div>
     </div>
   );

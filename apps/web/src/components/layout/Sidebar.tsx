@@ -1,40 +1,59 @@
-import { Link, useLocation } from 'react-router-dom';
+﻿import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth.store';
 import { useMobileMenuStore } from '@/stores/mobile-menu.store';
 import {
-  LayoutDashboard, Users, Swords, Trophy, Dices, Package,
-  Newspaper, MessageSquare, Mail, Bell, ScrollText, Settings,
-  Shield, LogOut, ChevronLeft, Coins, UserPlus, X, Skull,
+  LayoutDashboard,
+  Users,
+  Swords,
+  Trophy,
+  Dices,
+  Package,
+  Newspaper,
+  MessageSquare,
+  Mail,
+  Bell,
+  ScrollText,
+  Settings,
+  Shield,
+  LogOut,
+  ChevronLeft,
+  Coins,
+  UserPlus,
+  X,
+  Skull,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect } from 'react';
-
-const navItems = [
-  { label: 'Дашборд', icon: LayoutDashboard, path: '/', requiresClan: true },
-  { label: 'Мой клан', icon: Users, path: '/clan', requiresClan: true },
-  { label: 'DKP Кошелёк', icon: Coins, path: '/dkp', requiresClan: true },
-  { label: 'Активности', icon: Swords, path: '/activities', requiresClan: true },
-  { label: 'Аукцион', icon: Trophy, path: '/auctions', requiresClan: true },
-  { label: 'Рандомайзер', icon: Dices, path: '/randomizer', requiresClan: true },
-  { label: 'Хранилище', icon: Package, path: '/warehouse', requiresClan: true },
-  { label: 'Новости', icon: Newspaper, path: '/news', requiresClan: true },
-  { label: 'Лента', icon: MessageSquare, path: '/feed', requiresClan: true },
-  { label: 'Сообщения', icon: Mail, path: '/messages', requiresClan: false },
-  { label: 'Уведомления', icon: Bell, path: '/notifications', requiresClan: false },
-  { label: 'Трекер боссов', icon: Skull, path: '/boss-tracker', requiresClan: true },
-];
-
-const adminItems = [
-  { label: 'Админ-панель', icon: Shield, path: '/admin' },
-  { label: 'Аудит', icon: ScrollText, path: '/admin/audit' },
-  { label: 'Настройки', icon: Settings, path: '/admin/settings' },
-];
+import { useI18n } from '@/lib/i18n';
+import { ChampionNickname } from '@/components/common/ChampionNickname';
 
 function SidebarContent({ collapsed, setCollapsed }: { collapsed: boolean; setCollapsed: (v: boolean) => void }) {
   const location = useLocation();
   const { user, logout, isAdmin } = useAuthStore();
   const { close: closeMobile } = useMobileMenuStore();
+  const { t } = useI18n();
+
+  const navItems = [
+    { label: t('sidebar.dashboard'), icon: LayoutDashboard, path: '/', requiresClan: true },
+    { label: t('sidebar.clan'), icon: Users, path: '/clan', requiresClan: true },
+    { label: t('sidebar.dkp'), icon: Coins, path: '/dkp', requiresClan: true },
+    { label: t('sidebar.activities'), icon: Swords, path: '/activities', requiresClan: true },
+    { label: t('sidebar.auctions'), icon: Trophy, path: '/auctions', requiresClan: true },
+    { label: t('sidebar.randomizer'), icon: Dices, path: '/randomizer', requiresClan: true },
+    { label: t('sidebar.warehouse'), icon: Package, path: '/warehouse', requiresClan: true },
+    { label: t('sidebar.news'), icon: Newspaper, path: '/news', requiresClan: true },
+    { label: t('sidebar.feed'), icon: MessageSquare, path: '/feed', requiresClan: true },
+    { label: t('sidebar.messages'), icon: Mail, path: '/messages', requiresClan: false },
+    { label: t('sidebar.notifications'), icon: Bell, path: '/notifications', requiresClan: false },
+    { label: t('sidebar.bossTracker'), icon: Skull, path: '/boss-tracker', requiresClan: true },
+  ];
+
+  const adminItems = [
+    { label: t('sidebar.admin'), icon: Shield, path: '/admin' },
+    { label: t('sidebar.audit'), icon: ScrollText, path: '/admin/audit' },
+    { label: t('sidebar.settings'), icon: Settings, path: '/admin/settings' },
+  ];
 
   const handleNavClick = () => {
     closeMobile();
@@ -64,12 +83,7 @@ function SidebarContent({ collapsed, setCollapsed }: { collapsed: boolean; setCo
         >
           <ChevronLeft className={cn('h-4 w-4 transition-transform', collapsed && 'rotate-180')} />
         </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 shrink-0 md:hidden"
-          onClick={closeMobile}
-        >
+        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 md:hidden" onClick={closeMobile}>
           <X className="h-5 w-5" />
         </Button>
       </div>
@@ -83,35 +97,34 @@ function SidebarContent({ collapsed, setCollapsed }: { collapsed: boolean; setCo
               'bg-gold-500/10 text-gold-400 hover:bg-gold-500/20',
               collapsed && 'justify-center px-2',
             )}
-            title={collapsed ? 'Вступить в клан' : undefined}
+            title={collapsed ? t('sidebar.joinClan') : undefined}
             onClick={handleNavClick}
           >
             <UserPlus className="h-5 w-5 shrink-0" />
-            {!collapsed && <span>Вступить в клан</span>}
+            {!collapsed && <span>{t('sidebar.joinClan')}</span>}
           </Link>
         )}
-        {navItems.filter((item) => !item.requiresClan || !!user?.clanMembership || isAdmin()).map((item) => {
-          const isActive = location.pathname === item.path ||
-            (item.path !== '/' && location.pathname.startsWith(item.path));
-          return (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={cn(
-                'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all',
-                isActive
-                  ? 'bg-primary/10 text-primary shadow-sm'
-                  : 'text-muted-foreground hover:bg-accent hover:text-foreground',
-                collapsed && 'justify-center px-2',
-              )}
-              title={collapsed ? item.label : undefined}
-              onClick={handleNavClick}
-            >
-              <item.icon className="h-5 w-5 shrink-0" />
-              {!collapsed && <span>{item.label}</span>}
-            </Link>
-          );
-        })}
+        {navItems
+          .filter((item) => !item.requiresClan || !!user?.clanMembership || isAdmin())
+          .map((item) => {
+            const isActive = location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path));
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={cn(
+                  'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all',
+                  isActive ? 'bg-primary/10 text-primary shadow-sm' : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+                  collapsed && 'justify-center px-2',
+                )}
+                title={collapsed ? item.label : undefined}
+                onClick={handleNavClick}
+              >
+                <item.icon className="h-5 w-5 shrink-0" />
+                {!collapsed && <span>{item.label}</span>}
+              </Link>
+            );
+          })}
 
         {isAdmin() && (
           <>
@@ -124,9 +137,7 @@ function SidebarContent({ collapsed, setCollapsed }: { collapsed: boolean; setCo
                   to={item.path}
                   className={cn(
                     'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all',
-                    isActive
-                      ? 'bg-red-500/10 text-red-400'
-                      : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+                    isActive ? 'bg-red-500/10 text-red-400' : 'text-muted-foreground hover:bg-accent hover:text-foreground',
                     collapsed && 'justify-center px-2',
                   )}
                   title={collapsed ? item.label : undefined}
@@ -143,12 +154,19 @@ function SidebarContent({ collapsed, setCollapsed }: { collapsed: boolean; setCo
 
       <div className="border-t border-border p-3">
         <div className={cn('flex items-center gap-3', collapsed && 'flex-col')}>
-          <Link to="/profile" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/20 text-sm font-bold text-primary hover:ring-2 hover:ring-primary/50 transition-all" title="Мой профиль" onClick={handleNavClick}>
+          <Link
+            to="/profile"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/20 text-sm font-bold text-primary hover:ring-2 hover:ring-primary/50 transition-all"
+            title={t('sidebar.profile')}
+            onClick={handleNavClick}
+          >
             {user?.profile?.nickname?.charAt(0)?.toUpperCase() || '?'}
           </Link>
           {!collapsed && (
             <Link to="/profile" className="flex-1 truncate hover:opacity-80 transition-opacity" onClick={handleNavClick}>
-              <p className="truncate text-sm font-medium">{user?.profile?.nickname || 'User'}</p>
+              <p className="truncate text-sm font-medium">
+                <ChampionNickname nickname={user?.profile?.nickname || 'User'} isChampion={user?.profile?.isServerChampion} />
+              </p>
               <p className="truncate text-xs text-muted-foreground">{user?.profile?.displayName}</p>
             </Link>
           )}
@@ -157,7 +175,7 @@ function SidebarContent({ collapsed, setCollapsed }: { collapsed: boolean; setCo
             size="icon"
             className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
             onClick={logout}
-            title="Выйти"
+            title={t('sidebar.logout')}
           >
             <LogOut className="h-4 w-4" />
           </Button>
@@ -174,11 +192,10 @@ export function Sidebar() {
 
   useEffect(() => {
     close();
-  }, [location.pathname]);
+  }, [location.pathname, close]);
 
   return (
     <>
-      {/* Desktop sidebar */}
       <aside
         className={cn(
           'fixed left-0 top-0 z-40 hidden md:flex h-screen flex-col border-r border-border bg-card transition-all duration-300',
@@ -188,15 +205,8 @@ export function Sidebar() {
         <SidebarContent collapsed={collapsed} setCollapsed={setCollapsed} />
       </aside>
 
-      {/* Mobile overlay */}
-      {isOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden"
-          onClick={close}
-        />
-      )}
+      {isOpen && <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden" onClick={close} />}
 
-      {/* Mobile drawer */}
       <aside
         className={cn(
           'fixed left-0 top-0 z-50 flex h-screen w-[280px] flex-col border-r border-border bg-card transition-transform duration-300 ease-in-out md:hidden',
@@ -208,3 +218,4 @@ export function Sidebar() {
     </>
   );
 }
+

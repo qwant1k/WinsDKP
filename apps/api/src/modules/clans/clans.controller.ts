@@ -88,6 +88,29 @@ export class ClansController {
     return this.clansService.changeMemberRole(clanId, userId, role, user.sub);
   }
 
+  @Patch(':clanId/leader/transfer')
+  @Roles('CLAN_LEADER')
+  @ApiOperation({ summary: 'Transfer clan leadership to another active clan member' })
+  async transferLeadership(
+    @Param('clanId') clanId: string,
+    @CurrentUser() user: JwtPayload,
+    @Body('targetUserId') targetUserId: string,
+  ) {
+    return this.clansService.transferLeadership(clanId, targetUserId, user.sub);
+  }
+
+  @Patch(':clanId/members/:userId/server-champion')
+  @Roles('PORTAL_ADMIN', 'CLAN_LEADER')
+  @ApiOperation({ summary: 'Set or unset server champion status for clan member' })
+  async setServerChampion(
+    @Param('clanId') clanId: string,
+    @Param('userId') userId: string,
+    @CurrentUser() user: JwtPayload,
+    @Body('isChampion') isChampion: boolean,
+  ) {
+    return this.clansService.setServerChampion(clanId, userId, user.sub, user.globalRole, !!isChampion);
+  }
+
   @Delete(':clanId/members/:userId')
   @Roles('ELDER')
   @ApiOperation({ summary: 'Kick member from clan' })

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Body, Param, Query, Headers } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Param, Query, Headers } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuctionsService } from './auctions.service';
 import { CurrentUser, JwtPayload } from '../../common/decorators/current-user.decorator';
@@ -52,19 +52,43 @@ export class AuctionsController {
     });
   }
 
+  // ─── Add single lot ──────────────────────────────────────────────────────────
   @Post(':id/lots')
   @Roles('ELDER')
-  @ApiOperation({ summary: 'Add lot to auction' })
+  @ApiOperation({ summary: 'Add single lot to auction' })
   async addLot(
     @Param('id') id: string,
-    @Body() body: { warehouseItemId: string; quantity: number; startPrice: number; minStep: number; sortOrder?: number },
+    @Body() body: { warehouseItemId: string; quantity: number; startPrice: number; minStep: number; sortOrder?: number; lotDurationMinutes?: number | null },
   ) {
     return this.auctionsService.addLot(id, body);
   }
 
+  // ─── Bulk add all warehouse items as lots ────────────────────────────────────
+  @Post(':id/lots/bulk')
+  @Roles('ELDER')
+  @ApiOperation({ summary: 'Add all warehouse items as lots with default price/step' })
+  async addAllLots(
+    @Param('id') id: string,
+    @Param('clanId') clanId: string,
+    @Body() body: { defaultStartPrice: number; defaultMinStep: number; defaultLotDurationMinutes?: number | null },
+  ) {
+    return this.auctionsService.addAllWarehouseItems(id, clanId, body);
+  }
+
+  // ─── Delete lot (only PENDING, before auction starts) ───────────────────────
+  @Delete('lots/:lotId')
+  @Roles('ELDER')
+  @ApiOperation({ summary: 'Delete a pending lot before auction starts' })
+  async deleteLot(
+    @Param('lotId') lotId: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.auctionsService.deleteLot(lotId, user.sub);
+  }
+
   @Post(':id/start')
   @Roles('ELDER')
-  @ApiOperation({ summary: 'Start the auction' })
+  @ApiOperation({ summary: 'Start the auction — all lots go ACTIVE simultaneously' })
   async start(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     return this.auctionsService.startAuction(id, user.sub);
   }
@@ -88,7 +112,7 @@ export class AuctionsController {
 
   @Post('lots/:lotId/finish')
   @Roles('ELDER')
-  @ApiOperation({ summary: 'Finish a lot (determine winner, advance to next)' })
+  @ApiOperation({ summary: 'Finish a lot and determine winner' })
   async finishLot(@Param('lotId') lotId: string, @CurrentUser() user: JwtPayload) {
     return this.auctionsService.finishLot(lotId, user.sub);
   }
@@ -107,5 +131,16 @@ export class AuctionsController {
     @Body('message') message: string,
   ) {
     return this.auctionsService.sendChatMessage(id, user.sub, message);
+  }
+
+  @Delete(':id')
+  @Roles('ELDER')
+  @ApiOperation({ summary: 'Delete completed auction (soft delete from UI)' })
+  async deleteCompletedAuction(
+    @Param('id') id: string,
+    @Param('clanId') clanId: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.auctionsService.deleteCompletedAuction(id, clanId, user.sub);
   }
 }

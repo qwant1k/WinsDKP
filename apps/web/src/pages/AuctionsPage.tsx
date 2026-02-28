@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDateTime, getStatusLabel, getStatusColor } from '@/lib/utils';
-import { Trophy, Plus, Users, Package, ArrowRight } from 'lucide-react';
+import { Trophy, Plus, Users, Package, ArrowRight, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
@@ -28,6 +28,15 @@ export function AuctionsPage() {
       setShowCreate(false);
       setForm({ title: '', description: '', antiSniperEnabled: true });
       toast.success('Аукцион создан');
+    },
+    onError: (e) => toast.error(getErrorMessage(e)),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (auctionId: string) => (await api.delete(`/clans/${clanId}/auctions/${auctionId}`)).data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['auctions', clanId], exact: true });
+      toast.success('Завершенный аукцион удален');
     },
     onError: (e) => toast.error(getErrorMessage(e)),
   });
@@ -92,7 +101,24 @@ export function AuctionsPage() {
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-lg group-hover:text-primary transition-colors">{auction.title}</CardTitle>
-                      <Badge variant="outline" className={getStatusColor(auction.status)}>{getStatusLabel(auction.status)}</Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className={getStatusColor(auction.status)}>{getStatusLabel(auction.status)}</Badge>
+                        {canManage && auction.status === 'COMPLETED' && (
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-7 w-7 border-destructive/40 text-destructive hover:bg-destructive/10"
+                            disabled={deleteMutation.isPending}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              deleteMutation.mutate(auction.id);
+                            }}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </div>
                     </div>
                     {auction.description && <p className="text-sm text-muted-foreground line-clamp-2">{auction.description}</p>}
                   </CardHeader>

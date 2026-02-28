@@ -38,7 +38,11 @@ export function ActivitiesPage() {
       queryClient.invalidateQueries({ queryKey: ['activity-detail', data.activityId], exact: true });
     };
     socket.on('activity.participant_joined', handler);
-    return () => { socket.off('activity.participant_joined', handler); };
+    socket.on('activity.participant_left', handler);
+    return () => {
+      socket.off('activity.participant_joined', handler);
+      socket.off('activity.participant_left', handler);
+    };
   }, [queryClient, clanId]);
 
   const canJoin = ['CLAN_LEADER', 'ELDER', 'MEMBER', 'NEWBIE'].includes(user?.clanMembership?.role || '');
@@ -71,6 +75,18 @@ export function ActivitiesPage() {
   const joinMutation = useMutation({
     mutationFn: async (id: string) => (await api.post(`/clans/${clanId}/activities/${id}/join`)).data,
     onSuccess: async () => { await refetchActivities(); toast.success('Вы присоединились'); },
+    onError: (e) => toast.error(getErrorMessage(e)),
+  });
+
+  const leaveMutation = useMutation({
+    mutationFn: async (id: string) => (await api.post(`/clans/${clanId}/activities/${id}/leave`)).data,
+    onSuccess: async () => {
+      await refetchActivities();
+      if (expandedActivity) {
+        await queryClient.refetchQueries({ queryKey: ['activity-detail', expandedActivity], exact: true });
+      }
+      toast.success('Вы покинули активность');
+    },
     onError: (e) => toast.error(getErrorMessage(e)),
   });
 
@@ -241,6 +257,21 @@ export function ActivitiesPage() {
                   {expandedActivity === activity.id && activityDetail && (
                     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="mt-4 border-t border-border/50 pt-4">
                       {activityDetail.description && <p className="text-sm text-muted-foreground mb-3">{activityDetail.description}</p>}
+                      {canJoin &&
+                        (activity.status === 'OPEN' || activity.status === 'IN_PROGRESS') &&
+                        activityDetail.participants?.some((p: any) => p.userId === user?.id) && (
+                          <div className="mb-3">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 text-xs sm:text-sm"
+                              disabled={leaveMutation.isPending}
+                              onClick={() => leaveMutation.mutate(activity.id)}
+                            >
+                              Покинуть активность
+                            </Button>
+                          </div>
+                        )}
                       <h4 className="text-sm font-medium mb-2">Участники ({activityDetail.participants?.length || 0})</h4>
                       <div className="flex flex-wrap gap-2">
                         {activityDetail.participants?.length ? activityDetail.participants.map((p: any) => (

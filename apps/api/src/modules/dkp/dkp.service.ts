@@ -359,4 +359,37 @@ export class DkpService {
       });
     }
   }
+
+  async clanAdjust(params: {
+    clanId: string;
+    userId: string;
+    amount: number;
+    description: string;
+    actorId: string;
+    idempotencyKey?: string;
+  }) {
+    const [actorMembership, targetMembership] = await Promise.all([
+      this.prisma.clanMembership.findUnique({
+        where: { userId_clanId: { userId: params.actorId, clanId: params.clanId } },
+      }),
+      this.prisma.clanMembership.findUnique({
+        where: { userId_clanId: { userId: params.userId, clanId: params.clanId } },
+      }),
+    ]);
+
+    if (!actorMembership || !actorMembership.isActive || actorMembership.role !== 'CLAN_LEADER') {
+      throw new BadRequestException('Only clan leader can adjust DKP for clan members');
+    }
+    if (!targetMembership || !targetMembership.isActive) {
+      throw new BadRequestException('Target user is not an active member of this clan');
+    }
+
+    return this.adminAdjust({
+      userId: params.userId,
+      amount: params.amount,
+      description: params.description,
+      actorId: params.actorId,
+      idempotencyKey: params.idempotencyKey,
+    });
+  }
 }

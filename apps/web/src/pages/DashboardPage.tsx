@@ -9,6 +9,7 @@ import { formatDkp, formatTimeAgo, getRoleLabel, getStatusLabel, getStatusColor 
 import { Coins, Users, Swords, Trophy, TrendingUp, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
+import { ChampionNickname } from '@/components/common/ChampionNickname';
 
 export function DashboardPage() {
   const { user } = useAuthStore();
@@ -43,7 +44,7 @@ export function DashboardPage() {
     <div className="space-y-6">
       <div>
         <h1 className="font-display text-xl sm:text-2xl md:text-3xl font-bold">
-          Добро пожаловать, <span className="gradient-gold">{user?.profile?.nickname}</span>
+          Добро пожаловать, <span className="gradient-gold"><ChampionNickname nickname={user?.profile?.nickname} isChampion={user?.profile?.isServerChampion} /></span>
         </h1>
         <p className="mt-1 text-muted-foreground">
           {user?.clanMembership?.clan?.name ? `${user.clanMembership.clan.name} · ${getRoleLabel(user.clanMembership.role)}` : 'Вы не состоите в клане'}
@@ -156,7 +157,9 @@ export function DashboardPage() {
                       <p className="font-medium">{n.title}</p>
                     </div>
                     <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{n.content?.substring(0, 120)}...</p>
-                    <p className="mt-2 text-xs text-muted-foreground">{formatTimeAgo(n.createdAt)} · {n.author?.profile?.nickname}</p>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      {formatTimeAgo(n.createdAt)} · <ChampionNickname nickname={n.author?.profile?.nickname} isChampion={n.author?.profile?.isServerChampion} />
+                    </p>
                   </Link>
                 ))}
               </div>

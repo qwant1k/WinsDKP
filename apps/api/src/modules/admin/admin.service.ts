@@ -380,7 +380,7 @@ export class AdminService {
   }
 
   async getCoefficients(clanId: string) {
-    const [power, level] = await Promise.all([
+    const [power, level, awakening] = await Promise.all([
       this.prisma.coefficientPowerRange.findMany({
         where: { clanId },
         orderBy: { fromPower: 'asc' },
@@ -389,8 +389,12 @@ export class AdminService {
         where: { clanId },
         orderBy: { fromLevel: 'asc' },
       }),
+      this.prisma.coefficientAwakeningRange.findMany({
+        where: { clanId },
+        orderBy: { fromAwakening: 'asc' },
+      }),
     ]);
-    return { powerRanges: power, levelRanges: level };
+    return { powerRanges: power, levelRanges: level, awakeningRanges: awakening };
   }
 
   async updatePowerCoefficients(clanId: string, ranges: Array<{ fromPower: number; toPower: number; coefficient: number }>, actorId: string) {
@@ -430,6 +434,33 @@ export class AdminService {
         actorId,
         action: 'admin.coefficients.level.updated',
         entityType: 'coefficient_level_range',
+        after: ranges,
+      },
+    });
+
+    return this.getCoefficients(clanId);
+  }
+
+  async updateAwakeningCoefficients(clanId: string, ranges: Array<{ fromAwakening: number; toAwakening: number; coefficient: number }>, actorId: string) {
+    for (const range of ranges) {
+      if (range.fromAwakening < 1 || range.toAwakening > 3) {
+        throw new ForbiddenException('Awakening ranges must be within 1..3');
+      }
+    }
+    this.validateRanges(ranges.map((r) => ({ from: r.fromAwakening, to: r.toAwakening })));
+
+    await this.prisma.$transaction([
+      this.prisma.coefficientAwakeningRange.deleteMany({ where: { clanId } }),
+      this.prisma.coefficientAwakeningRange.createMany({
+        data: ranges.map((r) => ({ clanId, ...r })),
+      }),
+    ]);
+
+    await this.prisma.auditLog.create({
+      data: {
+        actorId,
+        action: 'admin.coefficients.awakening.updated',
+        entityType: 'coefficient_awakening_range',
         after: ranges,
       },
     });

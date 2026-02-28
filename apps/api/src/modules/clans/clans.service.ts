@@ -266,6 +266,122 @@ export class ClansService {
     return updated;
   }
 
+  async transferLeadership(clanId: string, targetUserId: string, actorId: string) {
+    if (!targetUserId) throw new BadRequestException('targetUserId is required');
+    if (targetUserId === actorId) {
+      throw new BadRequestException('Cannot transfer leadership to yourself');
+    }
+
+    const [actorMembership, targetMembership] = await Promise.all([
+      this.prisma.clanMembership.findUnique({
+        where: { userId_clanId: { userId: actorId, clanId } },
+      }),
+      this.prisma.clanMembership.findUnique({
+        where: { userId_clanId: { userId: targetUserId, clanId } },
+      }),
+    ]);
+
+    if (!actorMembership?.isActive || actorMembership.role !== 'CLAN_LEADER') {
+      throw new ForbiddenException('Only current clan leader can transfer leadership');
+    }
+
+    if (!targetMembership?.isActive) {
+      throw new NotFoundException('Target member not found');
+    }
+
+    if (targetMembership.role === 'CLAN_LEADER') {
+      throw new BadRequestException('Target member is already clan leader');
+    }
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const beforeActor = { ...actorMembership };
+      const beforeTarget = { ...targetMembership };
+
+      const [newLeader, formerLeader] = await Promise.all([
+        tx.clanMembership.update({
+          where: { id: targetMembership.id },
+          data: { role: ClanRole.CLAN_LEADER },
+        }),
+        tx.clanMembership.update({
+          where: { id: actorMembership.id },
+          data: { role: ClanRole.MEMBER },
+        }),
+      ]);
+
+      await tx.auditLog.create({
+        data: {
+          actorId,
+          action: 'clan.leadership.transferred',
+          entityType: 'clan',
+          entityId: clanId,
+          before: { formerLeader: beforeActor, targetLeader: beforeTarget },
+          after: { formerLeader, newLeader },
+        },
+      });
+
+      return { newLeader, formerLeader };
+    });
+
+    return {
+      message: 'Leadership transferred',
+      ...result,
+    };
+  }
+
+  async setServerChampion(
+    clanId: string,
+    targetUserId: string,
+    actorId: string,
+    actorGlobalRole: string | undefined,
+    isChampion: boolean,
+  ) {
+    const targetMembership = await this.prisma.clanMembership.findUnique({
+      where: { userId_clanId: { userId: targetUserId, clanId } },
+      select: { userId: true, isActive: true },
+    });
+    if (!targetMembership?.isActive) {
+      throw new NotFoundException('Member not found');
+    }
+
+    const isPortalAdmin = actorGlobalRole === 'PORTAL_ADMIN';
+    if (!isPortalAdmin) {
+      const actorMembership = await this.prisma.clanMembership.findUnique({
+        where: { userId_clanId: { userId: actorId, clanId } },
+        select: { role: true, isActive: true },
+      });
+      if (!actorMembership?.isActive || actorMembership.role !== ClanRole.CLAN_LEADER) {
+        throw new ForbiddenException('Only clan leader can change champion status');
+      }
+    }
+
+    const before = await this.prisma.profile.findUnique({
+      where: { userId: targetUserId },
+      select: { userId: true, isServerChampion: true },
+    });
+    if (!before) {
+      throw new NotFoundException('Profile not found');
+    }
+
+    const updated = await this.prisma.profile.update({
+      where: { userId: targetUserId },
+      data: { isServerChampion: isChampion },
+      select: { userId: true, isServerChampion: true },
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        actorId,
+        action: 'clan.member.server_champion.set',
+        entityType: 'user',
+        entityId: targetUserId,
+        before,
+        after: updated,
+      },
+    });
+
+    return updated;
+  }
+
   async getClanReport(clanId: string, from?: string, to?: string) {
     const dateFilter: Record<string, unknown> = {};
     if (from || to) {

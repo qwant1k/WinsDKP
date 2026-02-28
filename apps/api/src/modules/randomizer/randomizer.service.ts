@@ -48,6 +48,7 @@ export class RandomizerService {
     quantity?: number;
     createdBy: string;
     idempotencyKey?: string;
+    participantIds?: string[];
   }) {
     if (params.idempotencyKey) {
       const existing = await this.prisma.randomizerSession.findUnique({
@@ -68,19 +69,32 @@ export class RandomizerService {
       include: { user: { include: { profile: true } } },
     });
 
-    if (members.length < 2) throw new BadRequestException('Need at least 2 members');
+    const requestedParticipantIds = Array.isArray(params.participantIds) ? [...new Set(params.participantIds.filter(Boolean))] : [];
+    const memberByUserId = new Map(members.map((m) => [m.userId, m]));
+    if (requestedParticipantIds.length > 0) {
+      const invalidParticipantId = requestedParticipantIds.find((id) => !memberByUserId.has(id));
+      if (invalidParticipantId) {
+        throw new BadRequestException('Some selected participants are not active clan members');
+      }
+    }
+
+    const selectedMembers = requestedParticipantIds.length > 0
+      ? requestedParticipantIds.map((id) => memberByUserId.get(id)!).filter(Boolean)
+      : members;
+
+    if (selectedMembers.length < 1) throw new BadRequestException('Need at least 1 member');
 
     const seed = crypto.randomBytes(32).toString('hex');
     const seedHash = crypto.createHash('sha256').update(seed).digest('hex');
 
-    const allBm = members.map((m) => m.user.profile?.bm ?? 0);
-    const allLevels = members.map((m) => m.user.profile?.level ?? 1);
+    const allBm = selectedMembers.map((m) => m.user.profile?.bm ?? 0);
+    const allLevels = selectedMembers.map((m) => m.user.profile?.level ?? 1);
     const maxBm = Math.max(...allBm, 1);
     const maxLevel = Math.max(...allLevels, 1);
     const minBm = Math.min(...allBm);
     const minLevel = Math.min(...allLevels);
 
-    const entriesData = members.map((m) => {
+    const entriesData = selectedMembers.map((m) => {
       const bm = m.user.profile?.bm ?? 0;
       const level = m.user.profile?.level ?? 1;
 
@@ -101,6 +115,7 @@ export class RandomizerService {
       members: entriesData.map((e) => ({ userId: e.userId, weight: e.weight, bonus: e.bonus })),
       itemId: params.warehouseItemId,
       drawQuantity,
+      selectedUserIds: selectedMembers.map((m) => m.userId),
       maxBm,
       maxLevel,
       minBm,
@@ -133,7 +148,7 @@ export class RandomizerService {
         action: 'randomizer.session.created',
         entityType: 'randomizer_session',
         entityId: session.id,
-        after: { sessionId: session.id, seedHash, participantCount: members.length },
+        after: { sessionId: session.id, seedHash, participantCount: selectedMembers.length },
       },
     });
 
@@ -197,20 +212,22 @@ export class RandomizerService {
       timestamp: new Date().toISOString(),
     };
 
-    await this.prisma.$transaction([
-      this.prisma.randomizerResult.create({
+    await this.prisma.$transaction(async (tx) => {
+      await tx.randomizerResult.create({
         data: {
           sessionId,
           winnerId: winner.userId,
           rollValue,
           proof,
         },
-      }),
-      this.prisma.randomizerSession.update({
+      });
+
+      await tx.randomizerSession.update({
         where: { id: sessionId },
         data: { status: RandomizerStatus.COMPLETED },
-      }),
-      this.prisma.warehouseItemMovement.create({
+      });
+
+      await tx.warehouseItemMovement.create({
         data: {
           itemId: session.warehouseItemId,
           type: 'OUTGOING_RANDOMIZER',
@@ -220,12 +237,20 @@ export class RandomizerService {
           referenceType: 'randomizer_session',
           referenceId: sessionId,
         },
-      }),
-      this.prisma.warehouseItem.update({
+      });
+
+      const updatedItem = await tx.warehouseItem.update({
         where: { id: session.warehouseItemId },
         data: { quantity: { decrement: (session.inputData as any)?.drawQuantity || 1 } },
-      }),
-    ]);
+      });
+
+      if (updatedItem.quantity <= 0) {
+        await tx.warehouseItem.update({
+          where: { id: session.warehouseItemId },
+          data: { deletedAt: new Date() },
+        });
+      }
+    });
 
     await this.prisma.auditLog.create({
       data: {
@@ -248,3 +273,4 @@ export class RandomizerService {
     return { session, result: proof };
   }
 }
+

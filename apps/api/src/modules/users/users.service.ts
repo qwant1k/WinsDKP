@@ -46,7 +46,19 @@ export class UsersService {
     return user;
   }
 
-  async updateProfile(userId: string, data: { nickname?: string; displayName?: string; bm?: number; level?: number; contacts?: object; locale?: string; notifyPrefs?: object }) {
+  async updateProfile(
+    userId: string,
+    data: {
+      nickname?: string;
+      displayName?: string;
+      bm?: number;
+      level?: number;
+      awakeningLevel?: number | null;
+      contacts?: object;
+      locale?: string;
+      notifyPrefs?: object;
+    },
+  ) {
     return this.prisma.profile.update({
       where: { userId },
       data,

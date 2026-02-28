@@ -1,4 +1,4 @@
-import { Bell, Search, CheckCheck, Coins, Trophy, Swords, Users, Dices, Newspaper, Menu } from 'lucide-react';
+﻿import { Bell, Search, CheckCheck, Coins, Trophy, Swords, Users, Dices, Newspaper, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -8,29 +8,57 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Link, useNavigate } from 'react-router-dom';
 import { formatDkp, getRoleLabel, formatTimeAgo } from '@/lib/utils';
+import { useI18n } from '@/lib/i18n';
 import { useState, useRef, useEffect } from 'react';
 
 const notifIcons: Record<string, React.ElementType> = {
-  DKP_RECEIVED: Coins, DKP_PENALTY: Coins, AUCTION_OUTBID: Trophy,
-  AUCTION_WON: Trophy, AUCTION_STARTED: Trophy, RANDOMIZER_WON: Dices,
-  RANDOMIZER_STARTED: Dices, ACTIVITY_CREATED: Swords, ACTIVITY_STARTED: Swords,
-  ACTIVITY_COMPLETED: Swords, CLAN_JOIN_REQUEST: Users, CLAN_JOIN_APPROVED: Users,
-  NEWS_POSTED: Newspaper, MESSAGE_RECEIVED: Bell, SYSTEM: Bell,
+  DKP_RECEIVED: Coins,
+  DKP_PENALTY: Coins,
+  AUCTION_OUTBID: Trophy,
+  AUCTION_WON: Trophy,
+  AUCTION_STARTED: Trophy,
+  RANDOMIZER_WON: Dices,
+  RANDOMIZER_STARTED: Dices,
+  ACTIVITY_CREATED: Swords,
+  ACTIVITY_STARTED: Swords,
+  ACTIVITY_COMPLETED: Swords,
+  CLAN_JOIN_REQUEST: Users,
+  CLAN_JOIN_APPROVED: Users,
+  NEWS_POSTED: Newspaper,
+  MESSAGE_RECEIVED: Bell,
+  SYSTEM: Bell,
 };
 
 function getNotifLink(n: any): string | null {
   const data = n.data || {};
   switch (n.type) {
-    case 'AUCTION_OUTBID': case 'AUCTION_WON': case 'AUCTION_LOST': case 'AUCTION_STARTED':
+    case 'AUCTION_OUTBID':
+    case 'AUCTION_WON':
+    case 'AUCTION_LOST':
+    case 'AUCTION_STARTED':
       return data.auctionId ? `/auctions/${data.auctionId}` : '/auctions';
-    case 'RANDOMIZER_WON': case 'RANDOMIZER_STARTED': return '/randomizer';
-    case 'DKP_RECEIVED': case 'DKP_PENALTY': return data.activityId ? '/activities' : '/dkp';
-    case 'ACTIVITY_CREATED': case 'ACTIVITY_STARTED': case 'ACTIVITY_COMPLETED': return '/activities';
-    case 'CLAN_JOIN_REQUEST': case 'CLAN_JOIN_APPROVED': case 'CLAN_JOIN_REJECTED':
-    case 'CLAN_ROLE_CHANGED': case 'CLAN_KICKED': return '/clan';
-    case 'NEWS_POSTED': return '/news';
-    case 'MESSAGE_RECEIVED': return data.senderId ? `/messages/${data.senderId}` : '/messages';
-    default: return typeof data.link === 'string' ? data.link : null;
+    case 'RANDOMIZER_WON':
+    case 'RANDOMIZER_STARTED':
+      return '/randomizer';
+    case 'DKP_RECEIVED':
+    case 'DKP_PENALTY':
+      return data.activityId ? '/activities' : '/dkp';
+    case 'ACTIVITY_CREATED':
+    case 'ACTIVITY_STARTED':
+    case 'ACTIVITY_COMPLETED':
+      return '/activities';
+    case 'CLAN_JOIN_REQUEST':
+    case 'CLAN_JOIN_APPROVED':
+    case 'CLAN_JOIN_REJECTED':
+    case 'CLAN_ROLE_CHANGED':
+    case 'CLAN_KICKED':
+      return '/clan';
+    case 'NEWS_POSTED':
+      return '/news';
+    case 'MESSAGE_RECEIVED':
+      return data.senderId ? `/messages/${data.senderId}` : '/messages';
+    default:
+      return typeof data.link === 'string' ? data.link : null;
   }
 }
 
@@ -39,6 +67,8 @@ export function Header() {
   const { toggle: toggleMenu } = useMobileMenuStore();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const { t, locale, setLocale } = useI18n();
+
   const [showNotifs, setShowNotifs] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showMobileSearch, setShowMobileSearch] = useState(false);
@@ -85,19 +115,28 @@ export function Header() {
   const clanRole = user?.clanMembership?.role;
   const wallet = user?.dkpWallet;
 
+  const handleLocaleChange = async (nextLocale: string) => {
+    setLocale(nextLocale);
+    if (user?.id) {
+      try {
+        await api.patch('/users/me/profile', { locale: nextLocale });
+      } catch {
+        // keep local switch even if server save fails
+      }
+    }
+  };
+
   return (
     <header className="sticky top-0 z-30 flex h-14 md:h-16 items-center justify-between border-b border-border bg-card/80 px-3 md:px-6 backdrop-blur-md">
       <div className="flex items-center gap-2 md:gap-4">
-        {/* Mobile hamburger */}
         <Button variant="ghost" size="icon" className="h-9 w-9 md:hidden" onClick={toggleMenu}>
           <Menu className="h-5 w-5" />
         </Button>
 
-        {/* Desktop search */}
         <div className="relative hidden md:block">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Поиск..."
+            placeholder={t('header.search')}
             className="w-[280px] bg-background pl-9"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -110,13 +149,25 @@ export function Header() {
           />
         </div>
 
-        {/* Mobile search toggle */}
         <Button variant="ghost" size="icon" className="h-9 w-9 md:hidden" onClick={() => setShowMobileSearch(!showMobileSearch)}>
           <Search className="h-4 w-4" />
         </Button>
       </div>
 
       <div className="flex items-center gap-2 md:gap-4">
+        <div className="hidden md:flex items-center rounded-md border border-border bg-background px-2 py-1">
+          <span className="text-xs text-muted-foreground mr-2">{t('header.language')}:</span>
+          <select
+            className="bg-transparent text-xs outline-none"
+            value={locale}
+            onChange={(e) => handleLocaleChange(e.target.value)}
+          >
+            <option value="ru">{t('lang.ru')}</option>
+            <option value="en">{t('lang.en')}</option>
+            <option value="tr">{t('lang.tr')}</option>
+          </select>
+        </div>
+
         {wallet && (
           <Link to="/dkp" className="hidden items-center gap-2 rounded-lg border border-gold-500/20 bg-gold-500/5 px-3 py-1.5 sm:flex">
             <span className="text-xs text-muted-foreground">DKP:</span>
@@ -150,15 +201,15 @@ export function Header() {
           {showNotifs && (
             <div className="absolute right-0 top-full mt-2 w-[calc(100vw-1.5rem)] sm:w-[380px] max-w-[380px] rounded-2xl border border-border bg-card shadow-2xl shadow-black/40 z-50">
               <div className="flex items-center justify-between border-b border-border px-4 py-3">
-                <h3 className="text-sm font-semibold">Уведомления</h3>
+                <h3 className="text-sm font-semibold">{t('header.notifications')}</h3>
                 <div className="flex items-center gap-2">
                   {unreadCount > 0 && (
                     <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => markAllReadMutation.mutate()}>
-                      <CheckCheck className="h-3 w-3 mr-1" /> Все
+                      <CheckCheck className="h-3 w-3 mr-1" /> {t('header.notifications.all')}
                     </Button>
                   )}
                   <Link to="/notifications" onClick={() => setShowNotifs(false)}>
-                    <Button variant="ghost" size="sm" className="h-7 text-xs">Все →</Button>
+                    <Button variant="ghost" size="sm" className="h-7 text-xs">{t('header.notifications.all')} {'>'}</Button>
                   </Link>
                 </div>
               </div>
@@ -173,7 +224,10 @@ export function Header() {
                         onClick={() => {
                           if (!n.isRead) markReadMutation.mutate(n.id);
                           const link = getNotifLink(n);
-                          if (link) { navigate(link); setShowNotifs(false); }
+                          if (link) {
+                            navigate(link);
+                            setShowNotifs(false);
+                          }
                         }}
                       >
                         <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${!n.isRead ? 'bg-primary/20' : 'bg-secondary'}`}>
@@ -189,7 +243,7 @@ export function Header() {
                     );
                   })
                 ) : (
-                  <div className="py-8 text-center text-xs text-muted-foreground">Нет уведомлений</div>
+                  <div className="py-8 text-center text-xs text-muted-foreground">{t('header.notifications.empty')}</div>
                 )}
               </div>
             </div>
@@ -197,13 +251,12 @@ export function Header() {
         </div>
       </div>
 
-      {/* Mobile search bar (expandable) */}
       {showMobileSearch && (
         <div className="absolute left-0 top-full w-full border-b border-border bg-card p-3 md:hidden z-30">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Поиск..."
+              placeholder={t('header.search')}
               className="bg-background pl-9"
               value={searchQuery}
               autoFocus
@@ -218,8 +271,17 @@ export function Header() {
               onBlur={() => setTimeout(() => setShowMobileSearch(false), 200)}
             />
           </div>
+          <div className="mt-2 md:hidden">
+            <select className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={locale} onChange={(e) => handleLocaleChange(e.target.value)}>
+              <option value="ru">{t('lang.ru')}</option>
+              <option value="en">{t('lang.en')}</option>
+              <option value="tr">{t('lang.tr')}</option>
+            </select>
+          </div>
         </div>
       )}
     </header>
   );
 }
+
+

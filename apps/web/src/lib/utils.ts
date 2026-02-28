@@ -1,19 +1,28 @@
-import { type ClassValue, clsx } from 'clsx';
+﻿import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { tr, localeFormats } from '@/lib/i18n';
+import { useLocaleStore } from '@/stores/locale.store';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+function getLocaleConfig() {
+  const locale = useLocaleStore.getState().locale;
+  return localeFormats[locale];
+}
+
 export function formatDkp(amount: number | string): string {
   const num = typeof amount === 'string' ? parseFloat(amount) : amount;
-  return new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(num);
+  const { locale } = getLocaleConfig();
+  return new Intl.NumberFormat(locale, { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(num);
 }
 
 export function formatDate(date: string | Date, options?: Intl.DateTimeFormatOptions): string {
   const d = typeof date === 'string' ? new Date(date) : date;
-  return d.toLocaleDateString('ru-RU', {
-    timeZone: 'Asia/Almaty',
+  const cfg = getLocaleConfig();
+  return d.toLocaleDateString(cfg.locale, {
+    timeZone: cfg.timeZone,
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -23,8 +32,9 @@ export function formatDate(date: string | Date, options?: Intl.DateTimeFormatOpt
 
 export function formatDateTime(date: string | Date): string {
   const d = typeof date === 'string' ? new Date(date) : date;
-  return d.toLocaleString('ru-RU', {
-    timeZone: 'Asia/Almaty',
+  const cfg = getLocaleConfig();
+  return d.toLocaleString(cfg.locale, {
+    timeZone: cfg.timeZone,
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -42,10 +52,10 @@ export function formatTimeAgo(date: string | Date): string {
   const diffHr = Math.floor(diffMin / 60);
   const diffDay = Math.floor(diffHr / 24);
 
-  if (diffSec < 60) return 'только что';
-  if (diffMin < 60) return `${diffMin} мин. назад`;
-  if (diffHr < 24) return `${diffHr} ч. назад`;
-  if (diffDay < 7) return `${diffDay} дн. назад`;
+  if (diffSec < 60) return tr('time.justNow');
+  if (diffMin < 60) return tr('time.minAgo', { count: diffMin });
+  if (diffHr < 24) return tr('time.hrAgo', { count: diffHr });
+  if (diffDay < 7) return tr('time.dayAgo', { count: diffDay });
   return formatDate(d);
 }
 
@@ -74,42 +84,21 @@ export function getRarityBgClass(rarity: string): string {
 }
 
 export function getRarityLabel(rarity: string): string {
-  const map: Record<string, string> = {
-    MYTHIC: 'Мифический',
-    LEGENDARY: 'Легендарный',
-    EPIC: 'Эпический',
-    RARE: 'Редкий',
-    UNCOMMON: 'Необычный',
-    COMMON: 'Обычный',
-  };
-  return map[rarity] || rarity;
+  const key = `label.rarity.${rarity}`;
+  const label = tr(key);
+  return label === key ? rarity : label;
 }
 
 export function getRoleLabel(role: string): string {
-  const map: Record<string, string> = {
-    PORTAL_ADMIN: 'Админ портала',
-    CLAN_LEADER: 'Лидер клана',
-    ELDER: 'Старейшина',
-    MEMBER: 'Участник',
-    NEWBIE: 'Новичок',
-  };
-  return map[role] || role;
+  const key = `label.role.${role}`;
+  const label = tr(key);
+  return label === key ? role : label;
 }
 
 export function getStatusLabel(status: string): string {
-  const map: Record<string, string> = {
-    DRAFT: 'Черновик',
-    OPEN: 'Открыта',
-    IN_PROGRESS: 'В процессе',
-    COMPLETED: 'Завершена',
-    CANCELLED: 'Отменена',
-    ACTIVE: 'Активен',
-    PAUSED: 'Приостановлен',
-    PENDING: 'Ожидание',
-    SOLD: 'Продан',
-    UNSOLD: 'Не продан',
-  };
-  return map[status] || status;
+  const key = `label.status.${status}`;
+  const label = tr(key);
+  return label === key ? status : label;
 }
 
 export function getStatusColor(status: string): string {
@@ -127,3 +116,4 @@ export function getStatusColor(status: string): string {
   };
   return map[status] || 'text-gray-400';
 }
+

@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/stores/auth.store';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { LoginPage } from '@/pages/auth/LoginPage';
@@ -23,6 +23,7 @@ import { BossTrackerPage } from '@/pages/BossTrackerPage';
 import { ProfilePage } from '@/pages/ProfilePage';
 import { UserProfilePage } from '@/pages/UserProfilePage';
 import { MessagesPage } from '@/pages/MessagesPage';
+import { JoinClanPage } from '@/pages/JoinClanPage';
 import { AdminDashboard } from '@/pages/admin/AdminDashboard';
 import { AdminUsersPage } from '@/pages/admin/AdminUsersPage';
 import { AdminAuditPage } from '@/pages/admin/AdminAuditPage';
@@ -43,6 +44,20 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isAdmin } = useAuthStore();
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   if (!isAdmin()) return <Navigate to="/" replace />;
+  return <>{children}</>;
+}
+
+function ClanMemberRoute({ children }: { children: React.ReactNode }) {
+  const { user, isAdmin } = useAuthStore();
+  const location = useLocation();
+  const isProfileRoute = location.pathname === '/profile';
+  if (!isAdmin() && !user?.clanMembership && !isProfileRoute) return <Navigate to="/join-clan" replace />;
+  return <>{children}</>;
+}
+
+function JoinClanOnlyRoute({ children }: { children: React.ReactNode }) {
+  const { user, isAdmin } = useAuthStore();
+  if (isAdmin() || user?.clanMembership) return <Navigate to="/" replace />;
   return <>{children}</>;
 }
 
@@ -77,10 +92,20 @@ export default function App() {
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/force-change-password" element={isAuthenticated ? <ForceChangePasswordPage /> : <Navigate to="/login" />} />
+        <Route
+          path="/join-clan"
+          element={
+            <ProtectedRoute>
+              <JoinClanOnlyRoute>
+                <JoinClanPage />
+              </JoinClanOnlyRoute>
+            </ProtectedRoute>
+          }
+        />
         <Route path="/rules/dkp" element={<DkpRulesPage />} />
         <Route path="/rules/auction" element={<AuctionRulesPage />} />
 
-        <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+        <Route element={<ProtectedRoute><ClanMemberRoute><AppLayout /></ClanMemberRoute></ProtectedRoute>}>
           <Route index element={<DashboardPage />} />
           <Route path="clan" element={<ClanPage />} />
           <Route path="clan/report" element={<ClanReportPage />} />

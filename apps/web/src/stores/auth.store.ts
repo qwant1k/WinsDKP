@@ -1,13 +1,16 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { api } from '@/lib/api';
+import { useLocaleStore, normalizeLocale } from '@/stores/locale.store';
 
 interface Profile {
   id: string;
   nickname: string;
+  isServerChampion?: boolean;
   displayName: string | null;
   bm: number;
   level: number;
+  awakeningLevel?: number | null;
   avatarUrl: string | null;
   locale: string;
 }
@@ -73,6 +76,9 @@ export const useAuthStore = create<AuthState>()(
       },
 
       setUser: (user: User) => {
+        if (user.profile?.locale) {
+          useLocaleStore.getState().setLocale(normalizeLocale(user.profile.locale));
+        }
         set({ user });
       },
 
@@ -88,6 +94,9 @@ export const useAuthStore = create<AuthState>()(
             isLoading: false,
             mustChangePassword: data.mustChangePassword || false,
           });
+          if (data.user?.profile?.locale) {
+            useLocaleStore.getState().setLocale(normalizeLocale(data.user.profile.locale));
+          }
         } catch (error) {
           set({ isLoading: false });
           throw error;
@@ -124,6 +133,9 @@ export const useAuthStore = create<AuthState>()(
       fetchMe: async () => {
         try {
           const { data } = await api.get('/auth/me');
+          if (data?.profile?.locale) {
+            useLocaleStore.getState().setLocale(normalizeLocale(data.profile.locale));
+          }
           set({ user: data, isAuthenticated: true });
         } catch {
           set({ user: null, isAuthenticated: false });

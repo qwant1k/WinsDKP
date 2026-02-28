@@ -172,6 +172,13 @@ export class ActivitiesService {
       throw new BadRequestException('Activity is not accepting participants');
     }
 
+    const membership = await this.prisma.clanMembership.findUnique({
+      where: { userId_clanId: { userId, clanId: activity.clanId } },
+    });
+    if (!membership || !membership.isActive) {
+      throw new ForbiddenException('Only active clan members can join activity');
+    }
+
     const existing = await this.prisma.activityParticipant.findUnique({
       where: { activityId_userId: { activityId, userId } },
     });
@@ -199,12 +206,30 @@ export class ActivitiesService {
   async leaveActivity(activityId: string, userId: string) {
     const participant = await this.prisma.activityParticipant.findUnique({
       where: { activityId_userId: { activityId, userId } },
+      include: { activity: true },
     });
     if (!participant) throw new NotFoundException('Not a participant');
 
-    return this.prisma.activityParticipant.delete({
+    const membership = await this.prisma.clanMembership.findUnique({
+      where: { userId_clanId: { userId, clanId: participant.activity.clanId } },
+    });
+    if (!membership || !membership.isActive) {
+      throw new ForbiddenException('Only active clan members can leave activity');
+    }
+
+    const deleted = await this.prisma.activityParticipant.delete({
       where: { id: participant.id },
     });
+
+    this.socket.emitToClan(participant.activity.clanId, 'activity.participant_left', {
+      activityId,
+      participant: {
+        id: deleted.id,
+        userId,
+      },
+    });
+
+    return deleted;
   }
 
   async completeAndReward(activityId: string, actorId: string) {
@@ -221,7 +246,7 @@ export class ActivitiesService {
       throw new BadRequestException('Activity must be in progress to complete');
     }
 
-    const [powerRanges, levelRanges] = await Promise.all([
+    const [powerRanges, levelRanges, awakeningRanges] = await Promise.all([
       this.prisma.coefficientPowerRange.findMany({
         where: { clanId: activity.clanId },
         orderBy: { fromPower: 'asc' },
@@ -229,6 +254,10 @@ export class ActivitiesService {
       this.prisma.coefficientLevelRange.findMany({
         where: { clanId: activity.clanId },
         orderBy: { fromLevel: 'asc' },
+      }),
+      this.prisma.coefficientAwakeningRange.findMany({
+        where: { clanId: activity.clanId },
+        orderBy: { fromAwakening: 'asc' },
       }),
     ]);
 
@@ -240,8 +269,11 @@ export class ActivitiesService {
 
       const powerCoef = this.findCoefficient(powerRanges, profile.bm, 'power');
       const levelCoef = this.findCoefficient(levelRanges, profile.level, 'level');
+      const awakeningCoef = profile.awakeningLevel
+        ? this.findCoefficient(awakeningRanges, profile.awakeningLevel, 'awakening', 0)
+        : 0;
 
-      const dkpEarned = Math.round(((powerCoef + levelCoef) * baseDkp) * 100) / 100;
+      const dkpEarned = Math.round(((powerCoef + levelCoef + awakeningCoef) * baseDkp) * 100) / 100;
 
       await this.dkpService.creditDkp({
         userId: participant.userId,
@@ -335,17 +367,26 @@ export class ActivitiesService {
   }
 
   private findCoefficient(
-    ranges: Array<{ fromPower?: number; toPower?: number; fromLevel?: number; toLevel?: number; coefficient: unknown }>,
+    ranges: Array<{ fromPower?: number; toPower?: number; fromLevel?: number; toLevel?: number; fromAwakening?: number; toAwakening?: number; coefficient: unknown }>,
     value: number,
-    type: 'power' | 'level',
+    type: 'power' | 'level' | 'awakening',
+    defaultValue = 1,
   ): number {
     for (const range of ranges) {
-      const from = type === 'power' ? (range as any).fromPower : (range as any).fromLevel;
-      const to = type === 'power' ? (range as any).toPower : (range as any).toLevel;
+      const from = type === 'power'
+        ? (range as any).fromPower
+        : type === 'level'
+          ? (range as any).fromLevel
+          : (range as any).fromAwakening;
+      const to = type === 'power'
+        ? (range as any).toPower
+        : type === 'level'
+          ? (range as any).toLevel
+          : (range as any).toAwakening;
       if (value >= from && value <= to) {
         return Number(range.coefficient);
       }
     }
-    return 1;
+    return defaultValue;
   }
 }

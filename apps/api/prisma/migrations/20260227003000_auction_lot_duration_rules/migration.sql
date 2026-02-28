@@ -1,0 +1,5 @@
+ALTER TABLE "lots"
+  ADD COLUMN IF NOT EXISTS "lot_duration_minutes" INTEGER;
+
+ALTER TABLE "lots"
+  ADD COLUMN IF NOT EXISTS "no_bid_extensions" INTEGER NOT NULL DEFAULT 0;

@@ -184,4 +184,15 @@ export class AdminController {
   ) {
     return this.adminService.updateLevelCoefficients(clanId, ranges, user.sub);
   }
+
+  @Patch('coefficients/:clanId/awakening')
+  @Roles('PORTAL_ADMIN', 'CLAN_LEADER')
+  @ApiOperation({ summary: 'Update awakening coefficient ranges' })
+  async updateAwakeningCoefficients(
+    @Param('clanId') clanId: string,
+    @CurrentUser() user: JwtPayload,
+    @Body('ranges') ranges: Array<{ fromAwakening: number; toAwakening: number; coefficient: number }>,
+  ) {
+    return this.adminService.updateAwakeningCoefficients(clanId, ranges, user.sub);
+  }
 }

@@ -66,4 +66,21 @@ export class DkpController {
       idempotencyKey: body.idempotencyKey,
     });
   }
+
+  @Post('clan/adjust')
+  @Roles('CLAN_LEADER')
+  @ApiOperation({ summary: 'Clan leader DKP adjustment for clan members' })
+  async clanAdjust(
+    @CurrentUser() user: JwtPayload,
+    @Body() body: { clanId: string; userId: string; amount: number; description: string; idempotencyKey?: string },
+  ) {
+    return this.dkpService.clanAdjust({
+      clanId: body.clanId,
+      userId: body.userId,
+      amount: body.amount,
+      description: body.description,
+      actorId: user.sub,
+      idempotencyKey: body.idempotencyKey,
+    });
+  }
 }

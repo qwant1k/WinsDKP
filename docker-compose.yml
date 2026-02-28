@@ -150,8 +150,7 @@ services:
     container_name: ymir-web
     restart: unless-stopped
     environment:
-      VITE_API_URL: http://localhost:${APP_PORT:-3000}
-      VITE_WS_URL: ws://localhost:${APP_PORT:-3000}
+      VITE_PROXY_TARGET: http://api:3000
     ports:
       - "5173:5173"
     volumes:

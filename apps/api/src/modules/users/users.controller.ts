@@ -32,7 +32,7 @@ export class UsersController {
   @ApiOperation({ summary: 'Update current user profile' })
   async updateProfile(
     @CurrentUser() user: JwtPayload,
-    @Body() data: { displayName?: string; bm?: number; level?: number; contacts?: object; locale?: string; notifyPrefs?: object },
+    @Body() data: { displayName?: string; bm?: number; level?: number; awakeningLevel?: number | null; contacts?: object; locale?: string; notifyPrefs?: object },
   ) {
     return this.usersService.updateProfile(user.sub, data);
   }

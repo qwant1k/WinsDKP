@@ -184,9 +184,11 @@ model Profile {
   id          String  @id @default(uuid()) @db.Uuid
   userId      String  @unique @map("user_id") @db.Uuid
   nickname    String  @unique
+  isServerChampion Boolean @default(false) @map("is_server_champion")
   displayName String? @map("display_name")
   bm          Int     @default(0)
   level       Int     @default(1)
+  awakeningLevel Int? @map("awakening_level")
   avatarUrl   String? @map("avatar_url")
   contacts    Json?   @default("{}")
   locale      String  @default("ru")
@@ -445,6 +447,19 @@ model CoefficientLevelRange {
   @@map("coefficient_level_ranges")
 }
 
+model CoefficientAwakeningRange {
+  id             String   @id @default(uuid()) @db.Uuid
+  clanId         String   @map("clan_id") @db.Uuid
+  fromAwakening  Int      @map("from_awakening")
+  toAwakening    Int      @map("to_awakening")
+  coefficient    Decimal  @db.Decimal(5, 3)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@index([clanId])
+  @@map("coefficient_awakening_ranges")
+}
+
 // ─── WAREHOUSE ──────────────────────────────────────────────
 
 model WarehouseItem {
@@ -517,10 +532,14 @@ model Auction {
 model Lot {
   id              String    @id @default(uuid()) @db.Uuid
   auctionId       String    @map("auction_id") @db.Uuid
-  warehouseItemId String    @map("warehouse_item_id") @db.Uuid
+  warehouseItemId String?   @map("warehouse_item_id") @db.Uuid
+  itemName        String?   @map("item_name")
+  itemRarity      ItemRarity? @map("item_rarity")
   quantity        Int       @default(1)
   startPrice      Decimal   @map("start_price") @db.Decimal(12, 2)
   minStep         Decimal   @default(1) @map("min_step") @db.Decimal(12, 2)
+  lotDurationMinutes Int?   @map("lot_duration_minutes")
+  noBidExtensions Int       @default(0) @map("no_bid_extensions")
   currentPrice    Decimal?  @map("current_price") @db.Decimal(12, 2)
   status          LotStatus @default(PENDING)
   endsAt          DateTime? @map("ends_at")
@@ -530,8 +549,8 @@ model Lot {
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
-  auction       Auction       @relation(fields: [auctionId], references: [id], onDelete: Cascade)
-  warehouseItem WarehouseItem @relation(fields: [warehouseItemId], references: [id])
+  auction       Auction        @relation(fields: [auctionId], references: [id], onDelete: Cascade)
+  warehouseItem WarehouseItem? @relation(fields: [warehouseItemId], references: [id], onDelete: SetNull)
   bids          Bid[]
   result        LotResult?
 

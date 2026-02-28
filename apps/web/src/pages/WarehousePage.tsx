@@ -7,10 +7,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDkp, getRarityClass, getRarityBgClass, getRarityLabel } from '@/lib/utils';
-import { Package, Plus, Search, Trash2, Pencil, Save, X } from 'lucide-react';
+import { Package, Plus, Search, Trash2, Pencil, Save, X, Upload } from 'lucide-react';
 import { toast } from 'sonner';
-import { useState } from 'react';
+import { useState, type ChangeEvent } from 'react';
 import { motion } from 'framer-motion';
+import * as XLSX from 'xlsx';
 
 export function WarehousePage() {
   const { user } = useAuthStore();
@@ -25,7 +26,7 @@ export function WarehousePage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['warehouse', clanId, search],
-    queryFn: async () => (await api.get(`/clans/${clanId}/warehouse`, { params: { search: search || undefined, limit: 100 } })).data,
+    queryFn: async () => (await api.get(`/clans/${clanId}/warehouse`, { params: { search: search || undefined, limit: 300 } })).data,
     enabled: !!clanId,
   });
 
@@ -53,6 +54,15 @@ export function WarehousePage() {
     onError: (e) => toast.error(getErrorMessage(e)),
   });
 
+  const deleteAllMutation = useMutation({
+    mutationFn: async () => (await api.delete(`/clans/${clanId}/warehouse`)).data,
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['warehouse'] });
+      toast.success(`Удалено предметов: ${result.deleted ?? 0}`);
+    },
+    onError: (e) => toast.error(getErrorMessage(e)),
+  });
+
   const editMutation = useMutation({
     mutationFn: async () => (await api.patch(`/clans/${clanId}/warehouse/${editingItem}`, {
       name: editForm.name,
@@ -69,6 +79,65 @@ export function WarehousePage() {
     },
     onError: (e) => toast.error(getErrorMessage(e)),
   });
+
+  const importMutation = useMutation({
+    mutationFn: async (rows: Array<{ name: string; quantity: number; source?: string }>) =>
+      (await api.post(`/clans/${clanId}/warehouse/import/excel`, { rows })).data,
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['warehouse'] });
+      toast.success(`Импорт завершен: создано ${result.created}, обновлено ${result.updated}`);
+    },
+    onError: (e) => toast.error(getErrorMessage(e)),
+  });
+
+  const handleImportFile = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: 'array' });
+      const firstSheet = workbook.Sheets[workbook.SheetNames[0] || ''];
+      if (!firstSheet) {
+        toast.error('Не удалось прочитать лист Excel');
+        return;
+      }
+
+      const rows = XLSX.utils.sheet_to_json<Array<string | number | null>>(firstSheet, {
+        header: 1,
+        raw: false,
+        blankrows: false,
+      });
+
+      if (!rows.length) {
+        toast.error('Файл пустой');
+        return;
+      }
+
+      const payload: Array<{ name: string; quantity: number; source?: string }> = [];
+      // Ориентируемся на позиции: 1 столбец = наименование, 2 = количество, 3 = источник
+      for (const row of rows as Array<Array<string | number | null>>) {
+        const name = String(row[0] || '').trim();
+        const quantityRaw = String(row[1] || '').replace(',', '.').replace(/[^\d.]/g, '');
+        const quantity = Number(quantityRaw);
+        const source = String(row[2] || '').trim();
+
+        if (!name || !Number.isFinite(quantity) || quantity <= 0) continue;
+        payload.push({ name, quantity: Math.floor(quantity), source: source || undefined });
+      }
+
+      if (!payload.length) {
+        toast.error('Нет валидных строк. Используйте: 1 столбец = наименование, 2 = количество, 3 = источник');
+        return;
+      }
+
+      await importMutation.mutateAsync(payload);
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    } finally {
+      event.target.value = '';
+    }
+  };
 
   const startEdit = (item: any) => {
     setEditingItem(item.id);
@@ -92,9 +161,23 @@ export function WarehousePage() {
           <p className="mt-1 text-sm text-muted-foreground hidden sm:block">Справочник предметов и инвентарь</p>
         </div>
         {canManage && (
-          <Button variant="gold" size="sm" className="shrink-0" onClick={() => setShowCreate(!showCreate)}>
-            <Plus className="h-4 w-4" /> <span className="hidden sm:inline">Добавить</span>
-          </Button>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              variant="destructive"
+              size="sm"
+              disabled={deleteAllMutation.isPending}
+              onClick={() => {
+                if (confirm('Удалить все предметы из хранилища?')) {
+                  deleteAllMutation.mutate();
+                }
+              }}
+            >
+              <Trash2 className="h-4 w-4" /> <span className="hidden sm:inline">Удалить всё</span>
+            </Button>
+            <Button variant="gold" size="sm" onClick={() => setShowCreate(!showCreate)}>
+              <Plus className="h-4 w-4" /> <span className="hidden sm:inline">Добавить</span>
+            </Button>
+          </div>
         )}
       </div>
 
@@ -102,6 +185,32 @@ export function WarehousePage() {
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input placeholder="Поиск предметов..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
+
+      {canManage && (
+        <Card className="border-primary/20">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Upload className="h-4 w-4" /> Импорт из Excel
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Заголовки колонок не требуются: 1 столбец = Наименование, 2 = Количество, 3 = Источник. Колонка даты выпадения игнорируется.
+            </p>
+            <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm hover:bg-secondary/40">
+              <Upload className="h-4 w-4" />
+              <span>{importMutation.isPending ? 'Загрузка...' : 'Выбрать .xlsx'}</span>
+              <input
+                type="file"
+                accept=".xlsx,.xls"
+                className="hidden"
+                disabled={importMutation.isPending}
+                onChange={handleImportFile}
+              />
+            </label>
+          </CardContent>
+        </Card>
+      )}
 
       {showCreate && (
         <Card className="border-primary/20">
@@ -218,3 +327,4 @@ export function WarehousePage() {
     </div>
   );
 }
+

@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+﻿import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, getErrorMessage } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth.store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,17 +7,22 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDkp, getRoleLabel } from '@/lib/utils';
-import { Users, UserPlus, UserMinus, Shield, Crown, Star, Check, X, AlertTriangle, Eye, Send, BarChart3, ChevronDown, Calculator, Plus, Save, Trash2 } from 'lucide-react';
+import { Users, UserPlus, UserMinus, Shield, Crown, Star, Check, X, AlertTriangle, Eye, Send, BarChart3, ChevronDown, Calculator, Plus, Save, Trash2, Coins } from 'lucide-react';
 import { toast } from 'sonner';
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getSocket } from '@/lib/socket';
+import { ChampionNickname } from '@/components/common/ChampionNickname';
 
 export function ClanPage() {
   const { user } = useAuthStore();
   const clanId = user?.clanMembership?.clanId;
   const canManage = user?.clanMembership?.role === 'CLAN_LEADER' || user?.clanMembership?.role === 'ELDER';
   const isLeader = user?.clanMembership?.role === 'CLAN_LEADER';
+  const isAdmin = user?.globalRole === 'PORTAL_ADMIN';
+  const canManageCoefficients = isLeader || isAdmin;
+  const canSetChampion = isLeader || isAdmin;
+  const canClanAdjustDkp = isLeader || isAdmin;
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -74,10 +79,13 @@ export function ClanPage() {
 
   const [penaltyTarget, setPenaltyTarget] = useState<string | null>(null);
   const [penaltyForm, setPenaltyForm] = useState({ amount: '', reason: '' });
+  const [dkpAdjustTarget, setDkpAdjustTarget] = useState<string | null>(null);
+  const [dkpAdjustForm, setDkpAdjustForm] = useState({ amount: '', reason: '' });
   const [joinMessage, setJoinMessage] = useState('');
   const [roleChangeTarget, setRoleChangeTarget] = useState<string | null>(null);
   const [powerRanges, setPowerRanges] = useState<Array<{ fromPower: number; toPower: number; coefficient: number }>>([]);
   const [levelRanges, setLevelRanges] = useState<Array<{ fromLevel: number; toLevel: number; coefficient: number }>>([]);
+  const [awakeningRanges, setAwakeningRanges] = useState<Array<{ fromAwakening: number; toAwakening: number; coefficient: number }>>([]);
 
   const changeRoleMutation = useMutation({
     mutationFn: async ({ userId, role }: { userId: string; role: string }) =>
@@ -86,6 +94,29 @@ export function ClanPage() {
       queryClient.invalidateQueries({ queryKey: ['clan-members'] });
       setRoleChangeTarget(null);
       toast.success('Роль изменена');
+    },
+    onError: (e) => toast.error(getErrorMessage(e)),
+  });
+
+  const transferLeadershipMutation = useMutation({
+    mutationFn: async (targetUserId: string) =>
+      (await api.patch(`/clans/${clanId}/leader/transfer`, { targetUserId })).data,
+    onSuccess: async () => {
+      await useAuthStore.getState().fetchMe();
+      queryClient.invalidateQueries({ queryKey: ['clan'] });
+      queryClient.invalidateQueries({ queryKey: ['clan-members'] });
+      toast.success('Leadership transferred');
+    },
+    onError: (e) => toast.error(getErrorMessage(e)),
+  });
+
+  const championMutation = useMutation({
+    mutationFn: async ({ userId, isChampion }: { userId: string; isChampion: boolean }) =>
+      (await api.patch(`/clans/${clanId}/members/${userId}/server-champion`, { isChampion })).data,
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ['clan-members'] });
+      queryClient.invalidateQueries({ queryKey: ['clan'] });
+      toast.success(vars.isChampion ? 'Статус «Чемпион сервера» выдан' : 'Статус «Чемпион сервера» снят');
     },
     onError: (e) => toast.error(getErrorMessage(e)),
   });
@@ -109,13 +140,14 @@ export function ClanPage() {
   const { data: coefficients } = useQuery({
     queryKey: ['coefficients', clanId],
     queryFn: async () => (await api.get(`/admin/coefficients/${clanId}`)).data,
-    enabled: !!clanId && isLeader,
+    enabled: !!clanId && canManageCoefficients,
   });
 
   useEffect(() => {
     if (coefficients) {
       setPowerRanges(coefficients.powerRanges?.map((r: any) => ({ fromPower: r.fromPower, toPower: r.toPower, coefficient: Number(r.coefficient) })) || []);
       setLevelRanges(coefficients.levelRanges?.map((r: any) => ({ fromLevel: r.fromLevel, toLevel: r.toLevel, coefficient: Number(r.coefficient) })) || []);
+      setAwakeningRanges(coefficients.awakeningRanges?.map((r: any) => ({ fromAwakening: r.fromAwakening, toAwakening: r.toAwakening, coefficient: Number(r.coefficient) })) || []);
     }
   }, [coefficients]);
 
@@ -128,6 +160,28 @@ export function ClanPage() {
   const saveLevelMutation = useMutation({
     mutationFn: async () => (await api.patch(`/admin/coefficients/${clanId}/level`, { ranges: levelRanges })).data,
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['coefficients'] }); toast.success('kLVL коэффициенты сохранены'); },
+    onError: (e) => toast.error(getErrorMessage(e)),
+  });
+
+  const dkpAdjustMutation = useMutation({
+    mutationFn: async () => (await api.post('/dkp/clan/adjust', {
+      clanId,
+      userId: dkpAdjustTarget,
+      amount: Number(dkpAdjustForm.amount),
+      description: dkpAdjustForm.reason || 'Корректировка главой клана',
+    })).data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['clan-members'] });
+      setDkpAdjustTarget(null);
+      setDkpAdjustForm({ amount: '', reason: '' });
+      toast.success('DKP скорректирован');
+    },
+    onError: (e) => toast.error(getErrorMessage(e)),
+  });
+
+  const saveAwakeningMutation = useMutation({
+    mutationFn: async () => (await api.patch(`/admin/coefficients/${clanId}/awakening`, { ranges: awakeningRanges })).data,
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['coefficients'] }); toast.success('kAWA коэффициенты сохранены'); },
     onError: (e) => toast.error(getErrorMessage(e)),
   });
 
@@ -239,7 +293,9 @@ export function ClanPage() {
               {joinRequests.data.map((req: any) => (
                 <div key={req.id} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-between rounded-lg border border-border/50 p-3">
                   <div className="min-w-0">
-                    <p className="font-medium text-sm">{req.user?.profile?.nickname}</p>
+                    <p className="font-medium text-sm">
+                      <ChampionNickname nickname={req.user?.profile?.nickname} isChampion={req.user?.profile?.isServerChampion} />
+                    </p>
                     <p className="text-xs text-muted-foreground truncate">{req.message || 'Без сообщения'}</p>
                   </div>
                   <div className="flex gap-2 shrink-0">
@@ -283,6 +339,7 @@ export function ClanPage() {
                 {(members?.data || clan?.memberships)?.map((m: any) => {
                   const member = m.user || m;
                   const profile = member.profile;
+                  const awakeningLevel = Number(profile?.awakeningLevel ?? 0);
                   const wallet = member.dkpWallet;
                   const role = m.role;
                   return (
@@ -293,7 +350,17 @@ export function ClanPage() {
                             {profile?.nickname?.charAt(0)?.toUpperCase() || '?'}
                           </div>
                           <div className="min-w-0">
-                            <p className="font-medium text-sm truncate">{profile?.nickname}</p>
+                            <p className="flex items-center gap-1.5 font-medium text-sm truncate">
+                              <ChampionNickname nickname={profile?.nickname} isChampion={profile?.isServerChampion} />
+                              {awakeningLevel >= 1 && awakeningLevel <= 3 && (
+                                <span
+                                  className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-500 text-[10px] font-bold text-white ring-1 ring-blue-300/60"
+                                  title={`Пробуждение ${awakeningLevel} уровня`}
+                                >
+                                  {awakeningLevel}
+                                </span>
+                              )}
+                            </p>
                             {profile?.displayName && <p className="text-[10px] text-muted-foreground truncate">{profile?.displayName}</p>}
                           </div>
                         </Link>
@@ -327,11 +394,61 @@ export function ClanPage() {
                               )}
                             </div>
                           )}
-                          <Button variant="ghost" size="sm" className="h-7 text-xs text-yellow-400" onClick={() => setPenaltyTarget(penaltyTarget === member.id ? null : member.id)}>
+                          {isLeader && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 text-xs text-gold-400"
+                              onClick={() => {
+                                if (confirm('Transfer leadership to this member? You will become a clan member.')) {
+                                  transferLeadershipMutation.mutate(member.id);
+                                }
+                              }}
+                            >
+                              <Crown className="h-3.5 w-3.5 mr-1" /> Leader
+                            </Button>
+                          )}
+                          {canSetChampion && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className={`h-7 text-xs ${profile?.isServerChampion ? 'text-gold-400' : 'text-zinc-400'}`}
+                              onClick={() => championMutation.mutate({ userId: member.id, isChampion: !profile?.isServerChampion })}
+                              disabled={championMutation.isPending}
+                            >
+                              <Crown className="h-3.5 w-3.5 mr-1" />
+                              {profile?.isServerChampion ? 'Снять' : 'Чемпион'}
+                            </Button>
+                          )}
+                          {canClanAdjustDkp && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 text-xs text-gold-400"
+                              onClick={() => {
+                                setDkpAdjustTarget(dkpAdjustTarget === member.id ? null : member.id);
+                                setPenaltyTarget(null);
+                              }}
+                            >
+                              <Coins className="h-3.5 w-3.5 mr-1" /> DKP
+                            </Button>
+                          )}
+                          <Button variant="ghost" size="sm" className="h-7 text-xs text-yellow-400" onClick={() => { setPenaltyTarget(penaltyTarget === member.id ? null : member.id); setDkpAdjustTarget(null); }}>
                             <AlertTriangle className="h-3.5 w-3.5 mr-1" /> Штраф
                           </Button>
                           <Button variant="ghost" size="sm" className="h-7 text-xs text-red-400" onClick={() => { if (confirm('Исключить участника?')) kickMutation.mutate(member.id); }}>
                             <UserMinus className="h-3.5 w-3.5 mr-1" /> Кик
+                          </Button>
+                        </div>
+                      )}
+                      {dkpAdjustTarget === member.id && (
+                        <div className="flex flex-col gap-2 rounded-lg border border-gold-500/30 bg-gold-500/5 p-2">
+                          <div className="flex gap-2">
+                            <Input type="number" placeholder="+DKP" className="w-20 h-7 text-xs" value={dkpAdjustForm.amount} onChange={(e) => setDkpAdjustForm({ ...dkpAdjustForm, amount: e.target.value })} />
+                            <Input placeholder="Описание..." className="flex-1 h-7 text-xs" value={dkpAdjustForm.reason} onChange={(e) => setDkpAdjustForm({ ...dkpAdjustForm, reason: e.target.value })} />
+                          </div>
+                          <Button size="sm" variant="gold" className="h-7 text-xs w-full" disabled={!dkpAdjustForm.amount || Number(dkpAdjustForm.amount) <= 0 || dkpAdjustMutation.isPending} onClick={() => dkpAdjustMutation.mutate()}>
+                            Начислить DKP
                           </Button>
                         </div>
                       )}
@@ -366,6 +483,7 @@ export function ClanPage() {
                     {(members?.data || clan?.memberships)?.map((m: any) => {
                       const member = m.user || m;
                       const profile = member.profile;
+                      const awakeningLevel = Number(profile?.awakeningLevel ?? 0);
                       const wallet = member.dkpWallet;
                       const role = m.role;
                       return (
@@ -376,7 +494,17 @@ export function ClanPage() {
                                 {profile?.nickname?.charAt(0)?.toUpperCase() || '?'}
                               </div>
                               <div>
-                                <p className="font-medium hover:text-primary transition-colors">{profile?.nickname}</p>
+                                <p className="flex items-center gap-1.5 font-medium hover:text-primary transition-colors">
+                                  <ChampionNickname nickname={profile?.nickname} isChampion={profile?.isServerChampion} />
+                                  {awakeningLevel >= 1 && awakeningLevel <= 3 && (
+                                    <span
+                                      className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-500 text-[10px] font-bold text-white ring-1 ring-blue-300/60"
+                                      title={`Пробуждение ${awakeningLevel} уровня`}
+                                    >
+                                      {awakeningLevel}
+                                    </span>
+                                  )}
+                                </p>
                                 <p className="text-xs text-muted-foreground">{profile?.displayName}</p>
                               </div>
                             </Link>
@@ -411,7 +539,38 @@ export function ClanPage() {
                                         )}
                                       </div>
                                     )}
-                                    <Button variant="ghost" size="sm" className="text-yellow-400 hover:text-yellow-300 hover:bg-yellow-500/10" onClick={() => setPenaltyTarget(penaltyTarget === member.id ? null : member.id)} title="Штраф DKP">
+                                    {isLeader && (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="text-gold-400 hover:text-gold-300 hover:bg-gold-500/10"
+                                        onClick={() => {
+                                          if (confirm('Transfer leadership to this member? You will become a clan member.')) {
+                                            transferLeadershipMutation.mutate(member.id);
+                                          }
+                                        }}
+                                        title="Transfer leadership"
+                                      >
+                                        <Crown className="h-4 w-4" />
+                                      </Button>
+                                    )}
+                                    {canSetChampion && (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className={profile?.isServerChampion ? 'text-gold-400 hover:text-gold-300 hover:bg-gold-500/10' : 'text-zinc-400 hover:text-zinc-300 hover:bg-zinc-500/10'}
+                                        onClick={() => championMutation.mutate({ userId: member.id, isChampion: !profile?.isServerChampion })}
+                                        title={profile?.isServerChampion ? 'Снять статус чемпиона' : 'Выдать статус чемпиона'}
+                                      >
+                                        <Crown className="h-4 w-4" />
+                                      </Button>
+                                    )}
+                                    {canClanAdjustDkp && (
+                                      <Button variant="ghost" size="sm" className="text-gold-400 hover:text-gold-300 hover:bg-gold-500/10" onClick={() => { setDkpAdjustTarget(dkpAdjustTarget === member.id ? null : member.id); setPenaltyTarget(null); }} title="Начислить DKP">
+                                        <Coins className="h-4 w-4" />
+                                      </Button>
+                                    )}
+                                    <Button variant="ghost" size="sm" className="text-yellow-400 hover:text-yellow-300 hover:bg-yellow-500/10" onClick={() => { setPenaltyTarget(penaltyTarget === member.id ? null : member.id); setDkpAdjustTarget(null); }} title="Штраф DKP">
                                       <AlertTriangle className="h-4 w-4" />
                                     </Button>
                                     <Button variant="ghost" size="sm" className="text-red-400 hover:text-red-300 hover:bg-red-500/10" onClick={() => { if (confirm('Исключить участника?')) kickMutation.mutate(member.id); }} title="Исключить">
@@ -420,8 +579,15 @@ export function ClanPage() {
                                   </>
                                 )}
                               </div>
+                              {dkpAdjustTarget === member.id && (
+                                <div className="mt-2 flex items-center gap-2 rounded-lg border border-gold-500/30 bg-gold-500/5 p-2">
+                                  <Input type="number" placeholder="+DKP" className="w-20 h-7 text-xs" value={dkpAdjustForm.amount} onChange={(e) => setDkpAdjustForm({ ...dkpAdjustForm, amount: e.target.value })} />
+                                  <Input placeholder="Описание..." className="flex-1 h-7 text-xs" value={dkpAdjustForm.reason} onChange={(e) => setDkpAdjustForm({ ...dkpAdjustForm, reason: e.target.value })} />
+                                  <Button size="sm" variant="gold" className="h-7 text-xs" disabled={!dkpAdjustForm.amount || Number(dkpAdjustForm.amount) <= 0 || dkpAdjustMutation.isPending} onClick={() => dkpAdjustMutation.mutate()}>Начислить</Button>
+                                </div>
+                              )}
                               {penaltyTarget === member.id && (
-                                <div className="mt-2 flex items-center gap-2 rounded-lg border border-yellow-500/30 bg-yellow-500/5 p-2">
+                                <div className="mt-2 flex items-center gap-2 rounded-lg border border-yellow-500/30 bg-yellow-500/5 p-2"> 
                                   <Input type="number" placeholder="DKP" className="w-20 h-7 text-xs" value={penaltyForm.amount} onChange={(e) => setPenaltyForm({ ...penaltyForm, amount: e.target.value })} />
                                   <Input placeholder="Причина..." className="flex-1 h-7 text-xs" value={penaltyForm.reason} onChange={(e) => setPenaltyForm({ ...penaltyForm, reason: e.target.value })} />
                                   <Button size="sm" variant="destructive" className="h-7 text-xs" disabled={!penaltyForm.amount || !penaltyForm.reason || penaltyMutation.isPending} onClick={() => penaltyMutation.mutate()}>Штраф</Button>
@@ -439,12 +605,12 @@ export function ClanPage() {
           )}
         </CardContent>
       </Card>
-      {isLeader && (
+      {canManageCoefficients && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               <Calculator className="h-5 w-5" />
-              <span className="hidden sm:inline">DKP Формула: </span>(kBM + kLVL) * BaseDKP
+              <span className="hidden sm:inline">DKP Формула: </span>(kBM + kLVL + kAWA) * BaseDKP
             </CardTitle>
             <p className="text-xs text-muted-foreground">Настройте коэффициенты грейдов для расчёта DKP наград после активностей</p>
           </CardHeader>
@@ -504,9 +670,42 @@ export function ClanPage() {
                 {!levelRanges.length && <p className="text-xs text-muted-foreground">Нет диапазонов — kLVL = 1 (по умолчанию)</p>}
               </div>
             </div>
+
+            <div className="border-t border-border pt-4">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-between mb-3">
+                <h4 className="text-sm font-semibold">kAWA — Коэф. пробуждения</h4>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setAwakeningRanges([...awakeningRanges, { fromAwakening: 1, toAwakening: 1, coefficient: 1 }])}>
+                    <Plus className="h-3 w-3" /> Диапазон
+                  </Button>
+                  <Button variant="gold" size="sm" className="h-7 text-xs" onClick={() => saveAwakeningMutation.mutate()} disabled={saveAwakeningMutation.isPending}>
+                    <Save className="h-3 w-3" /> Сохр.
+                  </Button>
+                </div>
+              </div>
+              <div className="space-y-2">
+                {awakeningRanges.map((r, i) => (
+                  <div key={i} className="flex items-center gap-1.5 sm:gap-2 text-xs flex-wrap">
+                    <span className="text-muted-foreground w-6 sm:w-8">От</span>
+                    <Input className="h-7 w-16 sm:w-28 text-xs" type="number" value={r.fromAwakening} onChange={(e) => { const nr = [...awakeningRanges]; nr[i] = { ...nr[i], fromAwakening: Number(e.target.value) }; setAwakeningRanges(nr); }} />
+                    <span className="text-muted-foreground w-6 sm:w-8">До</span>
+                    <Input className="h-7 w-16 sm:w-28 text-xs" type="number" value={r.toAwakening} onChange={(e) => { const nr = [...awakeningRanges]; nr[i] = { ...nr[i], toAwakening: Number(e.target.value) }; setAwakeningRanges(nr); }} />
+                    <span className="text-muted-foreground w-6 sm:w-16">K</span>
+                    <Input className="h-7 w-14 sm:w-20 text-xs" type="number" step="0.01" value={r.coefficient} onChange={(e) => { const nr = [...awakeningRanges]; nr[i] = { ...nr[i], coefficient: Number(e.target.value) }; setAwakeningRanges(nr); }} />
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setAwakeningRanges(awakeningRanges.filter((_, j) => j !== i))}><Trash2 className="h-3 w-3" /></Button>
+                  </div>
+                ))}
+                {!awakeningRanges.length && <p className="text-xs text-muted-foreground">Нет диапазонов — если пробуждение не выбрано, kAWA = 0</p>}
+              </div>
+            </div>
           </CardContent>
         </Card>
       )}
     </div>
   );
 }
+
+
+
+
+
