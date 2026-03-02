@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDateTime, getRarityBgClass, getRarityClass, getRarityLabel, getStatusLabel, getStatusColor } from '@/lib/utils';
-import { Dices, Play, Trophy, Users, Sparkles, WandSparkles } from 'lucide-react';
+import { Dices, Play, Trophy, Users, WandSparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { getSocket } from '@/lib/socket';
@@ -18,10 +18,12 @@ type ClanMember = {
   user?: { profile?: { nickname?: string } };
 };
 
-type WinnerOverlayData = {
-  nickname: string;
+type CaseOpeningData = {
+  entries: { userId: string; nickname: string }[];
+  winnerId: string;
   itemName: string;
   rarity?: string;
+  onFinish: () => void;
 };
 
 type RarityFilter = 'ALL' | 'MYTHIC' | 'LEGENDARY' | 'EPIC' | 'RARE' | 'UNCOMMON' | 'COMMON';
@@ -31,6 +33,20 @@ const roleLabel: Record<ClanMember['role'], string> = {
   ELDER: 'Старейшина',
   MEMBER: 'Участник',
   NEWBIE: 'Новичок',
+};
+
+const CARD_W = 140;
+const CARD_GAP = 8;
+const CARD_STEP = CARD_W + CARD_GAP;
+const VISIBLE_CARDS = 60;
+
+const RARITY_GLOW: Record<string, string> = {
+  MYTHIC: 'rgba(255,0,80,0.6)',
+  LEGENDARY: 'rgba(255,170,0,0.6)',
+  EPIC: 'rgba(163,53,238,0.5)',
+  RARE: 'rgba(0,112,221,0.5)',
+  UNCOMMON: 'rgba(30,255,0,0.4)',
+  COMMON: 'rgba(180,180,180,0.3)',
 };
 
 function useConfetti() {
@@ -45,14 +61,15 @@ function useConfetti() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
-    const colors = ['#ffd166', '#ef476f', '#06d6a0', '#118ab2', '#f8edeb'];
-    const particles = Array.from({ length: 240 }, () => ({
-      x: Math.random() * canvas.width,
-      y: Math.random() * canvas.height - canvas.height * 0.6,
+    const colors = ['#ffd166', '#ef476f', '#06d6a0', '#118ab2', '#f8edeb', '#ff6b6b', '#a855f7'];
+    const particles = Array.from({ length: 300 }, () => ({
+      x: canvas.width / 2 + (Math.random() - 0.5) * 200,
+      y: canvas.height / 2,
       r: Math.random() * 5 + 2,
-      vx: (Math.random() - 0.5) * 4,
-      vy: Math.random() * 2.5 + 1.2,
+      vx: (Math.random() - 0.5) * 12,
+      vy: (Math.random() - 0.7) * 12,
       color: colors[Math.floor(Math.random() * colors.length)],
+      life: 1,
     }));
 
     let frame = 0;
@@ -61,16 +78,21 @@ function useConfetti() {
       particles.forEach((p) => {
         p.x += p.vx;
         p.y += p.vy;
-        p.vy += 0.03;
+        p.vy += 0.12;
+        p.vx *= 0.99;
+        p.life -= 0.003;
 
+        if (p.life <= 0) return;
+        ctx.globalAlpha = p.life;
         ctx.beginPath();
         ctx.fillStyle = p.color;
         ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
         ctx.fill();
       });
+      ctx.globalAlpha = 1;
 
       frame += 1;
-      if (frame < 280) requestAnimationFrame(draw);
+      if (frame < 240) requestAnimationFrame(draw);
       else ctx.clearRect(0, 0, canvas.width, canvas.height);
     };
 
@@ -80,28 +102,173 @@ function useConfetti() {
   return { canvasRef, fire };
 }
 
-function WinnerOverlay({ data, onClose }: { data: WinnerOverlayData; onClose: () => void }) {
+function buildStrip(entries: { userId: string; nickname: string }[], winnerId: string): { userId: string; nickname: string }[] {
+  const strip: { userId: string; nickname: string }[] = [];
+  const winnerIdx = Math.floor(VISIBLE_CARDS * 0.78);
+  for (let i = 0; i < VISIBLE_CARDS; i++) {
+    if (i === winnerIdx) {
+      strip.push(entries.find((e) => e.userId === winnerId) || entries[0]);
+    } else {
+      strip.push(entries[Math.floor(Math.random() * entries.length)]);
+    }
+  }
+  return strip;
+}
+
+function CaseOpeningOverlay({ data, onClose }: { data: CaseOpeningData; onClose: () => void }) {
+  const stripRef = useRef<HTMLDivElement>(null);
+  const [phase, setPhase] = useState<'spinning' | 'winner'>('spinning');
+  const [showGlow, setShowGlow] = useState(false);
+  const { canvasRef, fire } = useConfetti();
+
+  const strip = useMemo(() => buildStrip(data.entries, data.winnerId), [data.entries, data.winnerId]);
+  const winnerIdx = strip.findIndex((s) => s.userId === data.winnerId);
+
   useEffect(() => {
-    const t = setTimeout(onClose, 4800);
-    return () => clearTimeout(t);
-  }, [onClose]);
+    const el = stripRef.current;
+    if (!el) return;
+
+    const viewportW = window.innerWidth;
+    const targetX = winnerIdx * CARD_STEP - viewportW / 2 + CARD_W / 2;
+    const jitter = (Math.random() - 0.5) * (CARD_W * 0.3);
+    const finalX = targetX + jitter;
+
+    el.style.transition = 'none';
+    el.style.transform = 'translateX(0px)';
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        el.style.transition = 'transform 5.5s cubic-bezier(0.15, 0.85, 0.25, 1)';
+        el.style.transform = `translateX(-${finalX}px)`;
+      });
+    });
+
+    const glowTimer = setTimeout(() => setShowGlow(true), 5200);
+    const winnerTimer = setTimeout(() => {
+      setPhase('winner');
+      fire();
+    }, 6000);
+    const finishTimer = setTimeout(() => {
+      data.onFinish();
+      onClose();
+    }, 10500);
+
+    return () => {
+      clearTimeout(glowTimer);
+      clearTimeout(winnerTimer);
+      clearTimeout(finishTimer);
+    };
+  }, []);
+
+  const glow = RARITY_GLOW[data.rarity || ''] || RARITY_GLOW.COMMON;
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/85 backdrop-blur-md" onClick={onClose}>
-      <motion.div
-        initial={{ scale: 0.85, opacity: 0, y: 36 }}
-        animate={{ scale: 1, opacity: 1, y: 0 }}
-        exit={{ scale: 0.9, opacity: 0, y: 24 }}
-        className="mx-4 w-full max-w-2xl rounded-3xl border border-gold-500/40 bg-gradient-to-b from-zinc-900 to-zinc-950 p-8 text-center shadow-[0_0_80px_rgba(255,198,0,0.2)]"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="text-gold-400 text-6xl">🏆</div>
-        <p className="mt-3 text-5xl font-black tracking-[0.2em] text-gold-300">WINNER</p>
-        <p className="mt-4 text-4xl font-bold text-white">{data.nickname}</p>
-        <p className="mt-3 text-lg text-zinc-300">Розыгрыш предмета:</p>
-        <p className="text-2xl font-semibold text-gold-300">{data.itemName}</p>
-        <p className="mt-4 text-xs uppercase tracking-[0.25em] text-zinc-500">нажмите, чтобы закрыть</p>
-      </motion.div>
+    <div className="fixed inset-0 z-[120] bg-black/92 backdrop-blur-md flex flex-col items-center justify-center overflow-hidden">
+      <canvas ref={canvasRef} className="pointer-events-none fixed inset-0 z-[130]" />
+
+      <AnimatePresence mode="wait">
+        {phase === 'spinning' && (
+          <motion.div
+            key="strip"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="relative w-full"
+          >
+            <div className="absolute left-1/2 top-1/2 -translate-x-px -translate-y-1/2 z-20 w-[3px] rounded-full"
+              style={{ height: 'calc(100% + 40px)', marginTop: '-20px', background: `linear-gradient(180deg, transparent 0%, ${glow} 30%, #ffd166 50%, ${glow} 70%, transparent 100%)`, boxShadow: `0 0 20px ${glow}, 0 0 40px ${glow}` }} />
+
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none"
+              style={{ width: CARD_W + 20, height: CARD_W + 60, border: '2px solid rgba(255,209,102,0.5)', borderRadius: 16, boxShadow: showGlow ? `0 0 40px ${glow}, 0 0 80px ${glow}, inset 0 0 30px ${glow}` : 'none', transition: 'box-shadow 0.8s ease' }} />
+
+            <div className="mx-auto overflow-hidden" style={{ maxWidth: '100vw' }}>
+              <div ref={stripRef} className="flex will-change-transform" style={{ gap: CARD_GAP, paddingLeft: '50vw' }}>
+                {strip.map((item, i) => {
+                  const isWinner = i === winnerIdx;
+                  return (
+                    <div
+                      key={`${item.userId}-${i}`}
+                      className={`shrink-0 rounded-xl border-2 flex flex-col items-center justify-center transition-all ${
+                        isWinner && showGlow
+                          ? 'border-gold-400 bg-gradient-to-b from-gold-500/20 to-gold-500/5'
+                          : 'border-zinc-700/60 bg-zinc-800/80'
+                      }`}
+                      style={{ width: CARD_W, height: CARD_W, boxShadow: isWinner && showGlow ? `0 0 30px ${glow}` : 'none' }}
+                    >
+                      <div className={`flex h-12 w-12 items-center justify-center rounded-full text-lg font-bold mb-2 ${
+                        isWinner && showGlow ? 'bg-gold-500/30 text-gold-300' : 'bg-zinc-700/50 text-zinc-400'
+                      }`}>
+                        {item.nickname?.charAt(0)?.toUpperCase() || '?'}
+                      </div>
+                      <p className={`text-xs font-medium text-center px-2 truncate w-full ${
+                        isWinner && showGlow ? 'text-gold-300' : 'text-zinc-300'
+                      }`}>
+                        {item.nickname}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="mt-6 text-center">
+              <p className="text-sm text-zinc-500 animate-pulse">Прокрутка...</p>
+            </div>
+          </motion.div>
+        )}
+
+        {phase === 'winner' && (
+          <motion.div
+            key="winner"
+            initial={{ scale: 0.5, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+            className="text-center z-[125] px-4"
+            onClick={onClose}
+          >
+            <motion.div
+              animate={{ rotate: [0, -3, 3, -2, 2, 0], scale: [1, 1.05, 1] }}
+              transition={{ duration: 0.6 }}
+              className="text-7xl sm:text-8xl mb-4"
+            >
+              🏆
+            </motion.div>
+            <motion.p
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.2 }}
+              className="text-3xl sm:text-5xl font-black tracking-[0.15em] text-gold-300 drop-shadow-[0_0_30px_rgba(255,209,102,0.5)]"
+            >
+              WINNER
+            </motion.p>
+            <motion.p
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.4 }}
+              className="mt-4 text-2xl sm:text-4xl font-bold text-white"
+            >
+              {data.entries.find((e) => e.userId === data.winnerId)?.nickname || 'Победитель'}
+            </motion.p>
+            <motion.div
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.6 }}
+              className="mt-4"
+            >
+              <p className="text-base sm:text-lg text-zinc-400">Выиграл предмет:</p>
+              <p className="text-xl sm:text-2xl font-semibold text-gold-300 mt-1">{data.itemName}</p>
+            </motion.div>
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 1.2 }}
+              className="mt-8 text-xs uppercase tracking-[0.25em] text-zinc-600"
+            >
+              нажмите, чтобы закрыть
+            </motion.p>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -111,16 +278,12 @@ export function RandomizerPage() {
   const clanId = user?.clanMembership?.clanId;
   const canManage = user?.clanMembership?.role === 'CLAN_LEADER' || user?.clanMembership?.role === 'ELDER';
   const queryClient = useQueryClient();
-  const { canvasRef, fire } = useConfetti();
-
   const [selectedItemId, setSelectedItemId] = useState('');
   const [rarityFilter, setRarityFilter] = useState<RarityFilter>('ALL');
   const [drawQuantity, setDrawQuantity] = useState(1);
   const [selectedParticipantIds, setSelectedParticipantIds] = useState<string[]>([]);
   const [participantsInitialized, setParticipantsInitialized] = useState(false);
-  const [animatingSession, setAnimatingSession] = useState<string | null>(null);
-  const [animationWinner, setAnimationWinner] = useState<string | null>(null);
-  const [winnerOverlay, setWinnerOverlay] = useState<WinnerOverlayData | null>(null);
+  const [caseOpening, setCaseOpening] = useState<CaseOpeningData | null>(null);
 
   const { data: sessions, isLoading } = useQuery({
     queryKey: ['randomizer', clanId],
@@ -215,33 +378,31 @@ export function RandomizerPage() {
 
   const drawMutation = useMutation({
     mutationFn: async (sessionId: string) => {
-      setAnimatingSession(sessionId);
-      setAnimationWinner(null);
       return (await api.post(`/clans/${clanId}/randomizer/${sessionId}/draw`)).data;
     },
     onSuccess: (data, sessionId) => {
-      setTimeout(() => {
-        const winnerId = data.result?.winnerId;
-        setAnimationWinner(winnerId);
+      const winnerId = data.result?.winnerId;
+      const session = sessions?.find((s: any) => s.id === sessionId);
+      const entries = (session?.entries || []).map((e: any) => ({
+        userId: e.userId,
+        nickname: e.user?.profile?.nickname || '???',
+      }));
+      const itemName = session?.warehouseItem?.name || 'Предмет';
+      const rarity = session?.warehouseItem?.rarity;
 
-        const session = sessions?.find((s: any) => s.id === sessionId);
-        const winnerNickname = session?.entries?.find((e: any) => e.userId === winnerId)?.user?.profile?.nickname || 'Победитель';
-        const itemName = session?.warehouseItem?.name || 'Предмет';
-
-        fire();
-        setWinnerOverlay({
-          nickname: winnerNickname,
-          itemName,
-          rarity: session?.warehouseItem?.rarity,
-        });
-
-        queryClient.invalidateQueries({ queryKey: ['randomizer'] });
-        toast.success('Розыгрыш завершен');
-        setTimeout(() => setAnimatingSession(null), 3000);
-      }, 1300);
+      setCaseOpening({
+        entries,
+        winnerId,
+        itemName,
+        rarity,
+        onFinish: () => {
+          queryClient.invalidateQueries({ queryKey: ['randomizer'] });
+          queryClient.invalidateQueries({ queryKey: ['warehouse-items'] });
+          toast.success('Розыгрыш завершён!');
+        },
+      });
     },
     onError: (e) => {
-      setAnimatingSession(null);
       toast.error(getErrorMessage(e));
     },
   });
@@ -265,10 +426,10 @@ export function RandomizerPage() {
 
   return (
     <div className="space-y-6">
-      <canvas ref={canvasRef} className="pointer-events-none fixed inset-0 z-[110]" />
-
       <AnimatePresence>
-        {winnerOverlay && <WinnerOverlay data={winnerOverlay} onClose={() => setWinnerOverlay(null)} />}
+        {caseOpening && (
+          <CaseOpeningOverlay data={caseOpening} onClose={() => setCaseOpening(null)} />
+        )}
       </AnimatePresence>
 
       <div>
@@ -405,11 +566,11 @@ export function RandomizerPage() {
       ) : sessions?.length ? (
         <div className="space-y-4">
           {sessions.map((session: any) => (
-            <Card key={session.id} className={`transition-all ${animatingSession === session.id ? 'border-primary/50 shadow-lg shadow-primary/10' : ''}`}>
+            <Card key={session.id} className="transition-all">
               <CardContent className="p-4">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                   <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
-                    <div className={`flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-lg ${animatingSession === session.id ? 'animate-spin-slow bg-primary/20' : 'bg-primary/10'}`}>
+                    <div className="flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-lg bg-primary/10">
                       <Dices className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
                     </div>
                     <div className="min-w-0">
@@ -448,42 +609,14 @@ export function RandomizerPage() {
                       </div>
                     )}
                     {canManage && session.status === 'PENDING' && (
-                      <Button variant="gold" size="sm" onClick={() => drawMutation.mutate(session.id)} disabled={drawMutation.isPending}>
+                      <Button variant="gold" size="sm" onClick={() => drawMutation.mutate(session.id)} disabled={drawMutation.isPending || !!caseOpening}>
                         <Play className="h-4 w-4" /> Запустить
                       </Button>
                     )}
                   </div>
                 </div>
 
-                {animatingSession === session.id && (
-                  <motion.div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-4 lg:grid-cols-6" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                    <AnimatePresence>
-                      {session.entries?.map((entry: any, i: number) => (
-                        <motion.div
-                          key={entry.id}
-                          className={`rounded-lg border p-2 text-center text-xs transition-all ${
-                            animationWinner === entry.userId
-                              ? 'border-gold-400 bg-gold-500/10 ring-2 ring-gold-400'
-                              : animationWinner && animationWinner !== entry.userId
-                              ? 'border-border/30 opacity-30'
-                              : 'border-border/50'
-                          }`}
-                          animate={!animationWinner ? { scale: [1, 1.05, 1], transition: { repeat: Infinity, duration: 0.3, delay: i * 0.05 } } : {}}
-                        >
-                          <p className="font-medium truncate">{entry.user?.profile?.nickname}</p>
-                          <p className="text-muted-foreground">w: {Number(entry.weight).toFixed(3)}</p>
-                          {animationWinner === entry.userId && (
-                            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="mt-1">
-                              <Sparkles className="mx-auto h-4 w-4 text-gold-400" />
-                            </motion.div>
-                          )}
-                        </motion.div>
-                      ))}
-                    </AnimatePresence>
-                  </motion.div>
-                )}
-
-                {session.status === 'COMPLETED' && !animatingSession && session.entries && (
+                {session.status === 'COMPLETED' && session.entries && (
                   <div className="mt-3 flex flex-wrap gap-1">
                     {session.entries.map((entry: any) => (
                       <span
