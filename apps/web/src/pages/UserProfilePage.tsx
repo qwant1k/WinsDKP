@@ -54,6 +54,12 @@ export function UserProfilePage() {
     enabled: !!id,
   });
 
+  const { data: stats } = useQuery({
+    queryKey: ['user-stats', id],
+    queryFn: async () => (await api.get(`/users/${id}/stats`)).data,
+    enabled: !!id,
+  });
+
   if (isLoading) return <div className="space-y-4"><Skeleton className="h-8 w-64" /><Skeleton className="h-64" /></div>;
   if (!profile) return <p className="text-center text-muted-foreground py-16">Пользователь не найден</p>;
 
@@ -61,12 +67,11 @@ export function UserProfilePage() {
   const clan = profile.clanMemberships?.[0];
   const wallet = profile.dkpWallet;
 
-  const dkpTransactions = (timeline || []).filter((t: any) => t.type === 'dkp_transaction');
-  const totalEarned = dkpTransactions.filter((t: any) => Number(t.data?.amount) > 0).reduce((s: number, t: any) => s + Number(t.data?.amount || 0), 0);
-  const totalSpent = dkpTransactions.filter((t: any) => Number(t.data?.amount) < 0).reduce((s: number, t: any) => s + Math.abs(Number(t.data?.amount || 0)), 0);
-  const activitiesCount = (timeline || []).filter((t: any) => t.type === 'activity').length;
-  const bidsCount = (timeline || []).filter((t: any) => t.type === 'bid').length;
-  const penaltiesCount = (timeline || []).filter((t: any) => t.type === 'penalty').length;
+  const totalEarned = Number(stats?.dkpEarned || 0);
+  const totalSpent = Number(stats?.dkpSpent || 0);
+  const activitiesCount = Number(stats?.activitiesCount || 0);
+  const bidsCount = Number(stats?.bidsCount || 0);
+  const penaltiesCount = Number(stats?.penaltiesCount || 0);
 
   return (
     <div className="space-y-6">

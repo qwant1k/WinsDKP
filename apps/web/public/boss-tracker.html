@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
@@ -36,319 +36,107 @@
 
   .container { max-width: none; padding: 20px 20px 60px; }
 
-  /* ── Location Tabs ── */
   .locations-bar {
-    display: flex;
-    align-items: stretch;
-    gap: 4px;
+    display: flex; align-items: stretch; gap: 4px;
     border-bottom: 1px solid var(--border);
-    margin-bottom: 0;
-    overflow-x: auto;
-    scrollbar-width: none;
-    padding-bottom: 0;
+    margin-bottom: 0; overflow-x: auto; scrollbar-width: none; padding-bottom: 0;
   }
   .locations-bar::-webkit-scrollbar { display: none; }
 
   .loc-tab {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 12px 22px;
-    font-family: 'Exo 2', sans-serif;
-    font-size: 12px;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    color: var(--text-dim);
-    background: transparent;
-    border: 1px solid transparent;
-    border-bottom: none;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: all 0.2s;
-    position: relative;
-    bottom: -1px;
+    display: flex; align-items: center; gap: 8px; padding: 12px 22px;
+    font-family: 'Exo 2', sans-serif; font-size: 12px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--text-dim); background: transparent; border: 1px solid transparent; border-bottom: none;
+    cursor: pointer; white-space: nowrap; transition: all 0.2s; position: relative; bottom: -1px;
   }
   .loc-tab:hover { color: var(--text); background: rgba(255,255,255,0.03); }
-  .loc-tab.active {
-    color: var(--gold);
-    background: var(--surface);
-    border-color: var(--border);
-    border-bottom-color: var(--surface);
-  }
-  /* Drop target highlight on location tabs */
-  .loc-tab.drag-over-tab {
-    color: var(--gold);
-    background: rgba(200,168,75,0.12);
-    border-color: var(--gold-dim);
-    box-shadow: 0 0 16px rgba(200,168,75,0.2);
-  }
-
-  .loc-tab .tab-count {
-    font-size: 10px;
-    background: rgba(200,168,75,0.15);
-    color: var(--gold-dim);
-    padding: 1px 6px;
-    border-radius: 20px;
-    font-family: 'DM Sans', sans-serif;
-    font-style: normal;
-    letter-spacing: 0;
-  }
+  .loc-tab.active { color: var(--gold); background: var(--surface); border-color: var(--border); border-bottom-color: var(--surface); }
+  .loc-tab.drag-over-tab { color: var(--gold); background: rgba(200,168,75,0.12); border-color: var(--gold-dim); box-shadow: 0 0 16px rgba(200,168,75,0.2); }
+  .loc-tab .tab-count { font-size: 10px; background: rgba(200,168,75,0.15); color: var(--gold-dim); padding: 1px 6px; border-radius: 20px; font-family: 'DM Sans', sans-serif; font-style: normal; letter-spacing: 0; }
   .loc-tab.active .tab-count { background: rgba(200,168,75,0.25); color: var(--gold); }
 
   .btn-add-loc {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 10px 16px;
-    font-family: 'Exo 2', sans-serif;
-    font-size: 11px;
-    letter-spacing: 1.5px;
-    color: var(--text-dim);
-    background: transparent;
-    border: 1px dashed rgba(100,100,120,0.4);
-    cursor: pointer;
-    white-space: nowrap;
-    transition: all 0.2s;
-    margin-left: 4px;
-    align-self: center;
+    display: flex; align-items: center; gap: 6px; padding: 10px 16px;
+    font-family: 'Exo 2', sans-serif; font-size: 11px; letter-spacing: 1.5px;
+    color: var(--text-dim); background: transparent; border: 1px dashed rgba(100,100,120,0.4);
+    cursor: pointer; white-space: nowrap; transition: all 0.2s; margin-left: 4px; align-self: center;
   }
   .btn-add-loc:hover { color: var(--gold); border-color: var(--gold-dim); }
 
-  /* ── Location Panel ── */
-  .location-panel {
-    display: none;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-top: none;
-    padding: 20px 20px 10px;
-  }
+  .location-panel { display: none; background: var(--surface); border: 1px solid var(--border); border-top: none; padding: 20px 20px 10px; }
   .location-panel.active { display: block; }
 
-  .loc-header-row {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 8px;
-    margin-bottom: 16px;
-    flex-wrap: wrap;
-  }
+  .loc-header-row { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
 
   .btn-add-floor {
-    padding: 7px 14px;
-    font-family: 'Exo 2', sans-serif;
-    font-size: 11px;
-    letter-spacing: 1px;
-    color: var(--text-dim);
-    background: transparent;
-    border: 1px dashed rgba(100,100,120,0.4);
-    cursor: pointer;
-    white-space: nowrap;
-    transition: all 0.2s;
+    padding: 7px 14px; font-family: 'Exo 2', sans-serif; font-size: 11px; letter-spacing: 1px;
+    color: var(--text-dim); background: transparent; border: 1px dashed rgba(100,100,120,0.4);
+    cursor: pointer; white-space: nowrap; transition: all 0.2s;
   }
   .btn-add-floor:hover { color: var(--gold); border-color: var(--gold-dim); }
 
-  .loc-actions { display: flex; gap: 8px; align-items: center; }
-
   .btn-add-boss {
     background: linear-gradient(135deg, rgba(200,168,75,0.15), rgba(200,168,75,0.06));
-    border: 1px solid var(--gold-dim);
-    color: var(--gold);
-    font-family: 'Exo 2', sans-serif;
-    font-size: 11px;
-    letter-spacing: 1.5px;
-    padding: 8px 18px;
-    cursor: pointer;
-    transition: all 0.25s;
-    text-transform: uppercase;
-    white-space: nowrap;
+    border: 1px solid var(--gold-dim); color: var(--gold); font-family: 'Exo 2', sans-serif;
+    font-size: 11px; letter-spacing: 1.5px; padding: 8px 18px; cursor: pointer; transition: all 0.25s;
+    text-transform: uppercase; white-space: nowrap;
   }
   .btn-add-boss:hover { border-color: var(--gold); background: rgba(200,168,75,0.22); }
 
   .btn-icon-danger {
-    background: transparent;
-    border: 1px solid rgba(200,75,75,0.3);
-    color: rgba(200,75,75,0.6);
-    font-size: 14px;
-    width: 32px;
-    height: 32px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s;
+    background: transparent; border: 1px solid rgba(200,75,75,0.3); color: rgba(200,75,75,0.6);
+    font-size: 14px; width: 32px; height: 32px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;
   }
   .btn-icon-danger:hover { border-color: var(--red); color: var(--red); background: rgba(200,75,75,0.08); }
 
-  /* ── Boss table ── */
   .floor-section { margin-top: 8px; }
   .floor-section-title {
-    font-family: 'Exo 2', sans-serif;
-    font-size: 11px;
-    letter-spacing: 3px;
-    text-transform: uppercase;
-    color: var(--gold-dim);
-    padding: 10px 16px;
-    background: rgba(200,168,75,0.04);
-    border: 1px solid rgba(200,168,75,0.12);
-    border-left: 3px solid var(--gold-dim);
-    margin-bottom: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
+    font-family: 'Exo 2', sans-serif; font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
+    color: var(--gold-dim); padding: 10px 16px; background: rgba(200,168,75,0.04);
+    border: 1px solid rgba(200,168,75,0.12); border-left: 3px solid var(--gold-dim);
+    margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; gap: 10px;
   }
   .floor-section-title .floor-del-btn {
-    background: transparent;
-    border: none;
-    color: rgba(200,75,75,0.4);
-    cursor: pointer;
-    font-size: 12px;
-    padding: 2px 6px;
-    transition: color 0.2s;
-    font-family: 'Exo 2', sans-serif;
-    letter-spacing: 1px;
+    background: transparent; border: none; color: rgba(200,75,75,0.4); cursor: pointer;
+    font-size: 12px; padding: 2px 6px; transition: color 0.2s; font-family: 'Exo 2', sans-serif; letter-spacing: 1px;
   }
   .floor-section-title .floor-del-btn:hover { color: var(--red); }
 
-  .boss-header {
-    display: grid;
-    grid-template-columns: 32px 1fr 160px 160px 160px auto;
-    padding: 0;
-    margin-bottom: 4px;
-  }
-  .boss-header-cell {
-    padding: 6px 20px;
-    font-size: 10px;
-    letter-spacing: 2.5px;
-    text-transform: uppercase;
-    color: var(--text-dim);
-    font-family: 'Exo 2', sans-serif;
-  }
+  .boss-header { display: grid; grid-template-columns: 32px 1fr 160px 160px 160px auto; padding: 0; margin-bottom: 4px; }
+  .boss-header-cell { padding: 6px 20px; font-size: 10px; letter-spacing: 2.5px; text-transform: uppercase; color: var(--text-dim); font-family: 'Exo 2', sans-serif; }
 
-  .boss-list {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    margin-bottom: 16px;
-    min-height: 20px;
-    position: relative;
-  }
+  .boss-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; min-height: 20px; position: relative; }
+  .boss-list.drag-over { outline: 1px dashed rgba(200,168,75,0.35); outline-offset: 2px; background: rgba(200,168,75,0.025); }
 
-  /* ── Drop zone indicator inside boss-list ── */
-  .boss-list.drag-over {
-    outline: 1px dashed rgba(200,168,75,0.35);
-    outline-offset: 2px;
-    background: rgba(200,168,75,0.025);
-  }
+  .drop-indicator { height: 3px; background: var(--gold); border-radius: 2px; box-shadow: 0 0 10px rgba(200,168,75,0.7); pointer-events: none; margin: -3px 0; transition: opacity 0.15s; }
 
-  /* Drop ghost: the blue line that shows WHERE the item will land */
-  .drop-indicator {
-    height: 3px;
-    background: var(--gold);
-    border-radius: 2px;
-    box-shadow: 0 0 10px rgba(200,168,75,0.7);
-    pointer-events: none;
-    margin: -3px 0;
-    transition: opacity 0.15s;
-  }
-
-  /* ── Drag handle ── */
-  .drag-handle {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: grab;
-    color: var(--text-dim);
-    font-size: 14px;
-    padding: 0 8px;
-    opacity: 0.4;
-    transition: opacity 0.2s, color 0.2s;
-    user-select: none;
-    touch-action: none;
-  }
+  .drag-handle { display: flex; align-items: center; justify-content: center; cursor: grab; color: var(--text-dim); font-size: 14px; padding: 0 8px; opacity: 0.4; transition: opacity 0.2s, color 0.2s; user-select: none; touch-action: none; }
   .drag-handle:hover { opacity: 1; color: var(--gold); }
   .drag-handle:active { cursor: grabbing; }
 
   .boss-row {
-    position: relative;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-left: 3px solid transparent;
-    display: grid;
-    grid-template-columns: 32px 1fr 160px 160px 160px auto;
-    align-items: center;
-    gap: 0;
-    transition: border-color 0.3s, opacity 0.3s, transform 0.15s, box-shadow 0.15s;
-    overflow: hidden;
+    position: relative; background: var(--bg); border: 1px solid var(--border); border-left: 3px solid transparent;
+    display: grid; grid-template-columns: 32px 1fr 160px 160px 160px auto; align-items: center; gap: 0;
+    transition: border-color 0.3s, opacity 0.3s, transform 0.15s, box-shadow 0.15s; overflow: hidden;
   }
   .boss-row:hover { border-color: #3a3d50; border-left-color: var(--gold-dim); }
   .boss-row.dead { opacity: 1; border-left-color: var(--red) !important; }
+  .boss-row.dragging { opacity: 0.35; border-color: var(--gold-dim) !important; border-left-color: var(--gold) !important; transform: scale(0.99); }
 
-  /* Dragging states */
-  .boss-row.dragging {
-    opacity: 0.35;
-    border-color: var(--gold-dim) !important;
-    border-left-color: var(--gold) !important;
-    transform: scale(0.99);
-  }
-  .boss-row.drag-ghost {
-    opacity: 0.8;
-    box-shadow: 0 8px 40px rgba(0,0,0,0.7), 0 0 20px rgba(200,168,75,0.25);
-    border-color: var(--gold-dim) !important;
-    pointer-events: none;
-  }
-
-  .boss-cell {
-    padding: 14px 20px;
-    border-right: 1px solid var(--border);
-    position: relative;
-    z-index: 1;
-  }
+  .boss-cell { padding: 14px 20px; border-right: 1px solid var(--border); position: relative; z-index: 1; }
   .boss-cell:last-child { border-right: none; }
-
   .boss-row.dead .boss-cell:nth-child(2) { z-index: 3; }
-  .boss-row.dead .boss-name {
-    color: #ffffff;
-    text-shadow: 0 0 22px rgba(255,107,74,0.85), 0 0 44px rgba(255,107,74,0.45);
-  }
+  .boss-row.dead .boss-name { color: #ffffff; text-shadow: 0 0 22px rgba(255,107,74,0.85), 0 0 44px rgba(255,107,74,0.45); }
   .boss-row.dead .boss-skull { filter: drop-shadow(0 0 8px rgba(255,107,74,0.9)); }
 
-  .boss-name {
-    font-family: 'Exo 2', sans-serif;
-    font-size: 16px;
-    color: #ffffff;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    letter-spacing: 0.3px;
-    text-shadow: 0 1px 8px rgba(0,0,0,0.8);
-  }
+  .boss-name { font-family: 'Exo 2', sans-serif; font-size: 16px; color: #ffffff; font-weight: 700; display: flex; align-items: center; gap: 10px; letter-spacing: 0.3px; text-shadow: 0 1px 8px rgba(0,0,0,0.8); }
   .boss-skull { font-size: 20px; opacity: 1; filter: drop-shadow(0 0 6px rgba(200,168,75,0.5)); }
-  .boss-location { font-size: 12px; color: var(--text-dim); margin-top: 3px; font-style: italic; }
 
-  .label {
-    font-size: 10px;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    color: var(--text-dim);
-    margin-bottom: 3px;
-    font-family: 'Exo 2', sans-serif;
-  }
+  .label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 3px; font-family: 'Exo 2', sans-serif; }
   .respawn-time { font-size: 20px; font-family: 'Exo 2', sans-serif; color: var(--gold); letter-spacing: 1px; font-weight: 600; }
 
   .status-cell { text-align: center; padding: 14px 12px; }
-  .status-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 11px;
-    letter-spacing: 1.5px;
-    font-family: 'Exo 2', sans-serif;
-    text-transform: uppercase;
-    padding: 4px 10px;
-    font-weight: 600;
-  }
+  .status-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; letter-spacing: 1.5px; font-family: 'Exo 2', sans-serif; text-transform: uppercase; padding: 4px 10px; font-weight: 600; }
   .status-badge.alive { color: var(--green); background: rgba(75,200,122,0.08); border: 1px solid rgba(75,200,122,0.3); }
   .status-badge.dead-badge { color: var(--red); background: rgba(200,75,75,0.08); border: 1px solid rgba(200,75,75,0.3); }
 
@@ -357,176 +145,50 @@
   .dot.red { background: var(--red); }
   @keyframes pulse-green { 0%,100%{opacity:1}50%{opacity:0.4} }
 
-  .timer-display {
-    font-family: 'Exo 2', sans-serif;
-    font-size: 20px;
-    font-weight: 700;
-    color: #ff6b4a;
-    letter-spacing: 3px;
-    font-variant-numeric: tabular-nums;
-  }
+  .timer-display { font-family: 'Exo 2', sans-serif; font-size: 20px; font-weight: 700; color: #ff6b4a; letter-spacing: 3px; font-variant-numeric: tabular-nums; }
 
-  .btn-kill {
-    background: linear-gradient(135deg,rgba(75,200,122,0.1),rgba(75,200,122,0.05));
-    border: 1px solid rgba(75,200,122,0.4);
-    color: var(--green);
-    font-family: 'Exo 2',serif;
-    font-size: 10px;
-    letter-spacing: 2px;
-    padding: 8px 14px;
-    cursor: pointer;
-    text-transform: uppercase;
-    transition: all 0.25s;
-    white-space: nowrap;
-  }
+  .btn-kill { background: linear-gradient(135deg,rgba(75,200,122,0.1),rgba(75,200,122,0.05)); border: 1px solid rgba(75,200,122,0.4); color: var(--green); font-family: 'Exo 2',serif; font-size: 10px; letter-spacing: 2px; padding: 8px 14px; cursor: pointer; text-transform: uppercase; transition: all 0.25s; white-space: nowrap; }
   .btn-kill:hover { background:rgba(75,200,122,0.2); border-color:var(--green); box-shadow:0 0 20px rgba(75,200,122,0.2); }
 
-  .btn-reset {
-    background: linear-gradient(135deg,rgba(200,75,75,0.1),rgba(200,75,75,0.05));
-    border: 1px solid rgba(200,75,75,0.3);
-    color: #e08080;
-    font-family: 'Exo 2',serif;
-    font-size: 10px;
-    letter-spacing: 1px;
-    padding: 8px 14px;
-    cursor: pointer;
-    text-transform: uppercase;
-    transition: all 0.25s;
-    white-space: nowrap;
-  }
+  .btn-reset { background: linear-gradient(135deg,rgba(200,75,75,0.1),rgba(200,75,75,0.05)); border: 1px solid rgba(200,75,75,0.3); color: #e08080; font-family: 'Exo 2',serif; font-size: 10px; letter-spacing: 1px; padding: 8px 14px; cursor: pointer; text-transform: uppercase; transition: all 0.25s; white-space: nowrap; }
   .btn-reset:hover { background:rgba(200,75,75,0.2); border-color:var(--red); }
 
-  .btn-edit {
-    background: linear-gradient(135deg,rgba(75,139,200,0.1),rgba(75,139,200,0.05));
-    border: 1px solid rgba(75,139,200,0.35);
-    color: #7fb3e8;
-    font-family: 'Exo 2',serif;
-    font-size: 10px;
-    letter-spacing: 1px;
-    padding: 8px 14px;
-    cursor: pointer;
-    text-transform: uppercase;
-    transition: all 0.25s;
-    white-space: nowrap;
-  }
+  .btn-edit { background: linear-gradient(135deg,rgba(75,139,200,0.1),rgba(75,139,200,0.05)); border: 1px solid rgba(75,139,200,0.35); color: #7fb3e8; font-family: 'Exo 2',serif; font-size: 10px; letter-spacing: 1px; padding: 8px 14px; cursor: pointer; text-transform: uppercase; transition: all 0.25s; white-space: nowrap; }
   .btn-edit:hover { background:rgba(75,139,200,0.2); border-color:var(--blue); color: #a8d0f8; }
 
-  .btn-delete {
-    background: transparent;
-    border: 1px solid rgba(180,180,180,0.2);
-    color: #6b6456;
-    font-family: 'Exo 2',serif;
-    font-size: 10px;
-    letter-spacing: 1px;
-    padding: 8px 14px;
-    cursor: pointer;
-    text-transform: uppercase;
-    transition: all 0.25s;
-    white-space: nowrap;
-    margin-left: 6px;
-  }
+  .btn-delete { background: transparent; border: 1px solid rgba(180,180,180,0.2); color: #6b6456; font-family: 'Exo 2',serif; font-size: 10px; letter-spacing: 1px; padding: 8px 14px; cursor: pointer; text-transform: uppercase; transition: all 0.25s; white-space: nowrap; margin-left: 6px; }
   .btn-delete:hover { border-color: var(--red); color: var(--red); background: rgba(200,75,75,0.06); }
 
   .action-btns { display: flex; align-items: center; padding: 10px 14px; flex-wrap: wrap; gap: 4px; }
 
-  /* Timer overlay */
-  .timer-overlay {
-    position: absolute; inset: 0;
-    background: linear-gradient(90deg, rgba(10,11,15,0.92) 0%, rgba(15,12,10,0.88) 100%);
-    display: flex; align-items: center; justify-content: center;
-    z-index: 2;
-    pointer-events: none; opacity: 0; transition: opacity 0.4s;
-  }
+  .timer-overlay { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(10,11,15,0.92) 0%, rgba(15,12,10,0.88) 100%); display: flex; align-items: center; justify-content: center; z-index: 2; pointer-events: none; opacity: 0; transition: opacity 0.4s; }
   .boss-row.dead .timer-overlay { opacity: 1; }
 
   .timer-big { display: flex; align-items: center; gap: 6px; }
   .timer-block { display: flex; flex-direction: column; align-items: center; gap: 3px; }
-  .timer-digit {
-    font-family: 'Exo 2', sans-serif;
-    font-size: clamp(22px, 2.8vw, 38px);
-    font-weight: 800;
-    color: #ff6b4a;
-    letter-spacing: 1px;
-    font-variant-numeric: tabular-nums;
-    line-height: 1;
-    text-shadow: 0 0 20px rgba(255,107,74,0.6), 0 0 40px rgba(255,107,74,0.3);
-  }
-  .timer-unit {
-    font-family: 'Exo 2', sans-serif;
-    font-size: 9px;
-    font-weight: 500;
-    letter-spacing: 2.5px;
-    text-transform: uppercase;
-    color: rgba(255,107,74,0.45);
-  }
-  .timer-sep {
-    font-family: 'Exo 2', sans-serif;
-    font-size: clamp(20px, 2.5vw, 32px);
-    font-weight: 800;
-    color: rgba(255,107,74,0.3);
-    margin-bottom: 14px;
-    line-height: 1;
-  }
+  .timer-digit { font-family: 'Exo 2', sans-serif; font-size: clamp(22px, 2.8vw, 38px); font-weight: 800; color: #ff6b4a; letter-spacing: 1px; font-variant-numeric: tabular-nums; line-height: 1; text-shadow: 0 0 20px rgba(255,107,74,0.6), 0 0 40px rgba(255,107,74,0.3); }
+  .timer-unit { font-family: 'Exo 2', sans-serif; font-size: 9px; font-weight: 500; letter-spacing: 2.5px; text-transform: uppercase; color: rgba(255,107,74,0.45); }
+  .timer-sep { font-family: 'Exo 2', sans-serif; font-size: clamp(20px, 2.5vw, 32px); font-weight: 800; color: rgba(255,107,74,0.3); margin-bottom: 14px; line-height: 1; }
 
-  /* Empty state */
-  .empty-state { text-align: center; padding: 40px 24px; color: var(--text-dim); border: 1px dashed var(--border); }
-  .empty-icon { font-size: 36px; margin-bottom: 12px; opacity: 0.4; }
-  .empty-text { font-family: 'Exo 2',serif; font-size: 13px; letter-spacing: 2px; }
+  .boss-list-empty-drop { padding: 20px; border: 1px dashed rgba(200,168,75,0.2); text-align: center; color: var(--text-dim); font-family: 'Exo 2', sans-serif; font-size: 11px; letter-spacing: 2px; transition: border-color 0.2s, background 0.2s; }
+  .boss-list-empty-drop.drag-over { border-color: var(--gold-dim); background: rgba(200,168,75,0.05); color: var(--gold-dim); }
 
-  /* Drop zone empty list */
-  .boss-list-empty-drop {
-    padding: 20px;
-    border: 1px dashed rgba(200,168,75,0.2);
-    text-align: center;
-    color: var(--text-dim);
-    font-family: 'Exo 2', sans-serif;
-    font-size: 11px;
-    letter-spacing: 2px;
-    transition: border-color 0.2s, background 0.2s;
-  }
-  .boss-list-empty-drop.drag-over {
-    border-color: var(--gold-dim);
-    background: rgba(200,168,75,0.05);
-    color: var(--gold-dim);
-  }
-
-  .no-locations {
-    text-align: center;
-    padding: 80px 24px;
-    color: var(--text-dim);
-  }
+  .no-locations { text-align: center; padding: 80px 24px; color: var(--text-dim); }
   .no-loc-icon { font-size: 56px; margin-bottom: 20px; opacity: 0.3; }
   .no-loc-text { font-family: 'Exo 2',serif; font-size: 15px; letter-spacing: 3px; margin-bottom: 8px; color: var(--text-dim); }
   .no-loc-sub { font-size: 14px; opacity: 0.5; margin-bottom: 28px; }
 
-  /* ── Modals ── */
-  .modal-overlay {
-    position: fixed; inset: 0;
-    background: rgba(0,0,0,0.85);
-    display: flex; align-items: center; justify-content: center;
-    z-index: 100; opacity: 0; pointer-events: none;
-    transition: opacity 0.3s; backdrop-filter: blur(4px);
-  }
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: flex; align-items: center; justify-content: center; z-index: 100; opacity: 0; pointer-events: none; transition: opacity 0.3s; backdrop-filter: blur(4px); }
   .modal-overlay.open { opacity: 1; pointer-events: all; }
-  .modal {
-    background: var(--surface);
-    border: 1px solid var(--gold-dim);
-    width: 100%; max-width: 480px;
-    padding: 40px; position: relative;
-    transform: translateY(20px); transition: transform 0.3s;
-    box-shadow: 0 0 80px rgba(200,168,75,0.1);
-  }
+  .modal { background: var(--surface); border: 1px solid var(--gold-dim); width: 100%; max-width: 480px; padding: 40px; position: relative; transform: translateY(20px); transition: transform 0.3s; box-shadow: 0 0 80px rgba(200,168,75,0.1); }
   .modal-overlay.open .modal { transform: translateY(0); }
   .modal-sm { max-width: 360px; }
-
   .modal-title { font-family:'Exo 2',sans-serif; font-size:18px; color:var(--gold); letter-spacing:2px; margin-bottom:28px; text-align:center; }
 
   .form-group { margin-bottom: 18px; }
   .form-label { display:block; font-size:10px; letter-spacing:2.5px; text-transform:uppercase; color:var(--text-dim); font-family:'Exo 2',sans-serif; margin-bottom:7px; }
   .form-input { width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text); font-family:'DM Sans',sans-serif; font-size:16px; padding:10px 14px; outline:none; transition:border-color 0.2s; }
   .form-input:focus { border-color:var(--gold-dim); }
-  .form-select { width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text); font-family:'DM Sans',sans-serif; font-size:16px; padding:10px 14px; outline:none; transition:border-color 0.2s; cursor:pointer; }
-  .form-select:focus { border-color:var(--gold-dim); }
   .form-row { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; }
 
   .modal-actions { display:flex; gap:12px; margin-top:28px; }
@@ -535,7 +197,6 @@
   .btn-cancel { background:transparent; border:1px solid var(--border); color:var(--text-dim); font-family:'Exo 2',sans-serif; font-size:12px; letter-spacing:2px; padding:11px 20px; cursor:pointer; text-transform:uppercase; transition:all 0.25s; }
   .btn-cancel:hover { border-color:#4a4d5a; color:var(--text); }
 
-  /* Emoji picker */
   .emoji-picker-btn { width:48px; height:48px; background:var(--bg); border:1px solid var(--border); font-size:24px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:border-color 0.2s; flex-shrink:0; }
   .emoji-picker-btn:hover { border-color:var(--gold-dim); }
   .emoji-field-row { display:flex; gap:12px; align-items:flex-end; }
@@ -546,56 +207,19 @@
   .emoji-option:hover { background:rgba(200,168,75,0.1); border-color:var(--gold-dim); }
   .emoji-option.selected { background:rgba(200,168,75,0.2); border-color:var(--gold); }
 
-  /* Edit modal destination selector */
-  .dest-selector {
-    margin-bottom: 18px;
-  }
+  .dest-selector { margin-bottom: 18px; }
   .dest-selector .form-label { margin-bottom: 10px; }
-  .dest-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    max-height: 200px;
-    overflow-y: auto;
-    scrollbar-width: thin;
-    scrollbar-color: var(--border) transparent;
-  }
-  .dest-option {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 9px 14px;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    cursor: pointer;
-    transition: border-color 0.2s, background 0.2s;
-    font-family: 'DM Sans', sans-serif;
-    font-size: 14px;
-  }
+  .dest-grid { display: flex; flex-direction: column; gap: 6px; max-height: 200px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+  .dest-option { display: flex; align-items: center; gap: 10px; padding: 9px 14px; background: var(--bg); border: 1px solid var(--border); cursor: pointer; transition: border-color 0.2s, background 0.2s; font-family: 'DM Sans', sans-serif; font-size: 14px; }
   .dest-option:hover { border-color: var(--gold-dim); background: rgba(200,168,75,0.04); }
   .dest-option.selected { border-color: var(--gold); background: rgba(200,168,75,0.1); }
   .dest-option-label { font-family: 'Exo 2', sans-serif; font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-dim); margin-right: 4px; }
   .dest-option-name { color: var(--text); }
   .dest-option-sub { font-size: 12px; color: var(--text-dim); font-style: italic; }
 
-  /* Custom confirm dialog */
-  .confirm-overlay {
-    position: fixed; inset: 0;
-    background: rgba(0,0,0,0.7);
-    display: flex; align-items: center; justify-content: center;
-    z-index: 300; opacity: 0; pointer-events: none;
-    transition: opacity 0.2s; backdrop-filter: blur(3px);
-  }
+  .confirm-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 300; opacity: 0; pointer-events: none; transition: opacity 0.2s; backdrop-filter: blur(3px); }
   .confirm-overlay.open { opacity: 1; pointer-events: all; }
-  .confirm-box {
-    background: var(--surface);
-    border: 1px solid var(--red);
-    padding: 32px;
-    max-width: 340px; width: 100%;
-    text-align: center;
-    box-shadow: 0 0 60px rgba(200,75,75,0.2);
-    transform: scale(0.95); transition: transform 0.2s;
-  }
+  .confirm-box { background: var(--surface); border: 1px solid var(--red); padding: 32px; max-width: 340px; width: 100%; text-align: center; box-shadow: 0 0 60px rgba(200,75,75,0.2); transform: scale(0.95); transition: transform 0.2s; }
   .confirm-overlay.open .confirm-box { transform: scale(1); }
   .confirm-text { font-family: 'Exo 2', sans-serif; font-size: 13px; letter-spacing: 1px; color: var(--text); margin-bottom: 24px; line-height: 1.6; }
   .confirm-actions { display: flex; gap: 10px; justify-content: center; }
@@ -604,7 +228,6 @@
   .confirm-cancel { background: transparent; border: 1px solid var(--border); color: var(--text-dim); font-family: 'Exo 2', sans-serif; font-size: 11px; letter-spacing: 2px; padding: 10px 20px; cursor: pointer; text-transform: uppercase; transition: all 0.2s; }
   .confirm-cancel:hover { border-color: #4a4d5a; color: var(--text); }
 
-  /* Notifications */
   .notif-container { position:fixed; top:24px; right:24px; z-index:200; display:flex; flex-direction:column; gap:10px; }
   .notif { background:var(--surface2); border:1px solid var(--green); border-left:3px solid var(--green); padding:12px 18px; max-width:300px; box-shadow:0 0 30px rgba(75,200,122,0.15); animation:slideIn 0.4s ease, fadeOut 0.4s ease 3.6s forwards; font-size:14px; line-height:1.5; }
   .notif-title { font-family:'Exo 2',sans-serif; font-size:11px; letter-spacing:2px; color:var(--green); text-transform:uppercase; margin-bottom:3px; }
@@ -622,16 +245,10 @@
 <body>
 
 <div class="container">
-
-  <!-- Location tabs -->
   <div class="locations-bar" id="locationsBar">
     <button class="btn-add-loc" onclick="openAddLocModal()">＋ Локация</button>
   </div>
-
-  <!-- Location panels -->
   <div id="locationPanels"></div>
-
-  <!-- No locations state -->
   <div id="noLocations" style="display:none;">
     <div class="no-locations">
       <div class="no-loc-icon">🗺️</div>
@@ -640,7 +257,6 @@
       <button class="btn-add-boss" onclick="openAddLocModal()">＋ Добавить локацию</button>
     </div>
   </div>
-
 </div>
 
 <!-- Modal: Add Location -->
@@ -694,18 +310,9 @@
     <div class="form-group">
       <label class="form-label">Время респауна</label>
       <div class="form-row">
-        <div>
-          <label class="form-label">Часы</label>
-          <input class="form-input" id="fb-hours" type="number" min="0" max="99" placeholder="0">
-        </div>
-        <div>
-          <label class="form-label">Минуты</label>
-          <input class="form-input" id="fb-minutes" type="number" min="0" max="59" placeholder="30">
-        </div>
-        <div>
-          <label class="form-label">Секунды</label>
-          <input class="form-input" id="fb-seconds" type="number" min="0" max="59" placeholder="0">
-        </div>
+        <div><label class="form-label">Часы</label><input class="form-input" id="fb-hours" type="number" min="0" max="99" placeholder="0"></div>
+        <div><label class="form-label">Минуты</label><input class="form-input" id="fb-minutes" type="number" min="0" max="59" placeholder="30"></div>
+        <div><label class="form-label">Секунды</label><input class="form-input" id="fb-seconds" type="number" min="0" max="59" placeholder="0"></div>
       </div>
     </div>
     <div class="modal-actions">
@@ -736,21 +343,11 @@
     <div class="form-group">
       <label class="form-label">Время респауна</label>
       <div class="form-row">
-        <div>
-          <label class="form-label">Часы</label>
-          <input class="form-input" id="eb-hours" type="number" min="0" max="99" placeholder="0">
-        </div>
-        <div>
-          <label class="form-label">Минуты</label>
-          <input class="form-input" id="eb-minutes" type="number" min="0" max="59" placeholder="30">
-        </div>
-        <div>
-          <label class="form-label">Секунды</label>
-          <input class="form-input" id="eb-seconds" type="number" min="0" max="59" placeholder="0">
-        </div>
+        <div><label class="form-label">Часы</label><input class="form-input" id="eb-hours" type="number" min="0" max="99" placeholder="0"></div>
+        <div><label class="form-label">Минуты</label><input class="form-input" id="eb-minutes" type="number" min="0" max="59" placeholder="30"></div>
+        <div><label class="form-label">Секунды</label><input class="form-input" id="eb-seconds" type="number" min="0" max="59" placeholder="0"></div>
       </div>
     </div>
-    <!-- Destination selector -->
     <div class="dest-selector">
       <label class="form-label">Переместить в</label>
       <div class="dest-grid" id="destGrid"></div>
@@ -775,41 +372,87 @@
 <div class="notif-container" id="notifContainer"></div>
 
 <script>
+  // ── Storage key ──
+  const STORAGE_KEY = 'ymir_boss_tracker_v2';
+
   // ── State ──
   let locations = [];
   let nextLocationId = 1;
   let nextFloorId = 1;
   let nextBossId = 1;
   let activeLocId = null;
-  let activeFloorIds = {};
   let pendingFloorLocId = null;
   let pendingBossLocId = null;
   let pendingBossFloorId = null;
-
-  // ── Edit boss state ──
   let editingBossId = null;
   let editSelectedEmoji = '🐉';
   let editDestLocId = null;
-  let editDestFloorId = null; // null = root bosses of location
-
-  // ── Drag state ──
+  let editDestFloorId = null;
   let dragBossId = null;
   let dragSourceLocId = null;
-  let dragSourceFloorId = null; // null = root
+  let dragSourceFloorId = null;
+  let localUpdatedAt = null;
+
+  function markStateDirty() {
+    localUpdatedAt = Date.now();
+  }
+
+  // ── Persist: save ──
+  function saveState() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        locations: JSON.parse(JSON.stringify(locations)),
+        nextLocationId, nextFloorId, nextBossId, activeLocId, updatedAt: localUpdatedAt
+      }));
+    } catch(e) { console.warn('saveState failed:', e); }
+  }
+
+  // ── Persist: load ──
+  function loadState() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return false;
+      const d = JSON.parse(raw);
+      if (!Array.isArray(d.locations)) return false;
+      locations = d.locations.map(loc => ({
+        id: Number(loc.id),
+        name: String(loc.name || ''),
+        floors: (loc.floors || []).map(fl => ({
+          id: Number(fl.id),
+          name: String(fl.name || ''),
+          bosses: (fl.bosses || []).map(normBoss),
+        })),
+        bosses: (loc.bosses || []).map(normBoss),
+      }));
+      nextLocationId = Number(d.nextLocationId || 1);
+      nextFloorId    = Number(d.nextFloorId    || 1);
+      nextBossId     = Number(d.nextBossId     || 1);
+      localUpdatedAt = Number(d.updatedAt || Date.now());
+      const loadedActive = d.activeLocId ?? null;
+      activeLocId = locations.some(l => l.id === loadedActive)
+        ? loadedActive
+        : (locations.length > 0 ? locations[0].id : null);
+      return true;
+    } catch(e) { console.warn('loadState failed:', e); return false; }
+  }
+
+  function normBoss(b) {
+    return {
+      id: Number(b.id),
+      name: String(b.name || ''),
+      respawnSeconds: Number(b.respawnSeconds || 0),
+      killedAt: (b.killedAt === null || b.killedAt === undefined) ? null : Number(b.killedAt),
+      emoji: String(b.emoji || '🐉'),
+    };
+  }
 
   // ── Helpers ──
   function getLocation(id) { return locations.find(l => l.id === id); }
   function getFloor(loc, id) { return loc?.floors.find(f => f.id === id); }
-  function getAllBossesForLoc(loc) {
-    const all = [...loc.bosses];
-    loc.floors.forEach(f => all.push(...f.bosses));
-    return all;
-  }
+  function getAllBossesForLoc(loc) { const a = [...loc.bosses]; loc.floors.forEach(f => a.push(...f.bosses)); return a; }
 
   function formatRespawn(sec) {
-    const h = Math.floor(sec / 3600);
-    const m = Math.floor((sec % 3600) / 60);
-    const s = sec % 60;
+    const h = Math.floor(sec/3600), m = Math.floor((sec%3600)/60), s = sec%60;
     if (h > 0) return `${h}ч ${m}м`;
     if (m > 0) return `${m}м${s > 0 ? ' '+s+'с' : ''}`;
     return `${s}с`;
@@ -817,25 +460,20 @@
 
   function getRemaining(boss) {
     if (!boss.killedAt) return null;
-    const elapsed = Math.floor((Date.now() - boss.killedAt) / 1000);
-    const remaining = boss.respawnSeconds - elapsed;
-    return remaining > 0 ? remaining : 0;
+    const r = boss.respawnSeconds - Math.floor((Date.now() - boss.killedAt) / 1000);
+    return r > 0 ? r : 0;
   }
 
   function formatTimer(sec) {
     return {
-      h: String(Math.floor(sec / 3600)).padStart(2,'0'),
-      m: String(Math.floor((sec % 3600) / 60)).padStart(2,'0'),
-      s: String(sec % 60).padStart(2,'0'),
+      h: String(Math.floor(sec/3600)).padStart(2,'0'),
+      m: String(Math.floor((sec%3600)/60)).padStart(2,'0'),
+      s: String(sec%60).padStart(2,'0'),
     };
   }
 
-  function countAliveBosses(loc) {
-    const all = getAllBossesForLoc(loc);
-    return all.filter(b => getRemaining(b) === null).length;
-  }
+  function countAliveBosses(loc) { return getAllBossesForLoc(loc).filter(b => getRemaining(b) === null).length; }
 
-  // Find boss + its container array + its loc/floor ids
   function findBossAndContainer(bossId) {
     for (const loc of locations) {
       const bi = loc.bosses.findIndex(b => b.id === bossId);
@@ -850,10 +488,10 @@
 
   // ── Render ──
   function render() {
+    saveState();
     renderLocationTabs();
     renderLocationPanels();
-    const noLoc = document.getElementById('noLocations');
-    noLoc.style.display = locations.length === 0 ? 'block' : 'none';
+    document.getElementById('noLocations').style.display = locations.length === 0 ? 'block' : 'none';
   }
 
   function renderLocationTabs() {
@@ -868,23 +506,9 @@
       tab.dataset.locId = loc.id;
       tab.innerHTML = `${loc.name}<span class="tab-count">${alive}/${total}</span>`;
       tab.onclick = () => setActiveLocation(loc.id);
-
-      // Drag-over on tabs to switch location
-      tab.addEventListener('dragover', (e) => {
-        if (!dragBossId) return;
-        e.preventDefault();
-        tab.classList.add('drag-over-tab');
-        // Switch active location so user sees the destination
-        if (loc.id !== activeLocId) setActiveLocation(loc.id);
-      });
+      tab.addEventListener('dragover', e => { if (!dragBossId) return; e.preventDefault(); tab.classList.add('drag-over-tab'); if (loc.id !== activeLocId) setActiveLocation(loc.id); });
       tab.addEventListener('dragleave', () => tab.classList.remove('drag-over-tab'));
-      tab.addEventListener('drop', (e) => {
-        e.preventDefault();
-        tab.classList.remove('drag-over-tab');
-        // Drop into root of this location
-        moveBossTo(dragBossId, loc.id, null, null);
-      });
-
+      tab.addEventListener('drop', e => { e.preventDefault(); tab.classList.remove('drag-over-tab'); moveBossTo(dragBossId, loc.id, null, null); });
       bar.insertBefore(tab, addBtn);
     });
   }
@@ -893,9 +517,8 @@
     const container = document.getElementById('locationPanels');
     container.innerHTML = '';
     locations.forEach(loc => {
-      const isActive = loc.id === activeLocId;
       const panel = document.createElement('div');
-      panel.className = 'location-panel' + (isActive ? ' active' : '');
+      panel.className = 'location-panel' + (loc.id === activeLocId ? ' active' : '');
       panel.id = `panel-loc-${loc.id}`;
       panel.innerHTML = `
         <div class="loc-header-row">
@@ -913,23 +536,15 @@
   function renderBossContent(loc, el) {
     el.innerHTML = '';
     const hasAnything = loc.bosses.length > 0 || loc.floors.some(f => f.bosses.length > 0);
-
     if (!hasAnything && loc.floors.length === 0) {
       const empty = document.createElement('div');
       empty.className = 'boss-list-empty-drop';
-      empty.id = `drop-root-${loc.id}`;
-      empty.innerHTML = `<div class="empty-icon" style="font-size:28px;opacity:0.3;margin-bottom:8px;">⚔️</div><div>Боссы не добавлены — перетащи сюда или нажми кнопку выше</div>`;
+      empty.innerHTML = `<div style="font-size:28px;opacity:0.3;margin-bottom:8px;">⚔️</div><div>Боссы не добавлены — перетащи сюда или нажми кнопку выше</div>`;
       setupDropZone(empty, loc.id, null, null);
       el.appendChild(empty);
       return;
     }
-
-    // Root bosses
-    if (loc.bosses.length > 0 || loc.floors.length === 0) {
-      el.appendChild(buildBossTable(loc.bosses, loc.id, null));
-    }
-
-    // Floors
+    if (loc.bosses.length > 0 || loc.floors.length === 0) el.appendChild(buildBossTable(loc.bosses, loc.id, null));
     loc.floors.forEach(fl => {
       const wrap = document.createElement('div');
       wrap.className = 'floor-section';
@@ -940,8 +555,7 @@
         <div style="display:flex;align-items:center;gap:8px;">
           <button class="btn-add-boss" style="padding:4px 12px;font-size:10px;" onclick="openAddBossModal(${loc.id}, ${fl.id})">＋ Босс</button>
           <button class="floor-del-btn" onclick="deleteFloor(${loc.id}, ${fl.id})">✕ Удалить</button>
-        </div>
-      `;
+        </div>`;
       wrap.appendChild(header);
       wrap.appendChild(buildBossTable(fl.bosses, loc.id, fl.id));
       el.appendChild(wrap);
@@ -950,41 +564,24 @@
 
   function buildBossTable(bosses, locId, floorId) {
     const wrap = document.createElement('div');
-
-    const header = document.createElement('div');
-    header.className = 'boss-header';
-    header.innerHTML = `
-      <div class="boss-header-cell"></div>
-      <div class="boss-header-cell"></div>
-      <div class="boss-header-cell"></div>
-      <div class="boss-header-cell"></div>
-      <div class="boss-header-cell"></div>
-      <div class="boss-header-cell"></div>
-    `;
-    wrap.appendChild(header);
-
     const list = document.createElement('div');
     list.className = 'boss-list';
     list.id = `list-${locId}-${floorId === null ? 'root' : floorId}`;
-
     if (bosses.length === 0) {
-      const placeholder = document.createElement('div');
-      placeholder.className = 'boss-list-empty-drop';
-      placeholder.textContent = 'Перетащи босса сюда';
-      setupDropZone(placeholder, locId, floorId, null);
-      list.appendChild(placeholder);
+      const ph = document.createElement('div');
+      ph.className = 'boss-list-empty-drop';
+      ph.textContent = 'Перетащи босса сюда';
+      setupDropZone(ph, locId, floorId, null);
+      list.appendChild(ph);
     } else {
-      bosses.forEach((boss, idx) => {
-        list.appendChild(buildBossRow(boss, locId, floorId, idx, bosses.length));
-      });
+      bosses.forEach((boss, idx) => list.appendChild(buildBossRow(boss, locId, floorId, idx, bosses.length)));
     }
-
     setupDropZone(list, locId, floorId, null);
     wrap.appendChild(list);
     return wrap;
   }
 
-  function buildBossRow(boss, locId, floorId, idx, total) {
+  function buildBossRow(boss, locId, floorId) {
     const remaining = getRemaining(boss);
     const isDead = remaining !== null && remaining > 0;
     const t = isDead ? formatTimer(remaining) : null;
@@ -993,9 +590,6 @@
     row.className = 'boss-row' + (isDead ? ' dead' : '');
     row.id = `row-${boss.id}`;
     row.draggable = true;
-    row.dataset.bossId = boss.id;
-    row.dataset.locId = locId;
-    row.dataset.floorId = floorId === null ? '' : floorId;
 
     row.innerHTML = `
       <div class="drag-handle boss-cell" title="Перетащи для сортировки">⠿</div>
@@ -1026,149 +620,78 @@
       ${isDead ? `
       <div class="timer-overlay">
         <div class="timer-big">
-          <div class="timer-block">
-            <span class="timer-digit" id="ot-h-${boss.id}">${t.h}</span>
-            <span class="timer-unit">часы</span>
-          </div>
+          <div class="timer-block"><span class="timer-digit" id="ot-h-${boss.id}">${t.h}</span><span class="timer-unit">часы</span></div>
           <div class="timer-sep">:</div>
-          <div class="timer-block">
-            <span class="timer-digit" id="ot-m-${boss.id}">${t.m}</span>
-            <span class="timer-unit">мин</span>
-          </div>
+          <div class="timer-block"><span class="timer-digit" id="ot-m-${boss.id}">${t.m}</span><span class="timer-unit">мин</span></div>
           <div class="timer-sep">:</div>
-          <div class="timer-block">
-            <span class="timer-digit" id="ot-s-${boss.id}">${t.s}</span>
-            <span class="timer-unit">сек</span>
-          </div>
+          <div class="timer-block"><span class="timer-digit" id="ot-s-${boss.id}">${t.s}</span><span class="timer-unit">сек</span></div>
         </div>
       </div>` : ''}
     `;
 
-    // Drag events on row
-    row.addEventListener('dragstart', (e) => {
-      dragBossId = boss.id;
-      dragSourceLocId = locId;
-      dragSourceFloorId = floorId;
-      row.classList.add('dragging');
-      e.dataTransfer.effectAllowed = 'move';
+    row.addEventListener('dragstart', e => {
+      dragBossId = boss.id; dragSourceLocId = locId; dragSourceFloorId = floorId;
+      row.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move';
       e.dataTransfer.setData('text/plain', String(boss.id));
     });
-
     row.addEventListener('dragend', () => {
-      dragBossId = null;
-      dragSourceLocId = null;
-      dragSourceFloorId = null;
+      dragBossId = null; dragSourceLocId = null; dragSourceFloorId = null;
       row.classList.remove('dragging');
       document.querySelectorAll('.drop-indicator').forEach(el => el.remove());
       document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
     });
-
-    // Allow dropping ON a row to reorder (insert before this row)
-    row.addEventListener('dragover', (e) => {
+    row.addEventListener('dragover', e => {
       if (!dragBossId || dragBossId === boss.id) return;
-      e.preventDefault();
-      e.stopPropagation();
-      // Show a line indicator above this row
-      const list = row.parentElement;
+      e.preventDefault(); e.stopPropagation();
       document.querySelectorAll('.drop-indicator').forEach(el => el.remove());
-      const indicator = document.createElement('div');
-      indicator.className = 'drop-indicator';
-      const rect = row.getBoundingClientRect();
-      const listRect = list.getBoundingClientRect();
-      const midY = rect.top + rect.height / 2;
-      if (e.clientY < midY) {
-        list.insertBefore(indicator, row);
-      } else {
-        list.insertBefore(indicator, row.nextSibling);
-      }
+      const ind = document.createElement('div'); ind.className = 'drop-indicator';
+      const rect = row.getBoundingClientRect(), midY = rect.top + rect.height/2;
+      row.parentElement.insertBefore(ind, e.clientY < midY ? row : row.nextSibling);
     });
-
-    row.addEventListener('drop', (e) => {
+    row.addEventListener('drop', e => {
       if (!dragBossId || dragBossId === boss.id) return;
-      e.preventDefault();
-      e.stopPropagation();
+      e.preventDefault(); e.stopPropagation();
       document.querySelectorAll('.drop-indicator').forEach(el => el.remove());
-
-      // Determine insert before or after
       const rect = row.getBoundingClientRect();
-      const midY = rect.top + rect.height / 2;
-      const insertBefore = e.clientY < midY;
-
-      moveBossTo(dragBossId, locId, floorId, { relativeTo: boss.id, before: insertBefore });
+      moveBossTo(dragBossId, locId, floorId, { relativeTo: boss.id, before: e.clientY < rect.top + rect.height/2 });
     });
-
     return row;
   }
 
-  // ── Drop zone setup ──
-  function setupDropZone(el, locId, floorId, insertIndex) {
-    el.addEventListener('dragover', (e) => {
-      if (!dragBossId) return;
-      e.preventDefault();
-      el.classList.add('drag-over');
-    });
-    el.addEventListener('dragleave', (e) => {
-      // only remove if leaving the element itself (not entering a child)
-      if (!el.contains(e.relatedTarget)) el.classList.remove('drag-over');
-    });
-    el.addEventListener('drop', (e) => {
-      e.preventDefault();
-      el.classList.remove('drag-over');
+  function setupDropZone(el, locId, floorId) {
+    el.addEventListener('dragover', e => { if (!dragBossId) return; e.preventDefault(); el.classList.add('drag-over'); });
+    el.addEventListener('dragleave', e => { if (!el.contains(e.relatedTarget)) el.classList.remove('drag-over'); });
+    el.addEventListener('drop', e => {
+      e.preventDefault(); el.classList.remove('drag-over');
       document.querySelectorAll('.drop-indicator').forEach(i => i.remove());
       if (!dragBossId) return;
       moveBossTo(dragBossId, locId, floorId, null);
     });
   }
 
-  // ── Move boss ──
   function moveBossTo(bossId, targetLocId, targetFloorId, position) {
     const found = findBossAndContainer(bossId);
     if (!found) return;
-
-    // Don't move if same container and no relative position
     if (found.locId === targetLocId && found.floorId === targetFloorId && !position) return;
-
     const boss = found.boss;
-
-    // Remove from source
     found.arr.splice(found.idx, 1);
-
-    // Get target array
     const targetLoc = getLocation(targetLocId);
     if (!targetLoc) return;
-
-    let targetArr;
-    if (targetFloorId === null || targetFloorId === undefined) {
-      targetArr = targetLoc.bosses;
-    } else {
-      const targetFloor = getFloor(targetLoc, targetFloorId);
-      if (!targetFloor) return;
-      targetArr = targetFloor.bosses;
-    }
-
-    if (position && position.relativeTo !== undefined) {
-      const relIdx = targetArr.findIndex(b => b.id === position.relativeTo);
-      if (relIdx !== -1) {
-        const insertIdx = position.before ? relIdx : relIdx + 1;
-        targetArr.splice(insertIdx, 0, boss);
-      } else {
-        targetArr.push(boss);
-      }
+    let targetArr = (targetFloorId === null || targetFloorId === undefined) ? targetLoc.bosses : (getFloor(targetLoc, targetFloorId)?.bosses ?? targetLoc.bosses);
+    if (position?.relativeTo !== undefined) {
+      const ri = targetArr.findIndex(b => b.id === position.relativeTo);
+      targetArr.splice(ri !== -1 ? (position.before ? ri : ri+1) : targetArr.length, 0, boss);
     } else {
       targetArr.push(boss);
     }
-
+    markStateDirty();
     render();
     showNotif('↕ Перемещено', `${boss.emoji} ${boss.name} перемещён`, 'alive');
   }
 
-  // ── Tab switching ──
-  function setActiveLocation(id) {
-    activeLocId = id;
-    render();
-  }
+  function setActiveLocation(id) { activeLocId = id; markStateDirty(); render(); }
 
-  // ── Custom confirm ──
+  // ── Confirm ──
   let _confirmResolve = null;
   function showConfirm(text) {
     return new Promise(resolve => {
@@ -1185,65 +708,41 @@
 
   // ── CRUD ──
   async function deleteLocation(id) {
-    const ok = await showConfirm('Удалить локацию и всех её боссов?');
-    if (!ok) return;
+    if (!await showConfirm('Удалить локацию и всех её боссов?')) return;
     locations = locations.filter(l => l.id !== id);
     if (activeLocId === id) activeLocId = locations.length > 0 ? locations[0].id : null;
+    markStateDirty();
     render();
   }
-
   async function deleteFloor(locId, floorId) {
-    const ok = await showConfirm('Удалить этаж и всех его боссов?');
-    if (!ok) return;
+    if (!await showConfirm('Удалить этаж и всех его боссов?')) return;
     const loc = getLocation(locId);
     if (!loc) return;
     loc.floors = loc.floors.filter(f => f.id !== floorId);
+    markStateDirty();
     render();
   }
-
   function killBoss(id) {
     const found = findBossAndContainer(id);
     if (!found) return;
     found.boss.killedAt = Date.now();
+    markStateDirty();
     render();
-    showNotif(`☠ ${found.boss.name} убит!`, `Босс возродится через ${formatRespawn(found.boss.respawnSeconds)}.`, 'dead');
+    showNotif(`☠ ${found.boss.name} убит!`, `Возродится через ${formatRespawn(found.boss.respawnSeconds)}.`, 'dead');
   }
-
-  function resetBoss(id) {
-    const found = findBossAndContainer(id);
-    if (!found) return;
-    found.boss.killedAt = null;
-    render();
-  }
-
-  function deleteBossGlobal(id) {
-    const found = findBossAndContainer(id);
-    if (!found) return;
-    found.arr.splice(found.idx, 1);
-    render();
-  }
+  function resetBoss(id) { const f = findBossAndContainer(id); if (f) { f.boss.killedAt = null; markStateDirty(); render(); } }
+  function deleteBossGlobal(id) { const f = findBossAndContainer(id); if (f) { f.arr.splice(f.idx, 1); markStateDirty(); render(); } }
 
   // ── Edit Boss ──
   function openEditBossModal(bossId) {
     const found = findBossAndContainer(bossId);
     if (!found) return;
     const boss = found.boss;
-
-    editingBossId = bossId;
-    editSelectedEmoji = boss.emoji;
-    editDestLocId = found.locId;
-    editDestFloorId = found.floorId;
-
+    editingBossId = bossId; editSelectedEmoji = boss.emoji; editDestLocId = found.locId; editDestFloorId = found.floorId;
     document.getElementById('eb-name').value = boss.name;
     document.getElementById('editEmojiBtn').textContent = boss.emoji;
-
-    const h = Math.floor(boss.respawnSeconds / 3600);
-    const m = Math.floor((boss.respawnSeconds % 3600) / 60);
-    const s = boss.respawnSeconds % 60;
-    document.getElementById('eb-hours').value = h || '';
-    document.getElementById('eb-minutes').value = m || '';
-    document.getElementById('eb-seconds').value = s || '';
-
+    const h = Math.floor(boss.respawnSeconds/3600), m = Math.floor((boss.respawnSeconds%3600)/60), s = boss.respawnSeconds%60;
+    document.getElementById('eb-hours').value = h||''; document.getElementById('eb-minutes').value = m||''; document.getElementById('eb-seconds').value = s||'';
     buildDestGrid(found.locId, found.floorId);
     openModal('modalEditBoss');
     setTimeout(() => document.getElementById('eb-name').focus(), 50);
@@ -1252,35 +751,17 @@
   function buildDestGrid(currentLocId, currentFloorId) {
     const grid = document.getElementById('destGrid');
     grid.innerHTML = '';
-
     locations.forEach(loc => {
-      // Root of location
       const rootOpt = document.createElement('div');
       rootOpt.className = 'dest-option' + (loc.id === currentLocId && currentFloorId === null ? ' selected' : '');
-      rootOpt.dataset.locId = loc.id;
-      rootOpt.dataset.floorId = '';
       rootOpt.innerHTML = `<span class="dest-option-label">Лок.</span><span class="dest-option-name">📍 ${loc.name}</span><span class="dest-option-sub" style="margin-left:auto;">(корень)</span>`;
-      rootOpt.onclick = () => {
-        grid.querySelectorAll('.dest-option').forEach(o => o.classList.remove('selected'));
-        rootOpt.classList.add('selected');
-        editDestLocId = loc.id;
-        editDestFloorId = null;
-      };
+      rootOpt.onclick = () => { grid.querySelectorAll('.dest-option').forEach(o => o.classList.remove('selected')); rootOpt.classList.add('selected'); editDestLocId = loc.id; editDestFloorId = null; };
       grid.appendChild(rootOpt);
-
-      // Floors of this location
       loc.floors.forEach(fl => {
         const opt = document.createElement('div');
         opt.className = 'dest-option' + (loc.id === currentLocId && fl.id === currentFloorId ? ' selected' : '');
-        opt.dataset.locId = loc.id;
-        opt.dataset.floorId = fl.id;
         opt.innerHTML = `<span class="dest-option-label">Этаж</span><span class="dest-option-name" style="padding-left:14px;">🏰 ${fl.name}</span><span class="dest-option-sub" style="margin-left:auto;font-size:11px;opacity:0.6;">${loc.name}</span>`;
-        opt.onclick = () => {
-          grid.querySelectorAll('.dest-option').forEach(o => o.classList.remove('selected'));
-          opt.classList.add('selected');
-          editDestLocId = loc.id;
-          editDestFloorId = fl.id;
-        };
+        opt.onclick = () => { grid.querySelectorAll('.dest-option').forEach(o => o.classList.remove('selected')); opt.classList.add('selected'); editDestLocId = loc.id; editDestFloorId = fl.id; };
         grid.appendChild(opt);
       });
     });
@@ -1288,208 +769,126 @@
 
   function submitEditBoss() {
     const name = document.getElementById('eb-name').value.trim();
-    const h = parseInt(document.getElementById('eb-hours').value) || 0;
-    const m = parseInt(document.getElementById('eb-minutes').value) || 0;
-    const s = parseInt(document.getElementById('eb-seconds').value) || 0;
-    const totalSeconds = h * 3600 + m * 60 + s;
-
+    const h = parseInt(document.getElementById('eb-hours').value)||0, m = parseInt(document.getElementById('eb-minutes').value)||0, s = parseInt(document.getElementById('eb-seconds').value)||0;
+    const totalSeconds = h*3600 + m*60 + s;
     if (!name) { showAlert('Введите имя босса'); return; }
     if (totalSeconds === 0) { showAlert('Укажите время респауна'); return; }
-
     const found = findBossAndContainer(editingBossId);
     if (!found) return;
-
-    found.boss.name = name;
-    found.boss.respawnSeconds = totalSeconds;
-    found.boss.emoji = editSelectedEmoji;
-
-    // Move to destination if changed
-    const destLocId = editDestLocId;
-    const destFloorId = editDestFloorId;
-    if (destLocId !== found.locId || destFloorId !== found.floorId) {
-      // Remove from current
+    found.boss.name = name; found.boss.respawnSeconds = totalSeconds; found.boss.emoji = editSelectedEmoji;
+    if (editDestLocId !== found.locId || editDestFloorId !== found.floorId) {
       found.arr.splice(found.idx, 1);
-      // Add to destination
-      const targetLoc = getLocation(destLocId);
-      if (targetLoc) {
-        if (destFloorId === null || destFloorId === undefined) {
-          targetLoc.bosses.push(found.boss);
-        } else {
-          const targetFloor = getFloor(targetLoc, destFloorId);
-          if (targetFloor) targetFloor.bosses.push(found.boss);
-          else targetLoc.bosses.push(found.boss);
-        }
+      const tl = getLocation(editDestLocId);
+      if (tl) {
+        const ta = (editDestFloorId === null || editDestFloorId === undefined) ? tl.bosses : (getFloor(tl, editDestFloorId)?.bosses ?? tl.bosses);
+        ta.push(found.boss);
       }
     }
-
-    closeModal('modalEditBoss');
-    render();
+    markStateDirty();
+    closeModal('modalEditBoss'); render();
     showNotif('✏ Изменено', `${found.boss.emoji} ${found.boss.name} обновлён`, 'alive');
   }
 
   // ── Tick ──
   setInterval(() => {
     let needsRender = false;
-    const allBosses = [];
-    locations.forEach(loc => {
-      allBosses.push(...loc.bosses);
-      loc.floors.forEach(fl => allBosses.push(...fl.bosses));
-    });
-
-    allBosses.forEach(boss => {
-      const remaining = getRemaining(boss);
-      if (remaining === null) return;
-      if (remaining === 0) {
-        boss.killedAt = null;
-        needsRender = true;
-        return;
-      }
-      const t = formatTimer(remaining);
-      const hEl = document.getElementById(`ot-h-${boss.id}`);
-      const mEl = document.getElementById(`ot-m-${boss.id}`);
-      const sEl = document.getElementById(`ot-s-${boss.id}`);
-      const tEl = document.getElementById(`timer-${boss.id}`);
-      if (hEl) hEl.textContent = t.h;
-      if (mEl) mEl.textContent = t.m;
-      if (sEl) sEl.textContent = t.s;
+    const all = [];
+    locations.forEach(loc => { all.push(...loc.bosses); loc.floors.forEach(fl => all.push(...fl.bosses)); });
+    all.forEach(boss => {
+      const r = getRemaining(boss);
+      if (r === null) return;
+      if (r === 0) { boss.killedAt = null; needsRender = true; return; }
+      const t = formatTimer(r);
+      const hEl = document.getElementById(`ot-h-${boss.id}`), mEl = document.getElementById(`ot-m-${boss.id}`), sEl = document.getElementById(`ot-s-${boss.id}`), tEl = document.getElementById(`timer-${boss.id}`);
+      if (hEl) hEl.textContent = t.h; if (mEl) mEl.textContent = t.m; if (sEl) sEl.textContent = t.s;
       if (tEl) tEl.textContent = `${t.h}:${t.m}:${t.s}`;
     });
-
-    if (needsRender) render();
+    if (needsRender) {
+      markStateDirty();
+      render();
+    }
   }, 1000);
 
   // ── Notifications ──
   function showNotif(title, text, type) {
-    if (type !== 'warn') {
-      window.parent.postMessage({ type: 'boss-notification', title, text, kind: type }, '*');
-    }
+    if (type !== 'warn') window.parent.postMessage({ type: 'boss-notification', title, text, kind: type }, '*');
     const colors = { alive: 'var(--green)', dead: 'var(--red)', warn: 'var(--gold)' };
     const color = colors[type] || 'var(--green)';
     const c = document.getElementById('notifContainer');
     const el = document.createElement('div');
-    el.className = 'notif';
-    el.style.borderColor = color;
-    el.style.borderLeftColor = color;
+    el.className = 'notif'; el.style.borderColor = color; el.style.borderLeftColor = color;
     el.innerHTML = `<div class="notif-title" style="color:${color}">${title}</div>${text ? `<div>${text}</div>` : ''}`;
-    c.appendChild(el);
-    setTimeout(() => el.remove(), 4200);
+    c.appendChild(el); setTimeout(() => el.remove(), 4200);
   }
 
   // ── Modals ──
   function openModal(id) { document.getElementById(id).classList.add('open'); }
   function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+  document.querySelectorAll('.modal-overlay').forEach(o => { o.addEventListener('click', function(e) { if (e.target === this) this.classList.remove('open'); }); });
 
-  document.querySelectorAll('.modal-overlay').forEach(overlay => {
-    overlay.addEventListener('click', function(e) {
-      if (e.target === this) this.classList.remove('open');
-    });
-  });
-
-  // Add Location
   function openAddLocModal() { openModal('modalAddLoc'); setTimeout(() => document.getElementById('fl-name').focus(), 50); }
   function submitAddLocation() {
     const name = document.getElementById('fl-name').value.trim();
     if (!name) { showAlert('Введите название локации'); return; }
     const loc = { id: nextLocationId++, name, floors: [], bosses: [] };
-    locations.push(loc);
-    activeLocId = loc.id;
-    document.getElementById('fl-name').value = '';
-    closeModal('modalAddLoc');
-    render();
+    locations.push(loc); activeLocId = loc.id;
+    markStateDirty();
+    document.getElementById('fl-name').value = ''; closeModal('modalAddLoc'); render();
   }
 
-  // Add Floor
-  function openAddFloorModal(locId) {
-    pendingFloorLocId = locId;
-    openModal('modalAddFloor');
-    setTimeout(() => document.getElementById('ff-name').focus(), 50);
-  }
+  function openAddFloorModal(locId) { pendingFloorLocId = locId; openModal('modalAddFloor'); setTimeout(() => document.getElementById('ff-name').focus(), 50); }
   function submitAddFloor() {
     const name = document.getElementById('ff-name').value.trim();
     if (!name) { showAlert('Введите название этажа'); return; }
     const loc = getLocation(pendingFloorLocId);
     if (!loc) return;
-    const fl = { id: nextFloorId++, name, bosses: [] };
-    loc.floors.push(fl);
-    document.getElementById('ff-name').value = '';
-    closeModal('modalAddFloor');
-    render();
+    loc.floors.push({ id: nextFloorId++, name, bosses: [] });
+    markStateDirty();
+    document.getElementById('ff-name').value = ''; closeModal('modalAddFloor'); render();
   }
 
-  // Add Boss
   let selectedEmoji = '🐉';
   function openAddBossModal(locId, floorId) {
-    pendingBossLocId = locId;
-    pendingBossFloorId = floorId;
-    selectedEmoji = '🐉';
+    pendingBossLocId = locId; pendingBossFloorId = floorId; selectedEmoji = '🐉';
     document.getElementById('emojiBtn').textContent = '🐉';
-    document.getElementById('fb-name').value = '';
-    document.getElementById('fb-hours').value = '';
-    document.getElementById('fb-minutes').value = '';
-    document.getElementById('fb-seconds').value = '';
-    openModal('modalAddBoss');
-    setTimeout(() => document.getElementById('fb-name').focus(), 50);
+    ['fb-name','fb-hours','fb-minutes','fb-seconds'].forEach(id => document.getElementById(id).value = '');
+    openModal('modalAddBoss'); setTimeout(() => document.getElementById('fb-name').focus(), 50);
   }
   function submitAddBoss() {
     const name = document.getElementById('fb-name').value.trim();
-    const h = parseInt(document.getElementById('fb-hours').value) || 0;
-    const m = parseInt(document.getElementById('fb-minutes').value) || 0;
-    const s = parseInt(document.getElementById('fb-seconds').value) || 0;
-    const totalSeconds = h * 3600 + m * 60 + s;
+    const h = parseInt(document.getElementById('fb-hours').value)||0, m = parseInt(document.getElementById('fb-minutes').value)||0, s = parseInt(document.getElementById('fb-seconds').value)||0;
+    const totalSeconds = h*3600 + m*60 + s;
     if (!name) { showAlert('Введите имя босса'); return; }
     if (totalSeconds === 0) { showAlert('Укажите время респауна'); return; }
     const boss = { id: nextBossId++, name, respawnSeconds: totalSeconds, killedAt: null, emoji: selectedEmoji };
     const loc = getLocation(pendingBossLocId);
     if (!loc) return;
-    if (pendingBossFloorId) {
-      const floor = getFloor(loc, pendingBossFloorId);
-      if (floor) floor.bosses.push(boss);
-      else loc.bosses.push(boss);
-    } else {
-      loc.bosses.push(boss);
-    }
-    closeModal('modalAddBoss');
-    render();
+    if (pendingBossFloorId) { const fl = getFloor(loc, pendingBossFloorId); (fl ? fl.bosses : loc.bosses).push(boss); }
+    else loc.bosses.push(boss);
+    markStateDirty();
+    closeModal('modalAddBoss'); render();
   }
 
-  // ── Emoji picker (shared) ──
-  const allEmojis = [
-    '🐉','💀','🐍','❄️','🔥','⚡','👁️','🗡️','🛡️','☠️',
-    '🦇','🕷️','🦂','🐺','🦁','🐗','🐻','🦅',
-    '👹','👺','🤺','⚔️','🏹','🔱','💎','🌑',
-    '🌊','🌋','⛰️','🌪️','🌩️','🧿','🔮','💜',
-    '🧟','🧛','🧙','🦾','💥','🌀','🩸','⚰️'
-  ];
+  // ── Emoji ──
+  const allEmojis = ['🐉','💀','🐍','❄️','🔥','⚡','👁️','🗡️','🛡️','☠️','🦇','🕷️','🦂','🐺','🦁','🐗','🐻','🦅','👹','👺','🤺','⚔️','🏹','🔱','💎','🌑','🌊','🌋','⛰️','🌪️','🌩️','🧿','🔮','💜','🧟','🧛','🧙','🦾','💥','🌀','🩸','⚰️'];
 
-  // gridId = which grid element, btnId = which button to update, also which var to set
   function toggleEmojiPicker(gridId, btnId) {
-    document.querySelectorAll('.emoji-grid-popup').forEach(g => {
-      if (g.id !== gridId) g.classList.remove('show');
-    });
+    document.querySelectorAll('.emoji-grid-popup').forEach(g => { if (g.id !== gridId) g.classList.remove('show'); });
     const grid = document.getElementById(gridId);
-    const isAdd = gridId === 'emojiGrid';
-    const currentEmoji = isAdd ? selectedEmoji : editSelectedEmoji;
-    grid.innerHTML = allEmojis.map(e =>
-      `<div class="emoji-option ${e === currentEmoji ? 'selected' : ''}" onclick="selectEmoji('${e}','${gridId}','${btnId}')">${e}</div>`
-    ).join('');
+    const current = gridId === 'emojiGrid' ? selectedEmoji : editSelectedEmoji;
+    grid.innerHTML = allEmojis.map(e => `<div class="emoji-option ${e === current ? 'selected' : ''}" onclick="selectEmoji('${e}','${gridId}','${btnId}')">${e}</div>`).join('');
     grid.classList.toggle('show');
   }
-
   function selectEmoji(emoji, gridId, btnId) {
-    if (gridId === 'emojiGrid') selectedEmoji = emoji;
-    else editSelectedEmoji = emoji;
+    if (gridId === 'emojiGrid') selectedEmoji = emoji; else editSelectedEmoji = emoji;
     document.getElementById(btnId).textContent = emoji;
     document.getElementById(gridId).classList.remove('show');
   }
-
-  document.addEventListener('click', function(e) {
-    if (!e.target.closest('#emojiBtn') && !e.target.closest('#emojiGrid') &&
-        !e.target.closest('#editEmojiBtn') && !e.target.closest('#editEmojiGrid')) {
+  document.addEventListener('click', e => {
+    if (!e.target.closest('#emojiBtn') && !e.target.closest('#emojiGrid') && !e.target.closest('#editEmojiBtn') && !e.target.closest('#editEmojiGrid'))
       document.querySelectorAll('.emoji-grid-popup').forEach(g => g.classList.remove('show'));
-    }
   });
 
-  // Enter to submit
   document.getElementById('fl-name').addEventListener('keydown', e => { if(e.key==='Enter') submitAddLocation(); });
   document.getElementById('ff-name').addEventListener('keydown', e => { if(e.key==='Enter') submitAddFloor(); });
   document.getElementById('fb-name').addEventListener('keydown', e => { if(e.key==='Enter') submitAddBoss(); });
@@ -1497,62 +896,53 @@
 
   // ── Bridge ──
   window.__bossTrackerBridge = {
-    getState: function() {
+    getState: () => {
+      const all = [];
+      locations.forEach(loc => {
+        all.push(...loc.bosses);
+        loc.floors.forEach(fl => all.push(...fl.bosses));
+      });
       return {
         locations: JSON.parse(JSON.stringify(locations)),
-        nextLocationId, nextFloorId, nextBossId,
-        bosses: (() => {
-          const all = [];
-          locations.forEach(loc => {
-            all.push(...loc.bosses);
-            loc.floors.forEach(fl => all.push(...fl.bosses));
-          });
-          return JSON.parse(JSON.stringify(all));
-        })(),
+        nextLocationId,
+        nextFloorId,
+        nextBossId,
+        activeLocId,
+        updatedAt: localUpdatedAt,
+        bosses: JSON.parse(JSON.stringify(all)),
         nextId: nextBossId,
       };
     },
-    setState: function(state) {
+    setState: (state) => {
       if (!state) return;
       if (Array.isArray(state.locations)) {
-        locations = state.locations.map(loc => ({
-          id: Number(loc.id),
-          name: String(loc.name || ''),
-          floors: (loc.floors || []).map(fl => ({
-            id: Number(fl.id),
-            name: String(fl.name || ''),
-            bosses: (fl.bosses || []).map(normBoss),
-          })),
-          bosses: (loc.bosses || []).map(normBoss),
-        }));
-        nextLocationId = Number(state.nextLocationId || 1);
-        nextFloorId = Number(state.nextFloorId || 1);
-        nextBossId = Number(state.nextBossId || 1);
-        if (!activeLocId && locations.length > 0) activeLocId = locations[0].id;
+        const prevActiveLocId = activeLocId;
+        locations = state.locations.map(loc => ({ id: Number(loc.id), name: String(loc.name||''), floors: (loc.floors||[]).map(fl => ({ id: Number(fl.id), name: String(fl.name||''), bosses: (fl.bosses||[]).map(normBoss) })), bosses: (loc.bosses||[]).map(normBoss) }));
+        nextLocationId = Number(state.nextLocationId||1); nextFloorId = Number(state.nextFloorId||1); nextBossId = Number(state.nextBossId||1);
+        localUpdatedAt = Number(state.updatedAt || Date.now());
+        const incomingActive = state.activeLocId ?? null;
+        if (locations.some(l => l.id === incomingActive)) {
+          activeLocId = incomingActive;
+        } else if (locations.some(l => l.id === prevActiveLocId)) {
+          activeLocId = prevActiveLocId;
+        } else {
+          activeLocId = locations.length > 0 ? locations[0].id : null;
+        }
         render();
-        return;
-      }
-      if (Array.isArray(state.bosses) && state.bosses.length > 0) {
-        const legacyLoc = { id: nextLocationId++, name: 'Главная', floors: [], bosses: state.bosses.map(normBoss) };
-        locations = [legacyLoc];
-        nextBossId = Number(state.nextId || 1);
-        activeLocId = legacyLoc.id;
+      } else if (Array.isArray(state.bosses) && state.bosses.length > 0) {
+        const l = { id: nextLocationId++, name: 'Главная', floors: [], bosses: state.bosses.map(normBoss) };
+        locations = [l];
+        nextBossId = Number(state.nextId||1);
+        activeLocId = l.id;
+        localUpdatedAt = Number(state.updatedAt || Date.now());
         render();
       }
     },
-    deleteBoss: function(id) { deleteBossGlobal(id); },
+    deleteBoss: (id) => deleteBossGlobal(id),
   };
 
-  function normBoss(b) {
-    return {
-      id: Number(b.id),
-      name: String(b.name || ''),
-      respawnSeconds: Number(b.respawnSeconds || 0),
-      killedAt: b.killedAt === null ? null : Number(b.killedAt),
-      emoji: String(b.emoji || '🐉'),
-    };
-  }
-
+  // ── Init ──
+  loadState();
   render();
 </script>
 </body>

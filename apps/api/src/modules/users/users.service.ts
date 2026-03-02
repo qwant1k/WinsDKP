@@ -1,10 +1,26 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { PaginationDto, PaginatedResponse } from '../../common/dto/pagination.dto';
+import { DkpTransactionType } from '@prisma/client';
 
 @Injectable()
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
+
+  private static readonly EARNED_TRANSACTION_TYPES: DkpTransactionType[] = [
+    DkpTransactionType.ACTIVITY_REWARD,
+    DkpTransactionType.ADMIN_ADJUST,
+    DkpTransactionType.MANUAL_CREDIT,
+  ];
+
+  // Only final user spend operations (no temporary hold movements).
+  private static readonly SPENT_TRANSACTION_TYPES: DkpTransactionType[] = [
+    DkpTransactionType.AUCTION_WIN,
+    DkpTransactionType.HOLD_FINALIZE,
+    DkpTransactionType.FORTUNE_SPIN,
+    DkpTransactionType.SLOT_BET,
+    DkpTransactionType.MANUAL_DEBIT,
+  ];
 
   async findAll(query: PaginationDto) {
     const where = {
@@ -103,6 +119,39 @@ export class UsersService {
     ].sort((a, b) => b.date.getTime() - a.date.getTime());
 
     return timeline.slice(0, query.limit);
+  }
+
+  async getUserStats(userId: string) {
+    const [earnedAggregate, spentAggregate, activitiesCount, bidsCount, penaltiesCount] = await Promise.all([
+      this.prisma.dkpTransaction.aggregate({
+        where: {
+          userId,
+          amount: { gt: 0 },
+          type: { in: UsersService.EARNED_TRANSACTION_TYPES },
+        },
+        _sum: { amount: true },
+      }),
+      this.prisma.dkpTransaction.aggregate({
+        where: {
+          userId,
+          amount: { lt: 0 },
+          type: { in: UsersService.SPENT_TRANSACTION_TYPES },
+        },
+        _sum: { amount: true },
+      }),
+      this.prisma.activityParticipant.count({ where: { userId } }),
+      this.prisma.bid.count({ where: { userId } }),
+      this.prisma.penalty.count({ where: { userId } }),
+    ]);
+
+    return {
+      userId,
+      dkpEarned: Math.round(Number(earnedAggregate._sum.amount || 0) * 100) / 100,
+      dkpSpent: Math.round(Math.abs(Number(spentAggregate._sum.amount || 0)) * 100) / 100,
+      activitiesCount,
+      bidsCount,
+      penaltiesCount,
+    };
   }
 
   private async enrichTransactionDescriptions(transactions: any[]) {

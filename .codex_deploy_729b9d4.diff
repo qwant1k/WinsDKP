@@ -1,0 +1,1799 @@
+diff --git a/.dockerignore b/.dockerignore
+new file mode 100644
+index 0000000..91988ec
+--- /dev/null
++++ b/.dockerignore
+@@ -0,0 +1,7 @@
++**/node_modules
++**/dist
++**/.turbo
++**/.next
++**/.cache
++**/coverage
++**/*.log
+diff --git a/apps/api/src/app.module.ts b/apps/api/src/app.module.ts
+index 8590ad1..2995ff1 100644
+--- a/apps/api/src/app.module.ts
++++ b/apps/api/src/app.module.ts
+@@ -1,5 +1,6 @@
+ import { Module } from '@nestjs/common';
+ import { ConfigModule } from '@nestjs/config';
++import { ScheduleModule } from '@nestjs/schedule';
+ import { PrismaModule } from './common/prisma/prisma.module';
+ import { RedisModule } from './common/redis/redis.module';
+ import { AuthModule } from './modules/auth/auth.module';
+@@ -26,6 +27,7 @@ import { SocketModule } from './common/socket/socket.module';
+       isGlobal: true,
+       envFilePath: ['.env', '../../.env'],
+     }),
++    ScheduleModule.forRoot(),
+     PrismaModule,
+     RedisModule,
+     SocketModule,
+diff --git a/apps/api/src/common/socket/socket.gateway.ts b/apps/api/src/common/socket/socket.gateway.ts
+index 91f9741..c1a14e1 100644
+--- a/apps/api/src/common/socket/socket.gateway.ts
++++ b/apps/api/src/common/socket/socket.gateway.ts
+@@ -11,6 +11,8 @@ import { Logger } from '@nestjs/common';
+ import { Server, Socket } from 'socket.io';
+ import { JwtService } from '@nestjs/jwt';
+ import { ConfigService } from '@nestjs/config';
++import { PrismaService } from '../prisma/prisma.service';
++import { NotificationType } from '@prisma/client';
+ 
+ interface AuthenticatedSocket extends Socket {
+   userId?: string;
+@@ -36,6 +38,7 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
+   constructor(
+     private readonly jwtService: JwtService,
+     private readonly configService: ConfigService,
++    private readonly prisma: PrismaService,
+   ) {}
+ 
+   async handleConnection(client: AuthenticatedSocket) {
+@@ -126,6 +129,43 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
+     client.join(`randomizer:${data.sessionId}`);
+   }
+ 
++  @SubscribeMessage('clan:boss-notification')
++  async handleClanBossNotification(
++    @ConnectedSocket() client: AuthenticatedSocket,
++    @MessageBody() data: { title?: string; text?: string; kind?: string },
++  ) {
++    const clanId = client.clanId;
++    if (!clanId || !client.userId) return;
++
++    const title = (data.title || '').trim();
++    const text = (data.text || '').trim();
++    const kind = (data.kind || 'system').trim();
++
++    if (!title) return;
++
++    const members = await this.prisma.clanMembership.findMany({
++      where: { clanId, isActive: true },
++      select: { userId: true },
++    });
++
++    if (!members.length) return;
++
++    await Promise.all(
++      members.map(async (member) => {
++        const notification = await this.prisma.notification.create({
++          data: {
++        userId: member.userId,
++        type: NotificationType.SYSTEM,
++        title,
++        body: text || null,
++        data: { link: '/boss-tracker', kind },
++          },
++        });
++        this.emitToUser(member.userId, 'notification.created', notification);
++      }),
++    );
++  }
++
+   emitToUser(userId: string, event: string, data: unknown) {
+     this.server.to(`user:${userId}`).emit(event, data);
+   }
+diff --git a/apps/api/src/modules/clans/clans.controller.ts b/apps/api/src/modules/clans/clans.controller.ts
+index 3234b7e..d429100 100644
+--- a/apps/api/src/modules/clans/clans.controller.ts
++++ b/apps/api/src/modules/clans/clans.controller.ts
+@@ -98,4 +98,42 @@ export class ClansController {
+   ) {
+     return this.clansService.kickMember(clanId, userId, user.sub);
+   }
++
++  @Post(':clanId/boss-tracker/respawn-notify')
++  @ApiOperation({ summary: 'Broadcast boss respawn notification to all clan members' })
++  async notifyBossRespawn(
++    @Param('clanId') clanId: string,
++    @CurrentUser() user: JwtPayload,
++    @Body('bossName') bossName: string,
++    @Body('location') location?: string,
++  ) {
++    return this.clansService.notifyBossRespawn(clanId, user.sub, bossName, location);
++  }
++
++  @Get(':clanId/boss-tracker/state')
++  @ApiOperation({ summary: 'Get clan boss tracker state' })
++  async getBossTrackerState(
++    @Param('clanId') clanId: string,
++    @CurrentUser() user: JwtPayload,
++  ) {
++    return this.clansService.getBossTrackerState(clanId, user.sub);
++  }
++
++  @Post(':clanId/boss-tracker/state')
++  @ApiOperation({ summary: 'Save clan boss tracker state' })
++  async saveBossTrackerState(
++    @Param('clanId') clanId: string,
++    @CurrentUser() user: JwtPayload,
++    @Body('bosses') bosses: Array<{
++      id: number;
++      name: string;
++      location: string;
++      respawnSeconds: number;
++      killedAt: number | null;
++      emoji: string;
++    }>,
++    @Body('nextId') nextId: number,
++  ) {
++    return this.clansService.saveBossTrackerState(clanId, user.sub, bosses, nextId);
++  }
+ }
+diff --git a/apps/api/src/modules/clans/clans.module.ts b/apps/api/src/modules/clans/clans.module.ts
+index a072f96..1897d10 100644
+--- a/apps/api/src/modules/clans/clans.module.ts
++++ b/apps/api/src/modules/clans/clans.module.ts
+@@ -1,8 +1,10 @@
+ import { Module } from '@nestjs/common';
+ import { ClansService } from './clans.service';
+ import { ClansController } from './clans.controller';
++import { NotificationsModule } from '../notifications/notifications.module';
+ 
+ @Module({
++  imports: [NotificationsModule],
+   controllers: [ClansController],
+   providers: [ClansService],
+   exports: [ClansService],
+diff --git a/apps/api/src/modules/clans/clans.service.ts b/apps/api/src/modules/clans/clans.service.ts
+index fed8114..0d9c286 100644
+--- a/apps/api/src/modules/clans/clans.service.ts
++++ b/apps/api/src/modules/clans/clans.service.ts
+@@ -1,16 +1,75 @@
+-import { Injectable, NotFoundException, ForbiddenException, ConflictException, BadRequestException } from '@nestjs/common';
++import { Injectable, NotFoundException, ForbiddenException, ConflictException, BadRequestException, Logger } from '@nestjs/common';
++import { Cron, CronExpression } from '@nestjs/schedule';
+ import { PrismaService } from '../../common/prisma/prisma.service';
+ import { SocketGateway } from '../../common/socket/socket.gateway';
++import { RedisService } from '../../common/redis/redis.service';
+ import { PaginationDto, PaginatedResponse } from '../../common/dto/pagination.dto';
+-import { ClanRole } from '@prisma/client';
++import { ClanRole, NotificationType } from '@prisma/client';
++import { NotificationsService } from '../notifications/notifications.service';
++
++type BossTrackerBoss = {
++  id: number;
++  name: string;
++  location: string;
++  respawnSeconds: number;
++  killedAt: number | null;
++  emoji: string;
++};
++
++type BossTrackerState = {
++  bosses: BossTrackerBoss[];
++  nextId: number;
++  updatedAt: number;
++  respawnNotifiedCycles?: Record<string, number>;
++};
+ 
+ @Injectable()
+ export class ClansService {
++  private readonly logger = new Logger(ClansService.name);
++
+   constructor(
+     private readonly prisma: PrismaService,
+     private readonly socket: SocketGateway,
++    private readonly redis: RedisService,
++    private readonly notifications: NotificationsService,
+   ) {}
+ 
++  private async ensureActiveMember(clanId: string, userId: string) {
++    const membership = await this.prisma.clanMembership.findUnique({
++      where: { userId_clanId: { userId, clanId } },
++      select: { isActive: true },
++    });
++
++    if (!membership?.isActive) {
++      throw new ForbiddenException('Only active clan members can access boss tracker');
++    }
++  }
++
++  private getBossTrackerRedisKey(clanId: string) {
++    return `boss-tracker:clan:${clanId}`;
++  }
++
++  private async readBossTrackerState(clanId: string): Promise<BossTrackerState | null> {
++    const raw = await this.redis.get(this.getBossTrackerRedisKey(clanId));
++    if (!raw) return null;
++
++    try {
++      const parsed = JSON.parse(raw) as BossTrackerState;
++      if (!Array.isArray(parsed.bosses) || typeof parsed.nextId !== 'number') return null;
++      return {
++        bosses: parsed.bosses,
++        nextId: parsed.nextId,
++        updatedAt: typeof parsed.updatedAt === 'number' ? parsed.updatedAt : Date.now(),
++        respawnNotifiedCycles:
++          parsed.respawnNotifiedCycles && typeof parsed.respawnNotifiedCycles === 'object'
++            ? parsed.respawnNotifiedCycles
++            : {},
++      };
++    } catch {
++      return null;
++    }
++  }
++
+   async findAll(query: PaginationDto) {
+     const where = {
+       deletedAt: null,
+@@ -94,6 +153,18 @@ export class ClansService {
+     return joinRequest;
+   }
+ 
++  async getMyJoinRequests(userId: string) {
++    return this.prisma.clanJoinRequest.findMany({
++      where: { userId },
++      include: {
++        clan: {
++          select: { id: true, name: true, tag: true },
++        },
++      },
++      orderBy: { createdAt: 'desc' },
++    });
++  }
++
+   async getJoinRequests(clanId: string, query: PaginationDto) {
+     const where = { clanId, status: 'PENDING' as const };
+     const [requests, total] = await Promise.all([
+@@ -304,4 +375,212 @@ export class ClansService {
+ 
+     return updated;
+   }
++
++  async notifyBossRespawn(clanId: string, actorId: string, bossName: string, location?: string) {
++    const normalizedBossName = bossName?.trim();
++    if (!normalizedBossName) {
++      throw new BadRequestException('Boss name is required');
++    }
++
++    const actorMembership = await this.prisma.clanMembership.findUnique({
++      where: { userId_clanId: { userId: actorId, clanId } },
++      select: { isActive: true },
++    });
++
++    if (!actorMembership?.isActive) {
++      throw new ForbiddenException('Only active clan members can send boss notifications');
++    }
++
++    const dedupeKey = `boss-respawn:${clanId}:${normalizedBossName.toLowerCase()}`;
++    const alreadySent = await this.redis.get(dedupeKey);
++    if (alreadySent) {
++      return { sent: false, reason: 'duplicate' as const };
++    }
++
++    await this.redis.set(dedupeKey, '1', 30);
++
++    const members = await this.prisma.clanMembership.findMany({
++      where: { clanId, isActive: true },
++      select: { userId: true },
++    });
++
++    if (members.length === 0) {
++      return { sent: false, reason: 'no_members' as const };
++    }
++
++    const title = `Респаун босса: ${normalizedBossName}`;
++    const body = location?.trim()
++      ? `Босс снова доступен. Локация: ${location.trim()}`
++      : 'Босс снова доступен для убийства.';
++
++    await Promise.all(
++      members.map((member) =>
++        this.notifications.create({
++          userId: member.userId,
++          type: NotificationType.SYSTEM,
++          title,
++          body,
++          data: { link: '/boss-tracker', clanId, bossName: normalizedBossName, location: location?.trim() || null },
++        }),
++      ),
++    );
++
++    this.socket.emitToClan(clanId, 'boss.respawn', {
++      clanId,
++      bossName: normalizedBossName,
++      location: location?.trim() || null,
++    });
++
++    return { sent: true, recipients: members.length };
++  }
++
++  private async notifyClanAboutBossRespawn(clanId: string, bossName: string, location?: string) {
++    const members = await this.prisma.clanMembership.findMany({
++      where: { clanId, isActive: true },
++      select: { userId: true },
++    });
++
++    if (members.length === 0) return 0;
++
++    const title = `Респаун босса: ${bossName}`;
++    const body = location?.trim()
++      ? `Босс снова доступен. Локация: ${location.trim()}`
++      : 'Босс снова доступен для убийства.';
++
++    await Promise.all(
++      members.map((member) =>
++        this.notifications.create({
++          userId: member.userId,
++          type: NotificationType.SYSTEM,
++          title,
++          body,
++          data: { link: '/boss-tracker', clanId, bossName, location: location?.trim() || null },
++        }),
++      ),
++    );
++
++    this.socket.emitToClan(clanId, 'boss.respawn', {
++      clanId,
++      bossName,
++      location: location?.trim() || null,
++    });
++
++    return members.length;
++  }
++
++  @Cron(CronExpression.EVERY_30_SECONDS)
++  private async processBossRespawns() {
++    const keys = await this.redis.client.keys('boss-tracker:clan:*');
++    if (!keys.length) return;
++
++    const now = Date.now();
++
++    for (const key of keys) {
++      const clanId = key.replace('boss-tracker:clan:', '');
++      const state = await this.readBossTrackerState(clanId);
++      if (!state || !state.bosses.length) continue;
++
++      let changed = false;
++      const notifiedCycles = { ...(state.respawnNotifiedCycles || {}) };
++
++      for (const boss of state.bosses) {
++        if (!boss.killedAt) continue;
++
++        const respawnAt = Number(boss.killedAt) + Number(boss.respawnSeconds) * 1000;
++        if (now < respawnAt) continue;
++
++        const cycleId = `${boss.id}:${boss.killedAt}`;
++        const lockKey = `boss-respawn-cycle:${clanId}:${cycleId}`;
++        const lock = await this.redis.client.set(lockKey, '1', 'EX', 86400, 'NX');
++        if (lock !== 'OK') continue;
++
++        await this.notifyClanAboutBossRespawn(clanId, boss.name, boss.location);
++        notifiedCycles[cycleId] = now;
++        boss.killedAt = null;
++        changed = true;
++      }
++
++      if (!changed) continue;
++
++      const pruned = Object.fromEntries(
++        Object.entries(notifiedCycles).filter(([, ts]) => now - Number(ts) < 7 * 24 * 60 * 60 * 1000),
++      );
++
++      const nextState: BossTrackerState = {
++        ...state,
++        updatedAt: now,
++        respawnNotifiedCycles: pruned,
++      };
++
++      await this.redis.set(this.getBossTrackerRedisKey(clanId), JSON.stringify(nextState));
++      this.socket.emitToClan(clanId, 'boss-tracker.state_updated', {
++        updatedAt: nextState.updatedAt,
++        count: nextState.bosses.length,
++      });
++      this.logger.debug(`Processed boss respawns for clan ${clanId}`);
++    }
++  }
++
++  async getBossTrackerState(clanId: string, userId: string) {
++    await this.ensureActiveMember(clanId, userId);
++    const state = await this.readBossTrackerState(clanId);
++
++    if (!state) {
++      return { bosses: [], nextId: 1, updatedAt: null };
++    }
++
++    return state;
++  }
++
++  async saveBossTrackerState(clanId: string, userId: string, bosses: BossTrackerBoss[], nextId: number) {
++    await this.ensureActiveMember(clanId, userId);
++
++    if (!Array.isArray(bosses)) {
++      throw new BadRequestException('Bosses must be an array');
++    }
++
++    const sanitizedBosses = bosses.map((boss) => ({
++      id: Number(boss.id),
++      name: String(boss.name || '').trim(),
++      location: String(boss.location || '').trim(),
++      respawnSeconds: Math.max(0, Number(boss.respawnSeconds || 0)),
++      killedAt: boss.killedAt === null ? null : Number(boss.killedAt),
++      emoji: String(boss.emoji || '🐉'),
++    }));
++
++    const invalid = sanitizedBosses.some(
++      (boss) =>
++        !Number.isFinite(boss.id) ||
++        !boss.name ||
++        !Number.isFinite(boss.respawnSeconds) ||
++        !Number.isInteger(boss.respawnSeconds) ||
++        boss.respawnSeconds <= 0 ||
++        (boss.killedAt !== null && !Number.isFinite(boss.killedAt)),
++    );
++
++    if (invalid) {
++      throw new BadRequestException('Invalid boss tracker payload');
++    }
++
++    const currentMaxId = sanitizedBosses.reduce((max, boss) => Math.max(max, boss.id), 0);
++    const normalizedNextId = Number.isFinite(nextId) && nextId > currentMaxId ? Math.floor(nextId) : currentMaxId + 1;
++
++    const existingState = await this.readBossTrackerState(clanId);
++
++    const state: BossTrackerState = {
++      bosses: sanitizedBosses,
++      nextId: normalizedNextId,
++      updatedAt: Date.now(),
++      respawnNotifiedCycles: existingState?.respawnNotifiedCycles || {},
++    };
++
++    await this.redis.set(this.getBossTrackerRedisKey(clanId), JSON.stringify(state));
++
++    this.socket.emitToClan(clanId, 'boss-tracker.state_updated', {
++      updatedAt: state.updatedAt,
++      count: state.bosses.length,
++    });
++
++    return state;
++  }
+ }
+diff --git a/apps/web/public/boss-tracker.html b/apps/web/public/boss-tracker.html
+new file mode 100644
+index 0000000..4c6f442
+--- /dev/null
++++ b/apps/web/public/boss-tracker.html
+@@ -0,0 +1,873 @@
++<!DOCTYPE html>
++<html lang="ru">
++<head>
++<meta charset="UTF-8">
++<meta name="viewport" content="width=device-width, initial-scale=1.0">
++<title>Клановый трекер боссов — Legend of Ymir</title>
++<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;900&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300&display=swap" rel="stylesheet">
++<style>
++  :root {
++    --bg: #0a0b0f;
++    --surface: #11131a;
++    --surface2: #181b24;
++    --border: #2a2d3a;
++    --gold: #c8a84b;
++    --gold-dim: #7a6229;
++    --red: #c84b4b;
++    --green: #4bc87a;
++    --text: #e8e0cc;
++    --text-dim: #6b6456;
++    --glow: rgba(200, 168, 75, 0.15);
++  }
++
++  * { box-sizing: border-box; margin: 0; padding: 0; }
++
++  body {
++    background: var(--bg);
++    color: var(--text);
++    font-family: 'Crimson Pro', Georgia, serif;
++    min-height: 100vh;
++    background-image: 
++      radial-gradient(ellipse at 20% 0%, rgba(200,168,75,0.06) 0%, transparent 50%),
++      radial-gradient(ellipse at 80% 100%, rgba(200,75,75,0.04) 0%, transparent 50%),
++      url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.015'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
++  }
++
++  header {
++    text-align: center;
++    padding: 48px 24px 32px;
++    position: relative;
++  }
++
++  .header-rune {
++    font-size: 11px;
++    letter-spacing: 6px;
++    text-transform: uppercase;
++    color: var(--gold-dim);
++    font-family: 'Cinzel', serif;
++    margin-bottom: 12px;
++  }
++
++  h1 {
++    font-family: 'Cinzel', serif;
++    font-weight: 900;
++    font-size: clamp(28px, 5vw, 52px);
++    color: var(--gold);
++    text-shadow: 0 0 40px rgba(200,168,75,0.4), 0 2px 0 rgba(0,0,0,0.8);
++    letter-spacing: 3px;
++    line-height: 1.1;
++  }
++
++  .subtitle {
++    font-size: 14px;
++    color: var(--text-dim);
++    margin-top: 8px;
++    letter-spacing: 2px;
++    font-style: italic;
++  }
++
++  .divider {
++    display: flex;
++    align-items: center;
++    gap: 16px;
++    max-width: 600px;
++    margin: 24px auto 0;
++    opacity: 0.4;
++  }
++  .divider::before, .divider::after {
++    content: '';
++    flex: 1;
++    height: 1px;
++    background: linear-gradient(to right, transparent, var(--gold));
++  }
++  .divider::after { background: linear-gradient(to left, transparent, var(--gold)); }
++  .divider-icon { color: var(--gold); font-size: 18px; }
++
++  .container { max-width: 1000px; margin: 0 auto; padding: 0 20px 60px; }
++
++  /* Add boss button */
++  .top-bar {
++    display: flex;
++    justify-content: flex-end;
++    margin-bottom: 20px;
++  }
++
++  .btn-add {
++    background: linear-gradient(135deg, #1a1c26, #252836);
++    border: 1px solid var(--gold-dim);
++    color: var(--gold);
++    font-family: 'Cinzel', serif;
++    font-size: 12px;
++    letter-spacing: 2px;
++    padding: 10px 24px;
++    cursor: pointer;
++    transition: all 0.3s;
++    text-transform: uppercase;
++    position: relative;
++    overflow: hidden;
++  }
++  .btn-add::before {
++    content: '';
++    position: absolute;
++    inset: 0;
++    background: var(--glow);
++    opacity: 0;
++    transition: opacity 0.3s;
++  }
++  .btn-add:hover { border-color: var(--gold); color: #e8c96a; }
++  .btn-add:hover::before { opacity: 1; }
++
++  /* Boss table */
++  .boss-list { display: flex; flex-direction: column; gap: 8px; }
++
++  .boss-row {
++    position: relative;
++    background: var(--surface);
++    border: 1px solid var(--border);
++    display: grid;
++    grid-template-columns: 1fr 160px 160px 160px auto;
++    align-items: center;
++    gap: 0;
++    transition: border-color 0.3s, opacity 0.3s;
++    overflow: hidden;
++  }
++
++  .boss-row:hover { border-color: #3a3d50; }
++
++  .boss-row.dead { opacity: 0.55; }
++
++  .boss-cell {
++    padding: 16px 20px;
++    border-right: 1px solid var(--border);
++    position: relative;
++    z-index: 1;
++  }
++  .boss-cell:last-child { border-right: none; }
++
++  .boss-name {
++    font-family: 'Cinzel', serif;
++    font-size: 15px;
++    color: var(--text);
++    font-weight: 600;
++    display: flex;
++    align-items: center;
++    gap: 10px;
++  }
++  .boss-skull { font-size: 18px; opacity: 0.7; }
++
++  .boss-location {
++    font-size: 12px;
++    color: var(--text-dim);
++    margin-top: 4px;
++    font-style: italic;
++    letter-spacing: 0.5px;
++  }
++
++  .label {
++    font-size: 10px;
++    letter-spacing: 2px;
++    text-transform: uppercase;
++    color: var(--text-dim);
++    margin-bottom: 4px;
++    font-family: 'Cinzel', serif;
++  }
++
++  .respawn-time {
++    font-size: 20px;
++    font-family: 'Cinzel', serif;
++    color: var(--gold);
++    letter-spacing: 1px;
++  }
++
++  .status-cell { text-align: center; padding: 16px 12px; }
++
++  .status-badge {
++    display: inline-flex;
++    align-items: center;
++    gap: 6px;
++    font-size: 11px;
++    letter-spacing: 1.5px;
++    font-family: 'Cinzel', serif;
++    text-transform: uppercase;
++    padding: 5px 12px;
++  }
++
++  .status-badge.alive {
++    color: var(--green);
++    background: rgba(75, 200, 122, 0.08);
++    border: 1px solid rgba(75, 200, 122, 0.3);
++  }
++  .status-badge.dead-badge {
++    color: var(--red);
++    background: rgba(200, 75, 75, 0.08);
++    border: 1px solid rgba(200, 75, 75, 0.3);
++  }
++
++  .dot { width: 6px; height: 6px; border-radius: 50%; }
++  .dot.green { background: var(--green); box-shadow: 0 0 8px var(--green); animation: pulse-green 2s infinite; }
++  .dot.red { background: var(--red); }
++
++  @keyframes pulse-green {
++    0%, 100% { opacity: 1; } 50% { opacity: 0.4; }
++  }
++
++  .timer-display {
++    font-family: 'Cinzel', serif;
++    font-size: 22px;
++    color: #e8745a;
++    letter-spacing: 2px;
++    text-shadow: 0 0 20px rgba(232, 116, 90, 0.5);
++  }
++
++  /* Kill button */
++  .btn-kill {
++    background: linear-gradient(135deg, rgba(75,200,122,0.1), rgba(75,200,122,0.05));
++    border: 1px solid rgba(75, 200, 122, 0.4);
++    color: var(--green);
++    font-family: 'Cinzel', serif;
++    font-size: 10px;
++    letter-spacing: 2px;
++    padding: 9px 16px;
++    cursor: pointer;
++    text-transform: uppercase;
++    transition: all 0.25s;
++    white-space: nowrap;
++  }
++  .btn-kill:hover {
++    background: rgba(75,200,122,0.2);
++    border-color: var(--green);
++    box-shadow: 0 0 20px rgba(75,200,122,0.2);
++  }
++
++  .btn-reset {
++    background: linear-gradient(135deg, rgba(200,75,75,0.1), rgba(200,75,75,0.05));
++    border: 1px solid rgba(200,75,75,0.3);
++    color: #e08080;
++    font-family: 'Cinzel', serif;
++    font-size: 10px;
++    letter-spacing: 1px;
++    padding: 9px 16px;
++    cursor: pointer;
++    text-transform: uppercase;
++    transition: all 0.25s;
++    white-space: nowrap;
++  }
++  .btn-reset:hover { background: rgba(200,75,75,0.2); border-color: var(--red); }
++
++  /* Timer overlay */
++  .timer-overlay {
++    position: absolute;
++    inset: 0;
++    background: rgba(10, 11, 15, 0.6);
++    display: flex;
++    align-items: center;
++    justify-content: center;
++    z-index: 2;
++    backdrop-filter: blur(1px);
++    pointer-events: none;
++    opacity: 0;
++    transition: opacity 0.5s;
++  }
++  .boss-row.dead .timer-overlay { opacity: 1; pointer-events: none; }
++
++  .timer-big {
++    font-family: 'Cinzel', serif;
++    font-size: clamp(20px, 3vw, 32px);
++    color: #e8a87a;
++    letter-spacing: 4px;
++    text-shadow: 0 0 30px rgba(232, 168, 122, 0.6);
++    display: flex;
++    align-items: center;
++    gap: 16px;
++  }
++
++  .timer-label-big {
++    font-size: 10px;
++    letter-spacing: 3px;
++    color: rgba(232,168,122,0.6);
++    text-transform: uppercase;
++    font-family: 'Cinzel', serif;
++    margin-top: 4px;
++    text-align: center;
++  }
++
++  .timer-block { text-align: center; }
++  .timer-sep { color: rgba(232,168,122,0.4); font-size: 24px; margin-top: -8px; }
++
++  /* Table header */
++  .boss-header {
++    display: grid;
++    grid-template-columns: 1fr 160px 160px 160px auto;
++    padding: 0;
++    margin-bottom: 4px;
++  }
++  .boss-header-cell {
++    padding: 8px 20px;
++    font-size: 10px;
++    letter-spacing: 2.5px;
++    text-transform: uppercase;
++    color: var(--text-dim);
++    font-family: 'Cinzel', serif;
++  }
++
++  /* Modal */
++  .modal-overlay {
++    position: fixed;
++    inset: 0;
++    background: rgba(0,0,0,0.85);
++    display: flex;
++    align-items: center;
++    justify-content: center;
++    z-index: 100;
++    opacity: 0;
++    pointer-events: none;
++    transition: opacity 0.3s;
++    backdrop-filter: blur(4px);
++  }
++  .modal-overlay.open { opacity: 1; pointer-events: all; }
++
++  .modal {
++    background: var(--surface);
++    border: 1px solid var(--gold-dim);
++    width: 100%;
++    max-width: 480px;
++    padding: 40px;
++    position: relative;
++    transform: translateY(20px);
++    transition: transform 0.3s;
++    box-shadow: 0 0 80px rgba(200,168,75,0.1);
++  }
++  .modal-overlay.open .modal { transform: translateY(0); }
++
++  .modal-title {
++    font-family: 'Cinzel', serif;
++    font-size: 20px;
++    color: var(--gold);
++    letter-spacing: 2px;
++    margin-bottom: 32px;
++    text-align: center;
++  }
++
++  .form-group { margin-bottom: 20px; }
++  .form-label {
++    display: block;
++    font-size: 10px;
++    letter-spacing: 2.5px;
++    text-transform: uppercase;
++    color: var(--text-dim);
++    font-family: 'Cinzel', serif;
++    margin-bottom: 8px;
++  }
++  .form-input {
++    width: 100%;
++    background: var(--bg);
++    border: 1px solid var(--border);
++    color: var(--text);
++    font-family: 'Crimson Pro', serif;
++    font-size: 16px;
++    padding: 10px 14px;
++    outline: none;
++    transition: border-color 0.2s;
++  }
++  .form-input:focus { border-color: var(--gold-dim); }
++
++  .form-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
++
++  .modal-actions {
++    display: flex;
++    gap: 12px;
++    margin-top: 32px;
++  }
++
++  .btn-submit {
++    flex: 1;
++    background: linear-gradient(135deg, rgba(200,168,75,0.2), rgba(200,168,75,0.08));
++    border: 1px solid var(--gold-dim);
++    color: var(--gold);
++    font-family: 'Cinzel', serif;
++    font-size: 12px;
++    letter-spacing: 2px;
++    padding: 12px;
++    cursor: pointer;
++    text-transform: uppercase;
++    transition: all 0.25s;
++  }
++  .btn-submit:hover { background: rgba(200,168,75,0.25); border-color: var(--gold); }
++
++  .btn-cancel {
++    background: transparent;
++    border: 1px solid var(--border);
++    color: var(--text-dim);
++    font-family: 'Cinzel', serif;
++    font-size: 12px;
++    letter-spacing: 2px;
++    padding: 12px 24px;
++    cursor: pointer;
++    text-transform: uppercase;
++    transition: all 0.25s;
++  }
++  .btn-cancel:hover { border-color: #4a4d5a; color: var(--text); }
++
++  /* Emoji picker */
++  .emoji-picker-btn {
++    width: 56px;
++    height: 56px;
++    background: var(--bg);
++    border: 1px solid var(--border);
++    font-size: 28px;
++    cursor: pointer;
++    display: flex;
++    align-items: center;
++    justify-content: center;
++    transition: border-color 0.2s;
++    flex-shrink: 0;
++  }
++  .emoji-picker-btn:hover { border-color: var(--gold-dim); }
++
++  .emoji-field-row {
++    display: flex;
++    gap: 12px;
++    align-items: flex-end;
++  }
++  .emoji-field-row .form-group { flex: 1; margin-bottom: 0; }
++
++  .emoji-grid-popup {
++    position: absolute;
++    background: var(--surface2);
++    border: 1px solid var(--border);
++    box-shadow: 0 8px 40px rgba(0,0,0,0.7);
++    padding: 12px;
++    display: grid;
++    grid-template-columns: repeat(8, 36px);
++    gap: 4px;
++    z-index: 200;
++    top: calc(100% + 6px);
++    left: 0;
++    display: none;
++  }
++  .emoji-grid-popup.show { display: grid; }
++
++  .emoji-option {
++    width: 36px;
++    height: 36px;
++    font-size: 20px;
++    display: flex;
++    align-items: center;
++    justify-content: center;
++    cursor: pointer;
++    border-radius: 4px;
++    transition: background 0.15s;
++    border: 1px solid transparent;
++  }
++  .emoji-option:hover { background: rgba(200,168,75,0.1); border-color: var(--gold-dim); }
++  .emoji-option.selected { background: rgba(200,168,75,0.2); border-color: var(--gold); }
++
++  /* Notification */
++  .notif-container {
++    position: fixed;
++    top: 24px;
++    right: 24px;
++    z-index: 200;
++    display: flex;
++    flex-direction: column;
++    gap: 10px;
++  }
++
++  .notif {
++    background: var(--surface2);
++    border: 1px solid var(--green);
++    border-left: 3px solid var(--green);
++    padding: 14px 20px;
++    max-width: 320px;
++    box-shadow: 0 0 30px rgba(75,200,122,0.15);
++    animation: slideIn 0.4s ease, fadeOut 0.4s ease 3.6s forwards;
++    font-size: 14px;
++    line-height: 1.5;
++  }
++
++  .notif-title {
++    font-family: 'Cinzel', serif;
++    font-size: 11px;
++    letter-spacing: 2px;
++    color: var(--green);
++    text-transform: uppercase;
++    margin-bottom: 4px;
++  }
++
++  @keyframes slideIn {
++    from { transform: translateX(40px); opacity: 0; }
++    to { transform: translateX(0); opacity: 1; }
++  }
++  @keyframes fadeOut {
++    to { transform: translateX(40px); opacity: 0; }
++  }
++
++  .empty-state {
++    text-align: center;
++    padding: 60px 24px;
++    color: var(--text-dim);
++    border: 1px dashed var(--border);
++  }
++  .empty-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.4; }
++  .empty-text { font-family: 'Cinzel', serif; font-size: 14px; letter-spacing: 2px; }
++
++  @media (max-width: 700px) {
++    .boss-row, .boss-header { grid-template-columns: 1fr auto; }
++    .boss-cell:not(:first-child):not(:last-child) { display: none; }
++    .boss-header-cell:not(:first-child):not(:last-child) { display: none; }
++    .timer-big { font-size: 18px; letter-spacing: 2px; }
++    .form-row { grid-template-columns: 1fr; }
++  }
++</style>
++</head>
++<body>
++
++<header>
++  <div class="header-rune">⚔ Клан Трекер ⚔</div>
++  <h1>Legend of Ymir</h1>
++  <div class="subtitle">Журнал боссов — отслеживание респауна</div>
++  <div class="divider"><span class="divider-icon">☽</span></div>
++</header>
++
++<div class="container">
++  <div class="top-bar">
++    <button class="btn-add" onclick="openModal()">+ Добавить босса</button>
++  </div>
++
++  <div class="boss-header">
++    <div class="boss-header-cell">Босс / Локация</div>
++    <div class="boss-header-cell">Респаун</div>
++    <div class="boss-header-cell">Статус</div>
++    <div class="boss-header-cell">Таймер</div>
++    <div class="boss-header-cell"></div>
++  </div>
++
++  <div class="boss-list" id="bossList"></div>
++</div>
++
++<!-- Modal -->
++<div class="modal-overlay" id="modalOverlay">
++  <div class="modal">
++    <div class="modal-title">⚔ Новый Босс</div>
++    <div class="form-group">
++      <label class="form-label">Имя босса</label>
++      <input class="form-input" id="f-name" type="text" placeholder="Нидхёгг, Страж Бездны...">
++    </div>
++    <div class="form-group">
++      <label class="form-label">Локация</label>
++      <input class="form-input" id="f-location" type="text" placeholder="Долина Теней, Пещера Льда...">
++    </div>
++    <div class="form-group">
++      <label class="form-label">Иконка босса</label>
++      <div class="emoji-field-row">
++        <div style="position:relative;">
++          <button type="button" class="emoji-picker-btn" id="emojiBtn" onclick="toggleEmojiPicker()">🐉</button>
++          <div class="emoji-grid-popup" id="emojiGrid"></div>
++        </div>
++        <div style="font-size:13px;color:var(--text-dim);font-style:italic;padding-bottom:8px;">Нажми чтобы выбрать эмодзи</div>
++      </div>
++    </div>
++    <div class="form-group">
++      <label class="form-label">Время респауна</label>
++      <div class="form-row">
++        <div>
++          <label class="form-label">Часы</label>
++          <input class="form-input" id="f-hours" type="number" min="0" max="99" placeholder="0">
++        </div>
++        <div>
++          <label class="form-label">Минуты</label>
++          <input class="form-input" id="f-minutes" type="number" min="0" max="59" placeholder="30">
++        </div>
++        <div>
++          <label class="form-label">Секунды</label>
++          <input class="form-input" id="f-seconds" type="number" min="0" max="59" placeholder="0">
++        </div>
++      </div>
++    </div>
++    <div class="modal-actions">
++      <button class="btn-cancel" onclick="closeModal()">Отмена</button>
++      <button class="btn-submit" onclick="addBoss()">Добавить босса</button>
++    </div>
++  </div>
++</div>
++
++<div class="notif-container" id="notifContainer"></div>
++
++<script>
++  // Default bosses
++  let bosses = [
++    { id: 1, name: 'Нидхёгг Проклятый', location: 'Корни Иггдрасиля', respawnSeconds: 7200, killedAt: null, emoji: '🐉' },
++    { id: 2, name: 'Страж Бездны', location: 'Пещера Льда, Сектор 3', respawnSeconds: 3600, killedAt: null, emoji: '💀' },
++    { id: 3, name: 'Йормунганд', location: 'Берег Мёртвого Моря', respawnSeconds: 14400, killedAt: null, emoji: '🐍' },
++    { id: 4, name: 'Хримтурс', location: 'Замёрзшие Равнины', respawnSeconds: 1800, killedAt: null, emoji: '❄️' },
++  ];
++
++  let nextId = 5;
++
++  function formatRespawn(sec) {
++    const h = Math.floor(sec / 3600);
++    const m = Math.floor((sec % 3600) / 60);
++    const s = sec % 60;
++    if (h > 0) return `${h}ч ${m}м`;
++    if (m > 0) return `${m}м ${s > 0 ? s+'с' : ''}`;
++    return `${s}с`;
++  }
++
++  function getRemaining(boss) {
++    if (!boss.killedAt) return null;
++    const elapsed = Math.floor((Date.now() - boss.killedAt) / 1000);
++    const remaining = boss.respawnSeconds - elapsed;
++    return remaining > 0 ? remaining : 0;
++  }
++
++  function formatTimer(sec) {
++    const h = String(Math.floor(sec / 3600)).padStart(2, '0');
++    const m = String(Math.floor((sec % 3600) / 60)).padStart(2, '0');
++    const s = String(sec % 60).padStart(2, '0');
++    return { h, m, s };
++  }
++
++  function render() {
++    const list = document.getElementById('bossList');
++    if (bosses.length === 0) {
++      list.innerHTML = `<div class="empty-state"><div class="empty-icon">⚔️</div><div class="empty-text">Боссы не добавлены</div></div>`;
++      return;
++    }
++    list.innerHTML = bosses.map(boss => {
++      const remaining = getRemaining(boss);
++      const isDead = remaining !== null && remaining > 0;
++      const t = isDead ? formatTimer(remaining) : null;
++      return `
++      <div class="boss-row ${isDead ? 'dead' : ''}" id="row-${boss.id}">
++        <div class="boss-cell">
++          <div class="boss-name"><span class="boss-skull">${boss.emoji}</span>${boss.name}</div>
++          <div class="boss-location">📍 ${boss.location}</div>
++        </div>
++        <div class="boss-cell">
++          <div class="label">Респаун</div>
++          <div class="respawn-time">${formatRespawn(boss.respawnSeconds)}</div>
++        </div>
++        <div class="boss-cell status-cell">
++          ${isDead
++            ? `<span class="status-badge dead-badge"><span class="dot red"></span>Мёртв</span>`
++            : `<span class="status-badge alive"><span class="dot green"></span>Живой</span>`
++          }
++        </div>
++        <div class="boss-cell">
++          ${isDead
++            ? `<div class="label">Осталось</div><div class="timer-display" id="timer-${boss.id}">${t.h}:${t.m}:${t.s}</div>`
++            : `<div style="color:var(--text-dim);font-size:13px;font-style:italic;">—</div>`
++          }
++        </div>
++        <div class="boss-cell" style="padding:12px 16px;">
++          ${isDead
++            ? `<button class="btn-reset" onclick="resetBoss(${boss.id})">Отменить</button>`
++            : `<button class="btn-kill" onclick="killBoss(${boss.id})">☠ Убит</button>`
++          }
++        </div>
++
++        ${isDead ? `
++        <div class="timer-overlay">
++          <div>
++            <div class="timer-big">
++              <div class="timer-block"><span id="ot-h-${boss.id}">${t.h}</span><div style="font-size:9px;letter-spacing:2px;color:rgba(232,168,122,0.4);font-family:'Cinzel',serif;margin-top:2px;">ЧАСЫ</div></div>
++              <div class="timer-sep">:</div>
++              <div class="timer-block"><span id="ot-m-${boss.id}">${t.m}</span><div style="font-size:9px;letter-spacing:2px;color:rgba(232,168,122,0.4);font-family:'Cinzel',serif;margin-top:2px;">МИН</div></div>
++              <div class="timer-sep">:</div>
++              <div class="timer-block"><span id="ot-s-${boss.id}">${t.s}</span><div style="font-size:9px;letter-spacing:2px;color:rgba(232,168,122,0.4);font-family:'Cinzel',serif;margin-top:2px;">СЕК</div></div>
++            </div>
++            <div class="timer-label-big">${boss.name} — Ожидание респауна</div>
++          </div>
++        </div>` : ''}
++      </div>`;
++    }).join('');
++  }
++
++  function killBoss(id) {
++    const boss = bosses.find(b => b.id === id);
++    if (!boss) return;
++    boss.killedAt = Date.now();
++    render();
++    showNotif(`☠ ${boss.name} убит!`, `Таймер запущен. Босс возродится через ${formatRespawn(boss.respawnSeconds)}.`, 'dead');
++  }
++
++  function resetBoss(id) {
++    const boss = bosses.find(b => b.id === id);
++    if (!boss) return;
++    boss.killedAt = null;
++    render();
++  }
++
++  // Tick timers
++  setInterval(() => {
++    bosses.forEach(boss => {
++      const remaining = getRemaining(boss);
++      if (remaining === null) return;
++
++      if (remaining === 0) {
++        // Respawned
++        boss.killedAt = null;
++        render();
++        return;
++      }
++
++      const t = formatTimer(remaining);
++      const hEl = document.getElementById(`ot-h-${boss.id}`);
++      const mEl = document.getElementById(`ot-m-${boss.id}`);
++      const sEl = document.getElementById(`ot-s-${boss.id}`);
++      const tEl = document.getElementById(`timer-${boss.id}`);
++      if (hEl) hEl.textContent = t.h;
++      if (mEl) mEl.textContent = t.m;
++      if (sEl) sEl.textContent = t.s;
++      if (tEl) tEl.textContent = `${t.h}:${t.m}:${t.s}`;
++    });
++  }, 1000);
++
++  function showNotif(title, text, type) {
++    window.parent.postMessage({
++      type: 'boss-notification',
++      title,
++      text,
++      kind: type
++    }, '*');
++    return;
++
++    const c = document.getElementById('notifContainer');
++    const el = document.createElement('div');
++    el.className = 'notif';
++    el.style.borderColor = type === 'alive' ? 'var(--green)' : 'var(--red)';
++    el.style.borderLeftColor = type === 'alive' ? 'var(--green)' : 'var(--red)';
++    el.innerHTML = `<div class="notif-title" style="color:${type==='alive'?'var(--green)':'var(--red)'}">${title}</div><div>${text}</div>`;
++    c.appendChild(el);
++    setTimeout(() => el.remove(), 4200);
++
++    // Browser notification
++    if (Notification.permission === 'granted') {
++      new Notification(title, { body: text, icon: '⚔️' });
++    }
++  }
++
++  // Modal
++  function openModal() {
++    document.getElementById('modalOverlay').classList.add('open');
++  }
++  function closeModal() {
++    document.getElementById('modalOverlay').classList.remove('open');
++    document.getElementById('f-name').value = '';
++    document.getElementById('f-location').value = '';
++    document.getElementById('f-hours').value = '';
++    document.getElementById('f-minutes').value = '';
++    document.getElementById('f-seconds').value = '';
++    selectedEmoji = '🐉';
++    document.getElementById('emojiBtn').textContent = '🐉';
++  }
++
++  document.getElementById('modalOverlay').addEventListener('click', function(e) {
++    if (e.target === this) closeModal();
++  });
++
++  // Emoji picker
++  const allEmojis = [
++    '🐉','💀','🐍','❄️','🔥','⚡','👁️','🗡️','🛡️','☠️',
++    '🦇','🕷️','🦂','🐺','🦁','🐗','🐻','🦅',
++    '👹','👺','🤺','⚔️','🏹','🔱','💎','🌑',
++    '🌊','🌋','⛰️','🌪️','🌩️','🧿','🔮','💜',
++    '🧟','🧛','🧙','🦾','💥','🌀','🩸','⚰️'
++  ];
++
++  let selectedEmoji = '🐉';
++
++  function buildEmojiGrid() {
++    const grid = document.getElementById('emojiGrid');
++    grid.innerHTML = allEmojis.map(e => 
++      `<div class="emoji-option ${e === selectedEmoji ? 'selected' : ''}" onclick="selectEmoji('${e}')">${e}</div>`
++    ).join('');
++  }
++
++  function toggleEmojiPicker() {
++    const grid = document.getElementById('emojiGrid');
++    buildEmojiGrid();
++    grid.classList.toggle('show');
++  }
++
++  function selectEmoji(emoji) {
++    selectedEmoji = emoji;
++    document.getElementById('emojiBtn').textContent = emoji;
++    document.getElementById('emojiGrid').classList.remove('show');
++  }
++
++  // Close picker when clicking outside
++  document.addEventListener('click', function(e) {
++    if (!e.target.closest('#emojiBtn') && !e.target.closest('#emojiGrid')) {
++      document.getElementById('emojiGrid')?.classList.remove('show');
++    }
++  });
++
++  function addBoss() {
++    const name = document.getElementById('f-name').value.trim();
++    const location = document.getElementById('f-location').value.trim();
++    const h = parseInt(document.getElementById('f-hours').value) || 0;
++    const m = parseInt(document.getElementById('f-minutes').value) || 0;
++    const s = parseInt(document.getElementById('f-seconds').value) || 0;
++    const totalSeconds = h * 3600 + m * 60 + s;
++
++    if (!name) { alert('Введите имя босса'); return; }
++    if (totalSeconds === 0) { alert('Укажите время респауна'); return; }
++
++    bosses.push({
++      id: nextId++,
++      name,
++      location: location || 'Неизвестная локация',
++      respawnSeconds: totalSeconds,
++      killedAt: null,
++      emoji: selectedEmoji
++    });
++
++    closeModal();
++    render();
++
++    // Request notification permission
++    if (Notification.permission === 'default') {
++      Notification.requestPermission();
++    }
++  }
++
++  // External bridge for app integration (state sync, persistence)
++  window.__bossTrackerBridge = {
++    getState: function() {
++      return {
++        bosses: JSON.parse(JSON.stringify(bosses)),
++        nextId: nextId,
++      };
++    },
++    setState: function(state) {
++      if (!state || !Array.isArray(state.bosses) || typeof state.nextId !== 'number') return;
++      bosses = state.bosses.map(function(b) {
++        return {
++          id: Number(b.id),
++          name: String(b.name || ''),
++          location: String(b.location || ''),
++          respawnSeconds: Number(b.respawnSeconds || 0),
++          killedAt: b.killedAt === null ? null : Number(b.killedAt),
++          emoji: String(b.emoji || '🐉'),
++        };
++      });
++      nextId = Number(state.nextId);
++      render();
++    },
++    deleteBoss: function(id) {
++      bosses = bosses.filter(function(b) { return b.id !== id; });
++      render();
++    },
++  };
++
++  // Init
++  render();
++
++  // Ask for notification permission on load
++  if (Notification.permission === 'default') {
++    setTimeout(() => Notification.requestPermission(), 2000);
++  }
++</script>
++</body>
++</html>
+diff --git a/apps/web/src/App.tsx b/apps/web/src/App.tsx
+index e256521..ef4bd21 100644
+--- a/apps/web/src/App.tsx
++++ b/apps/web/src/App.tsx
+@@ -19,6 +19,7 @@ import { WarehousePage } from '@/pages/WarehousePage';
+ import { NewsPage } from '@/pages/NewsPage';
+ import { FeedPage } from '@/pages/FeedPage';
+ import { NotificationsPage } from '@/pages/NotificationsPage';
++import { BossTrackerPage } from '@/pages/BossTrackerPage';
+ import { ProfilePage } from '@/pages/ProfilePage';
+ import { UserProfilePage } from '@/pages/UserProfilePage';
+ import { MessagesPage } from '@/pages/MessagesPage';
+@@ -92,6 +93,7 @@ export default function App() {
+           <Route path="news" element={<NewsPage />} />
+           <Route path="feed" element={<FeedPage />} />
+           <Route path="notifications" element={<NotificationsPage />} />
++          <Route path="boss-tracker" element={<BossTrackerPage />} />
+           <Route path="search" element={<SearchPage />} />
+           <Route path="profile" element={<ProfilePage />} />
+           <Route path="users/:id" element={<UserProfilePage />} />
+diff --git a/apps/web/src/components/layout/AppLayout.tsx b/apps/web/src/components/layout/AppLayout.tsx
+index 66f4d7f..57d04a5 100644
+--- a/apps/web/src/components/layout/AppLayout.tsx
++++ b/apps/web/src/components/layout/AppLayout.tsx
+@@ -1,8 +1,11 @@
+ import { Outlet } from 'react-router-dom';
+ import { Sidebar } from './Sidebar';
+ import { Header } from './Header';
++import { useNotificationsSocket } from '@/hooks/useNotificationsSocket';
+ 
+ export function AppLayout() {
++  useNotificationsSocket();
++
+   return (
+     <div className="flex min-h-screen">
+       <Sidebar />
+diff --git a/apps/web/src/components/layout/Header.tsx b/apps/web/src/components/layout/Header.tsx
+index 1b623a4..9395056 100644
+--- a/apps/web/src/components/layout/Header.tsx
++++ b/apps/web/src/components/layout/Header.tsx
+@@ -30,7 +30,7 @@ function getNotifLink(n: any): string | null {
+     case 'CLAN_ROLE_CHANGED': case 'CLAN_KICKED': return '/clan';
+     case 'NEWS_POSTED': return '/news';
+     case 'MESSAGE_RECEIVED': return data.senderId ? `/messages/${data.senderId}` : '/messages';
+-    default: return null;
++    default: return typeof data.link === 'string' ? data.link : null;
+   }
+ }
+ 
+@@ -50,7 +50,7 @@ export function Header() {
+       const { data } = await api.get('/notifications/unread-count');
+       return data as { count: number };
+     },
+-    refetchInterval: 30000,
++    staleTime: Infinity,
+   });
+ 
+   const { data: notifData } = useQuery({
+diff --git a/apps/web/src/components/layout/Sidebar.tsx b/apps/web/src/components/layout/Sidebar.tsx
+index b8ea1db..e2a7b6a 100644
+--- a/apps/web/src/components/layout/Sidebar.tsx
++++ b/apps/web/src/components/layout/Sidebar.tsx
+@@ -5,7 +5,7 @@ import { useMobileMenuStore } from '@/stores/mobile-menu.store';
+ import {
+   LayoutDashboard, Users, Swords, Trophy, Dices, Package,
+   Newspaper, MessageSquare, Mail, Bell, ScrollText, Settings,
+-  Shield, LogOut, ChevronLeft, Coins, UserPlus, X,
++  Shield, LogOut, ChevronLeft, Coins, UserPlus, X, Skull,
+ } from 'lucide-react';
+ import { Button } from '@/components/ui/button';
+ import { useState, useEffect } from 'react';
+@@ -22,6 +22,7 @@ const navItems = [
+   { label: 'Лента', icon: MessageSquare, path: '/feed', requiresClan: true },
+   { label: 'Сообщения', icon: Mail, path: '/messages', requiresClan: false },
+   { label: 'Уведомления', icon: Bell, path: '/notifications', requiresClan: false },
++  { label: 'Трекер боссов', icon: Skull, path: '/boss-tracker', requiresClan: true },
+ ];
+ 
+ const adminItems = [
+diff --git a/apps/web/src/hooks/useNotificationsSocket.ts b/apps/web/src/hooks/useNotificationsSocket.ts
+new file mode 100644
+index 0000000..51748f7
+--- /dev/null
++++ b/apps/web/src/hooks/useNotificationsSocket.ts
+@@ -0,0 +1,56 @@
++import { useEffect } from 'react';
++import { useQueryClient } from '@tanstack/react-query';
++import { getSocket } from '@/lib/socket';
++import { toast } from 'sonner';
++
++type NotificationItem = {
++  id: string;
++  title: string;
++  body?: string | null;
++  isRead?: boolean;
++};
++
++export function useNotificationsSocket() {
++  const queryClient = useQueryClient();
++
++  useEffect(() => {
++    const socket = getSocket();
++
++    const prependUnique = (items: NotificationItem[] | undefined, incoming: NotificationItem, limit?: number) => {
++      const base = Array.isArray(items) ? items.filter((item) => item.id !== incoming.id) : [];
++      const next = [incoming, ...base];
++      return typeof limit === 'number' ? next.slice(0, limit) : next;
++    };
++
++    const handleNew = (notification: NotificationItem) => {
++      queryClient.setQueryData(['notifications', 'unread-count'], (old: any) => ({
++        count: Math.max(0, (old?.count ?? 0) + 1),
++      }));
++
++      queryClient.setQueryData(['notifications', 1], (old: any) => {
++        if (!old) return old;
++        return {
++          ...old,
++          data: prependUnique(old.data, notification, 30),
++          unreadCount: Math.max(0, (old.unreadCount ?? 0) + 1),
++        };
++      });
++
++      queryClient.setQueryData(['notifications', 'dropdown'], (old: any) => {
++        if (!old) return old;
++        return {
++          ...old,
++          data: prependUnique(old.data, notification, 20),
++          unreadCount: Math.max(0, (old.unreadCount ?? 0) + 1),
++        };
++      });
++
++      toast(notification.title, { description: notification.body || undefined });
++    };
++
++    socket.on('notification.created', handleNew);
++    return () => {
++      socket.off('notification.created', handleNew);
++    };
++  }, [queryClient]);
++}
+diff --git a/apps/web/src/pages/BossTrackerPage.tsx b/apps/web/src/pages/BossTrackerPage.tsx
+new file mode 100644
+index 0000000..541b1a8
+--- /dev/null
++++ b/apps/web/src/pages/BossTrackerPage.tsx
+@@ -0,0 +1,249 @@
++import { useCallback, useEffect, useRef, useState } from 'react';
++import { api } from '@/lib/api';
++import { useAuthStore } from '@/stores/auth.store';
++import { getSocket } from '@/lib/socket';
++
++type BossTrackerBoss = {
++  id: number;
++  name: string;
++  location: string;
++  respawnSeconds: number;
++  killedAt: number | null;
++  emoji: string;
++};
++
++type BossTrackerState = {
++  bosses: BossTrackerBoss[];
++  nextId: number;
++  updatedAt: number | null;
++};
++
++type TrackerBridge = {
++  getState: () => { bosses: BossTrackerBoss[]; nextId: number };
++  setState: (state: { bosses: BossTrackerBoss[]; nextId: number }) => void;
++  deleteBoss: (id: number) => void;
++};
++
++type TrackerWindow = Window & {
++  render?: () => void;
++  addBoss?: () => void;
++  killBoss?: (id: number) => void;
++  resetBoss?: (id: number) => void;
++  showNotif?: (title: string, text: string, type: string) => void;
++  __bossTrackerBridge?: TrackerBridge;
++  __bossTrackerPatched?: boolean;
++  __bossTrackerSyncTimer?: number;
++  __bossTrackerLastUpdatedAt?: number | null;
++};
++
++type BossMessagePayload = {
++  type: 'boss-notification';
++  title: string;
++  text: string;
++  kind: 'alive' | 'dead' | string;
++};
++
++export function BossTrackerPage() {
++  const iframeRef = useRef<HTMLIFrameElement | null>(null);
++  const clanId = useAuthStore((s) => s.user?.clanMembership?.clanId);
++  const [isReady, setIsReady] = useState(false);
++
++  useEffect(() => {
++    const socket = getSocket();
++
++    const handleMessage = (event: MessageEvent<BossMessagePayload>) => {
++      if (event.data?.type !== 'boss-notification') return;
++      if (event.source !== iframeRef.current?.contentWindow) return;
++      const { title, text, kind } = event.data;
++      socket.emit('clan:boss-notification', { title, text, kind });
++    };
++
++    window.addEventListener('message', handleMessage);
++
++    return () => {
++      window.removeEventListener('message', handleMessage);
++    };
++  }, []);
++
++  useEffect(() => {
++    return () => {
++      const iframeWindow = iframeRef.current?.contentWindow as TrackerWindow | null;
++      if (iframeWindow?.__bossTrackerSyncTimer) {
++        clearInterval(iframeWindow.__bossTrackerSyncTimer);
++      }
++    };
++  }, []);
++
++  const handleLoad = useCallback(async () => {
++    const iframeWindow = iframeRef.current?.contentWindow as TrackerWindow | null;
++    const iframeDocument = iframeRef.current?.contentDocument;
++
++    if (!iframeWindow || !iframeDocument || !clanId) {
++      setIsReady(true);
++      return;
++    }
++
++    const bridge = iframeWindow.__bossTrackerBridge;
++    if (!bridge) {
++      setIsReady(true);
++      return;
++    }
++
++    const container = iframeDocument.querySelector('.container') as HTMLElement | null;
++    if (container) {
++      container.style.maxWidth = 'none';
++    }
++
++    if (!iframeDocument.getElementById('boss-tracker-delete-style')) {
++      const style = iframeDocument.createElement('style');
++      style.id = 'boss-tracker-delete-style';
++      style.textContent = `
++        .btn-delete {
++          background: transparent;
++          border: 1px solid rgba(180, 180, 180, 0.35);
++          color: #b0b0b0;
++          font-family: 'Cinzel', serif;
++          font-size: 10px;
++          letter-spacing: 1px;
++          padding: 9px 16px;
++          cursor: pointer;
++          text-transform: uppercase;
++          transition: all 0.25s;
++          white-space: nowrap;
++          margin-left: 8px;
++        }
++        .btn-delete:hover {
++          border-color: #d2d2d2;
++          color: #e0e0e0;
++          background: rgba(180, 180, 180, 0.08);
++        }
++      `;
++      iframeDocument.head.appendChild(style);
++    }
++
++    const saveState = async () => {
++      try {
++        const { bosses, nextId } = bridge.getState();
++        const { data } = await api.post<BossTrackerState>(`/clans/${clanId}/boss-tracker/state`, { bosses, nextId });
++        iframeWindow.__bossTrackerLastUpdatedAt = data.updatedAt;
++      } catch {
++        // Ignore transient save failures in UI layer.
++      }
++    };
++
++    const applyState = (state: BossTrackerState) => {
++      bridge.setState({ bosses: state.bosses, nextId: state.nextId });
++      iframeWindow.__bossTrackerLastUpdatedAt = state.updatedAt;
++    };
++
++    const loadState = async (force = false) => {
++      const { data } = await api.get<BossTrackerState>(`/clans/${clanId}/boss-tracker/state`);
++      if (!data.updatedAt) return null;
++      if (!force && iframeWindow.__bossTrackerLastUpdatedAt === data.updatedAt) return data;
++      applyState(data);
++      return data;
++    };
++
++    const remoteState = await loadState(true);
++    const localState = bridge.getState();
++    const hasCorruptedRemoteState = !!remoteState && remoteState.bosses.length === 0 && remoteState.nextId === 1 && localState.bosses.length > 0;
++    if (!remoteState || hasCorruptedRemoteState) {
++      await saveState();
++    }
++
++    if (iframeWindow.__bossTrackerPatched || typeof iframeWindow.showNotif !== 'function') {
++      setIsReady(true);
++      return;
++    }
++
++    const originalAddBoss = iframeWindow.addBoss?.bind(iframeWindow);
++    const originalKillBoss = iframeWindow.killBoss?.bind(iframeWindow);
++    const originalResetBoss = iframeWindow.resetBoss?.bind(iframeWindow);
++    const originalRender = iframeWindow.render?.bind(iframeWindow);
++    const originalShowNotif = iframeWindow.showNotif.bind(iframeWindow);
++
++    if (originalRender) {
++      iframeWindow.render = () => {
++        originalRender();
++
++        const rows = iframeDocument.querySelectorAll('.boss-row');
++        rows.forEach((row) => {
++          const rowId = row.getAttribute('id') || '';
++          const idMatch = rowId.match(/^row-(\d+)$/);
++          if (!idMatch) return;
++          const bossId = Number(idMatch[1]);
++
++          const actionCells = row.querySelectorAll('.boss-cell');
++          const actionCell = actionCells.length >= 5 ? actionCells[4] : null;
++          if (!actionCell) return;
++          if (actionCell.querySelector('.btn-delete')) return;
++
++          const deleteBtn = iframeDocument.createElement('button');
++          deleteBtn.className = 'btn-delete';
++          deleteBtn.textContent = 'Удалить';
++          deleteBtn.onclick = () => {
++            bridge.deleteBoss(bossId);
++            void saveState();
++          };
++          actionCell.appendChild(deleteBtn);
++        });
++      };
++    }
++
++    if (originalAddBoss) {
++      iframeWindow.addBoss = () => {
++        originalAddBoss();
++        void saveState();
++      };
++    }
++
++    if (originalKillBoss) {
++      iframeWindow.killBoss = (id: number) => {
++        originalKillBoss(id);
++        void saveState();
++      };
++    }
++
++    if (originalResetBoss) {
++      iframeWindow.resetBoss = (id: number) => {
++        originalResetBoss(id);
++        void saveState();
++      };
++    }
++
++    iframeWindow.showNotif = (title: string, text: string, type: string) => {
++      originalShowNotif(title, text, type);
++      void saveState();
++    };
++
++    if (iframeWindow.__bossTrackerSyncTimer) {
++      clearInterval(iframeWindow.__bossTrackerSyncTimer);
++    }
++
++    iframeWindow.__bossTrackerSyncTimer = window.setInterval(() => {
++      void loadState(false);
++    }, 5000);
++
++    iframeWindow.__bossTrackerPatched = true;
++    if (typeof iframeWindow.render === 'function') {
++      iframeWindow.render();
++    }
++    setIsReady(true);
++  }, [clanId]);
++
++  return (
++    <div className="relative -mx-4 -my-6 sm:-mx-6 sm:-my-8">
++      {!isReady && <div className="absolute inset-0 z-10 bg-background" />}
++      <iframe
++        ref={iframeRef}
++        title="Boss Tracker"
++        src="/boss-tracker.html"
++        onLoad={() => {
++          setIsReady(false);
++          void handleLoad();
++        }}
++        className={`h-[calc(100vh-4.5rem)] w-full border-0 transition-opacity duration-150 ${isReady ? 'opacity-100' : 'opacity-0'}`}
++      />
++    </div>
++  );
++}
+diff --git a/apps/web/src/pages/ClanPage.tsx b/apps/web/src/pages/ClanPage.tsx
+index 269942a..0a036a9 100644
+--- a/apps/web/src/pages/ClanPage.tsx
++++ b/apps/web/src/pages/ClanPage.tsx
+@@ -444,7 +444,7 @@ export function ClanPage() {
+           <CardHeader>
+             <CardTitle className="flex items-center gap-2 text-lg">
+               <Calculator className="h-5 w-5" />
+-              <span className="hidden sm:inline">DKP Формула: </span>(kLVL × kBM) + BaseDKP
++              <span className="hidden sm:inline">DKP Формула: </span>(kBM + kLVL) * BaseDKP
+             </CardTitle>
+             <p className="text-xs text-muted-foreground">Настройте коэффициенты грейдов для расчёта DKP наград после активностей</p>
+           </CardHeader>
+diff --git a/apps/web/src/pages/NotificationsPage.tsx b/apps/web/src/pages/NotificationsPage.tsx
+index 18bf395..2c3af0a 100644
+--- a/apps/web/src/pages/NotificationsPage.tsx
++++ b/apps/web/src/pages/NotificationsPage.tsx
+@@ -52,7 +52,7 @@ function getNotificationLink(notif: any): string | null {
+     case 'MESSAGE_RECEIVED':
+       return data.senderId ? `/messages/${data.senderId}` : '/messages';
+     default:
+-      return null;
++      return typeof data.link === 'string' ? data.link : null;
+   }
+ }
+ 
+diff --git a/apps/web/src/pages/admin/AdminSettingsPage.tsx b/apps/web/src/pages/admin/AdminSettingsPage.tsx
+index c5cea81..72d48e4 100644
+--- a/apps/web/src/pages/admin/AdminSettingsPage.tsx
++++ b/apps/web/src/pages/admin/AdminSettingsPage.tsx
+@@ -158,7 +158,7 @@ export function AdminSettingsPage() {
+         <CardHeader>
+           <CardTitle className="flex items-center gap-2 text-lg">
+             <Calculator className="h-5 w-5" />
+-            DKP Формула: (kLVL × kBM) + BaseDKP
++            DKP Формула: (kBM + kLVL) * BaseDKP
+           </CardTitle>
+           <div className="flex items-center gap-3 mt-2">
+             <p className="text-xs text-muted-foreground">Настройте коэффициенты для расчёта DKP наград</p>
+diff --git a/docker-compose.yml b/docker-compose.yml
+index 6077ffa..bf72f1a 100644
+--- a/docker-compose.yml
++++ b/docker-compose.yml
+@@ -156,6 +156,7 @@ services:
+       - "5173:5173"
+     volumes:
+       - ./apps/web/src:/app/apps/web/src
++      - ./apps/web/public:/app/apps/web/public
+       - ./packages:/app/packages
+ 
+   nginx:

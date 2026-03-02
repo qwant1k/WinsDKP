@@ -25,7 +25,14 @@ export class RandomizerService {
       const itemIds = [...new Set(sessions.map((s) => s.warehouseItemId))];
       const items = await this.prisma.warehouseItem.findMany({ where: { id: { in: itemIds } } });
       const itemMap = new Map(items.map((i) => [i.id, i]));
-      return sessions.map((s) => ({ ...s, warehouseItem: itemMap.get(s.warehouseItemId) || null }));
+      return sessions.map((s) => {
+        const warehouseItem = itemMap.get(s.warehouseItemId) || null;
+        const input = s.inputData as any;
+        return {
+          ...s,
+          warehouseItem: warehouseItem || (input?.itemName ? { id: s.warehouseItemId, name: input.itemName, rarity: input.itemRarity } : null),
+        };
+      });
     });
   }
 
@@ -39,7 +46,11 @@ export class RandomizerService {
     });
     if (!session) throw new NotFoundException('Randomizer session not found');
     const warehouseItem = await this.prisma.warehouseItem.findUnique({ where: { id: session.warehouseItemId } });
-    return { ...session, warehouseItem };
+    const input = session.inputData as any;
+    return {
+      ...session,
+      warehouseItem: warehouseItem || (input?.itemName ? { id: session.warehouseItemId, name: input.itemName, rarity: input.itemRarity } : null),
+    };
   }
 
   async createSession(params: {
@@ -114,6 +125,8 @@ export class RandomizerService {
     const inputData = {
       members: entriesData.map((e) => ({ userId: e.userId, weight: e.weight, bonus: e.bonus })),
       itemId: params.warehouseItemId,
+      itemName: item.name,
+      itemRarity: item.rarity,
       drawQuantity,
       selectedUserIds: selectedMembers.map((m) => m.userId),
       maxBm,
@@ -245,10 +258,7 @@ export class RandomizerService {
       });
 
       if (updatedItem.quantity <= 0) {
-        await tx.warehouseItem.update({
-          where: { id: session.warehouseItemId },
-          data: { deletedAt: new Date() },
-        });
+        await tx.warehouseItem.delete({ where: { id: session.warehouseItemId } });
       }
     });
 

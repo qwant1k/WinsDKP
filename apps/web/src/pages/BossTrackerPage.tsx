@@ -12,15 +12,51 @@ type BossTrackerBoss = {
   emoji: string;
 };
 
+type BossTrackerFloor = {
+  id: number;
+  name: string;
+  bosses: BossTrackerBoss[];
+};
+
+type BossTrackerLocation = {
+  id: number;
+  name: string;
+  floors: BossTrackerFloor[];
+  bosses: BossTrackerBoss[];
+};
+
 type BossTrackerState = {
   bosses: BossTrackerBoss[];
   nextId: number;
-  updatedAt: number | null;
+  locations?: BossTrackerLocation[];
+  nextLocationId?: number;
+  nextFloorId?: number;
+  nextBossId?: number;
+  activeLocId?: number | null;
+  updatedAt?: number | null;
 };
 
 type TrackerBridge = {
-  getState: () => { bosses: BossTrackerBoss[]; nextId: number };
-  setState: (state: { bosses: BossTrackerBoss[]; nextId: number }) => void;
+  getState: () => {
+    bosses: BossTrackerBoss[];
+    nextId: number;
+    locations?: BossTrackerLocation[];
+    nextLocationId?: number;
+    nextFloorId?: number;
+    nextBossId?: number;
+    activeLocId?: number | null;
+    updatedAt?: number | null;
+  };
+  setState: (state: {
+    bosses: BossTrackerBoss[];
+    nextId: number;
+    locations?: BossTrackerLocation[];
+    nextLocationId?: number;
+    nextFloorId?: number;
+    nextBossId?: number;
+    activeLocId?: number | null;
+    updatedAt?: number | null;
+  }) => void;
   deleteBoss: (id: number) => void;
 };
 
@@ -34,6 +70,7 @@ type TrackerWindow = Window & {
   __bossTrackerPatched?: boolean;
   __bossTrackerSyncTimer?: number;
   __bossTrackerLastUpdatedAt?: number | null;
+  __bossTrackerLastSavedLocalUpdatedAt?: number | null;
 };
 
 type BossMessagePayload = {
@@ -77,17 +114,16 @@ export function BossTrackerPage() {
   const handleLoad = useCallback(async () => {
     const iframeWindow = iframeRef.current?.contentWindow as TrackerWindow | null;
     const iframeDocument = iframeRef.current?.contentDocument;
+    try {
 
-    if (!iframeWindow || !iframeDocument || !clanId) {
-      setIsReady(true);
-      return;
-    }
+      if (!iframeWindow || !iframeDocument || !clanId) {
+        return;
+      }
 
-    const bridge = iframeWindow.__bossTrackerBridge;
-    if (!bridge) {
-      setIsReady(true);
-      return;
-    }
+      const bridge = iframeWindow.__bossTrackerBridge;
+      if (!bridge) {
+        return;
+      }
 
     const container = iframeDocument.querySelector('.container') as HTMLElement | null;
     if (container) {
@@ -148,38 +184,58 @@ export function BossTrackerPage() {
 
     const saveState = async () => {
       try {
-        const { bosses, nextId } = bridge.getState();
-        const { data } = await api.post<BossTrackerState>(`/clans/${clanId}/boss-tracker/state`, { bosses, nextId });
+        const state = bridge.getState();
+        const localUpdatedAt = Number(state.updatedAt || 0);
+        const { data } = await api.post<BossTrackerState>(`/clans/${clanId}/boss-tracker/state`, state);
         iframeWindow.__bossTrackerLastUpdatedAt = data.updatedAt;
+        iframeWindow.__bossTrackerLastSavedLocalUpdatedAt = localUpdatedAt;
       } catch {
         // Ignore transient save failures in UI layer.
       }
     };
 
     const applyState = (state: BossTrackerState) => {
-      bridge.setState({ bosses: state.bosses, nextId: state.nextId });
+      bridge.setState(state);
       iframeWindow.__bossTrackerLastUpdatedAt = state.updatedAt;
+      iframeWindow.__bossTrackerLastSavedLocalUpdatedAt = Number(state.updatedAt || 0);
     };
 
-    const loadState = async (force = false) => {
-      const { data } = await api.get<BossTrackerState>(`/clans/${clanId}/boss-tracker/state`);
-      if (!data.updatedAt) return null;
-      if (!force && iframeWindow.__bossTrackerLastUpdatedAt === data.updatedAt) return data;
-      applyState(data);
-      return data;
-    };
+      const fetchRemoteState = async () => {
+        try {
+          const { data } = await api.get<BossTrackerState>(`/clans/${clanId}/boss-tracker/state`);
+          if (!data.updatedAt) return null;
+          return data;
+        } catch {
+          return null;
+        }
+      };
 
-    const remoteState = await loadState(true);
     const localState = bridge.getState();
-    const hasCorruptedRemoteState = !!remoteState && remoteState.bosses.length === 0 && remoteState.nextId === 1 && localState.bosses.length > 0;
-    if (!remoteState || hasCorruptedRemoteState) {
+    const remoteState = await fetchRemoteState();
+    const localHasData = (localState.locations?.length ?? 0) > 0 || localState.bosses.length > 0;
+    const remoteHasData = !!remoteState && (((remoteState.locations?.length ?? 0) > 0) || remoteState.bosses.length > 0);
+
+    if (!remoteHasData && localHasData) {
       await saveState();
+    } else if (remoteHasData && !localHasData) {
+      applyState(remoteState);
+    } else if (remoteHasData && localHasData) {
+      const localUpdatedAt = Number(localState.updatedAt || 0);
+      const remoteUpdatedAt = Number(remoteState.updatedAt || 0);
+      if (remoteUpdatedAt > localUpdatedAt) {
+        applyState(remoteState);
+      } else if (localUpdatedAt > 0) {
+        await saveState();
+      }
     }
 
-    if (iframeWindow.__bossTrackerPatched || typeof iframeWindow.showNotif !== 'function') {
-      setIsReady(true);
-      return;
-    }
+    iframeWindow.__bossTrackerLastSavedLocalUpdatedAt = Number(
+      iframeWindow.__bossTrackerLastSavedLocalUpdatedAt || bridge.getState().updatedAt || 0,
+    );
+
+      if (iframeWindow.__bossTrackerPatched || typeof iframeWindow.showNotif !== 'function') {
+        return;
+      }
 
     const originalAddBoss = iframeWindow.addBoss?.bind(iframeWindow);
     const originalKillBoss = iframeWindow.killBoss?.bind(iframeWindow);
@@ -246,14 +302,32 @@ export function BossTrackerPage() {
     }
 
     iframeWindow.__bossTrackerSyncTimer = window.setInterval(() => {
-      void loadState(false);
+      void (async () => {
+        const localUpdatedAt = Number(bridge.getState().updatedAt || 0);
+        const lastSavedLocalUpdatedAt = Number(iframeWindow.__bossTrackerLastSavedLocalUpdatedAt || 0);
+
+        // Persist local mutations first to avoid remote poll overwriting unsaved state.
+        if (localUpdatedAt > lastSavedLocalUpdatedAt) {
+          await saveState();
+          return;
+        }
+
+        const data = await fetchRemoteState();
+        if (!data) return;
+        if (iframeWindow.__bossTrackerLastUpdatedAt === data.updatedAt) return;
+        const remoteUpdatedAt = Number(data.updatedAt || 0);
+        if (remoteUpdatedAt <= localUpdatedAt) return;
+        applyState(data);
+      })();
     }, 5000);
 
-    iframeWindow.__bossTrackerPatched = true;
-    if (typeof iframeWindow.render === 'function') {
-      iframeWindow.render();
+      iframeWindow.__bossTrackerPatched = true;
+      if (typeof iframeWindow.render === 'function') {
+        iframeWindow.render();
+      }
+    } finally {
+      setIsReady(true);
     }
-    setIsReady(true);
   }, [clanId]);
 
   return (

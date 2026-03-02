@@ -98,7 +98,7 @@ function WinnerOverlay({ data, onClose }: { data: WinnerOverlayData; onClose: ()
         <div className="text-gold-400 text-6xl">🏆</div>
         <p className="mt-3 text-5xl font-black tracking-[0.2em] text-gold-300">WINNER</p>
         <p className="mt-4 text-4xl font-bold text-white">{data.nickname}</p>
-        <p className="mt-3 text-lg text-zinc-300">получает</p>
+        <p className="mt-3 text-lg text-zinc-300">Розыгрыш предмета:</p>
         <p className="text-2xl font-semibold text-gold-300">{data.itemName}</p>
         <p className="mt-4 text-xs uppercase tracking-[0.25em] text-zinc-500">нажмите, чтобы закрыть</p>
       </motion.div>
@@ -414,7 +414,9 @@ export function RandomizerPage() {
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="font-semibold text-sm sm:text-base truncate">{session.warehouseItem?.name || `Розыгрыш #${session.id.slice(0, 8)}`}</h3>
+                        <h3 className="font-semibold text-sm sm:text-base truncate">
+                          {`Розыгрыш предмета: ${session.warehouseItem?.name || 'Предмет'}`}
+                        </h3>
                         {session.warehouseItem?.rarity && (
                           <Badge variant={session.warehouseItem.rarity.toLowerCase() as any} className="text-[10px]">
                             {getRarityLabel(session.warehouseItem.rarity)}
@@ -438,7 +440,9 @@ export function RandomizerPage() {
                             <span className="text-sm font-bold text-gold-400 block">
                               {session.entries?.find((e: any) => e.userId === session.result.winnerId)?.user?.profile?.nickname || 'Победитель'}
                             </span>
-                            <span className="text-[10px] text-muted-foreground">Получил: {session.warehouseItem?.name || 'Предмет'}</span>
+                            <span className="text-[10px] text-muted-foreground">
+                              Розыгрыш предмета: {session.warehouseItem?.name || 'Предмет'}
+                            </span>
                           </div>
                         </div>
                       </div>

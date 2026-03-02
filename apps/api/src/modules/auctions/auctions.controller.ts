@@ -24,7 +24,7 @@ export class AuctionsController {
   }
 
   @Post()
-  @Roles('ELDER')
+  @Roles('CLAN_LEADER')
   @ApiOperation({ summary: 'Create a new auction' })
   async create(
     @Param('clanId') clanId: string,
@@ -54,7 +54,7 @@ export class AuctionsController {
 
   // ─── Add single lot ──────────────────────────────────────────────────────────
   @Post(':id/lots')
-  @Roles('ELDER')
+  @Roles('CLAN_LEADER')
   @ApiOperation({ summary: 'Add single lot to auction' })
   async addLot(
     @Param('id') id: string,
@@ -65,7 +65,7 @@ export class AuctionsController {
 
   // ─── Bulk add all warehouse items as lots ────────────────────────────────────
   @Post(':id/lots/bulk')
-  @Roles('ELDER')
+  @Roles('CLAN_LEADER')
   @ApiOperation({ summary: 'Add all warehouse items as lots with default price/step' })
   async addAllLots(
     @Param('id') id: string,
@@ -77,7 +77,7 @@ export class AuctionsController {
 
   // ─── Delete lot (only PENDING, before auction starts) ───────────────────────
   @Delete('lots/:lotId')
-  @Roles('ELDER')
+  @Roles('CLAN_LEADER')
   @ApiOperation({ summary: 'Delete a pending lot before auction starts' })
   async deleteLot(
     @Param('lotId') lotId: string,
@@ -87,7 +87,7 @@ export class AuctionsController {
   }
 
   @Post(':id/start')
-  @Roles('ELDER')
+  @Roles('CLAN_LEADER')
   @ApiOperation({ summary: 'Start the auction — all lots go ACTIVE simultaneously' })
   async start(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     return this.auctionsService.startAuction(id, user.sub);
@@ -111,7 +111,7 @@ export class AuctionsController {
   }
 
   @Post('lots/:lotId/finish')
-  @Roles('ELDER')
+  @Roles('CLAN_LEADER')
   @ApiOperation({ summary: 'Finish a lot and determine winner' })
   async finishLot(@Param('lotId') lotId: string, @CurrentUser() user: JwtPayload) {
     return this.auctionsService.finishLot(lotId, user.sub);
@@ -134,7 +134,7 @@ export class AuctionsController {
   }
 
   @Delete(':id')
-  @Roles('ELDER')
+  @Roles('CLAN_LEADER')
   @ApiOperation({ summary: 'Delete completed auction (soft delete from UI)' })
   async deleteCompletedAuction(
     @Param('id') id: string,

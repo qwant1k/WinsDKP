@@ -3,17 +3,19 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 import { DkpService } from '../dkp/dkp.service';
 import { SocketGateway } from '../../common/socket/socket.gateway';
 import { PaginationDto, PaginatedResponse } from '../../common/dto/pagination.dto';
-import { AuctionStatus, LotStatus, Prisma } from '@prisma/client';
+import { AuctionStatus, DkpHoldStatus, DkpTransactionType, LotStatus, Prisma } from '@prisma/client';
 import { Cron, CronExpression } from '@nestjs/schedule';
 
 @Injectable()
 export class AuctionsService {
   private readonly logger = new Logger(AuctionsService.name);
+  private autoFinishInProgress = false;
+  private bidSafeguardInProgress = false;
   private static readonly DEFAULT_LOT_DURATION_MINUTES = 24 * 60;
   private static readonly DEFAULT_LOT_EXTENSION_MINUTES = 24 * 60;
   private static readonly DEFAULT_LOT_MAX_NO_BID_EXTENSIONS = 2;
-  private static readonly DEFAULT_LOT_ANTI_SNIPER_WINDOW_MS = 60 * 60 * 1000;
-  private static readonly DEFAULT_LOT_ANTI_SNIPER_EXTEND_MS = 10 * 60 * 1000;
+  private static readonly DEFAULT_LOT_ANTI_SNIPER_WINDOW_MS = 10 * 60 * 1000;
+  private static readonly DEFAULT_LOT_ANTI_SNIPER_RESET_MS = 10 * 60 * 1000;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -44,23 +46,79 @@ export class AuctionsService {
 
   @Cron(CronExpression.EVERY_10_SECONDS)
   async autoFinishExpiredLots() {
-    const expiredLots = await this.prisma.lot.findMany({
-      where: {
-        status: LotStatus.ACTIVE,
-        deletedAt: null,
-        endsAt: { lte: new Date() },
-      },
-      include: { auction: { select: { createdBy: true } } },
-      take: 50,
-      orderBy: { endsAt: 'asc' },
-    });
+    if (this.autoFinishInProgress) {
+      this.logger.warn('autoFinishExpiredLots skipped: previous run still in progress');
+      return;
+    }
 
-    for (const lot of expiredLots) {
-      try {
-        await this.finishLot(lot.id, lot.auction.createdBy);
-      } catch (error) {
-        this.logger.warn(`Failed to auto-finish lot ${lot.id}: ${(error as Error).message}`);
+    this.autoFinishInProgress = true;
+    try {
+      const batchSize = 50;
+      while (true) {
+        const expiredLots = await this.prisma.lot.findMany({
+          where: {
+            status: LotStatus.ACTIVE,
+            deletedAt: null,
+            endsAt: { lte: new Date() },
+          },
+          include: { auction: { select: { createdBy: true } } },
+          take: batchSize,
+          orderBy: { endsAt: 'asc' },
+        });
+
+        if (expiredLots.length === 0) break;
+
+        for (const lot of expiredLots) {
+          try {
+            await this.finishLot(lot.id, lot.auction.createdBy);
+          } catch (error) {
+            this.logger.warn(`Failed to auto-finish lot ${lot.id}: ${(error as Error).message}`);
+          }
+        }
+
+        if (expiredLots.length < batchSize) break;
       }
+    } finally {
+      this.autoFinishInProgress = false;
+    }
+  }
+
+  // Safety pass for edge cases around countdown UI/transport lag:
+  // if lot already timed out in the last minute and has at least one bid,
+  // force finish it so it never hangs at 00:00.
+  @Cron(CronExpression.EVERY_MINUTE)
+  async safeguardFinishLotsWithBidsAtTimeout() {
+    if (this.bidSafeguardInProgress) {
+      return;
+    }
+
+    this.bidSafeguardInProgress = true;
+    try {
+      const now = new Date();
+      const oneMinuteAgo = new Date(now.getTime() - 60_000);
+      const staleLots = await this.prisma.lot.findMany({
+        where: {
+          status: LotStatus.ACTIVE,
+          deletedAt: null,
+          endsAt: { lte: now, gt: oneMinuteAgo },
+          bids: { some: {} },
+        },
+        include: {
+          auction: { select: { createdBy: true } },
+        },
+        orderBy: { endsAt: 'asc' },
+        take: 100,
+      });
+
+      for (const lot of staleLots) {
+        try {
+          await this.finishLot(lot.id, lot.auction.createdBy);
+        } catch (error) {
+          this.logger.warn(`Safeguard failed to finish lot ${lot.id}: ${(error as Error).message}`);
+        }
+      }
+    } finally {
+      this.bidSafeguardInProgress = false;
     }
   }
 
@@ -419,10 +477,10 @@ export class AuctionsService {
       });
 
       let timerExtended = false;
-      if (lot.lotDurationMinutes == null && lot.endsAt) {
+      if (lot.endsAt) {
         const msLeft = lot.endsAt.getTime() - Date.now();
         if (msLeft <= AuctionsService.DEFAULT_LOT_ANTI_SNIPER_WINDOW_MS) {
-          const newEndsAt = new Date(lot.endsAt.getTime() + AuctionsService.DEFAULT_LOT_ANTI_SNIPER_EXTEND_MS);
+          const newEndsAt = new Date(Date.now() + AuctionsService.DEFAULT_LOT_ANTI_SNIPER_RESET_MS);
           await tx.lot.update({
             where: { id: lotId },
             data: { endsAt: newEndsAt },
@@ -433,7 +491,7 @@ export class AuctionsService {
             data: {
               auctionId: lot.auctionId,
               event: 'auction.timer.extended',
-              data: { lotId, newEndsAt: newEndsAt.toISOString(), reason: 'last-hour-bid' },
+              data: { lotId, newEndsAt: newEndsAt.toISOString(), reason: 'last-10-min-reset' },
             },
           });
 
@@ -517,7 +575,10 @@ export class AuctionsService {
         where: { id: lotId },
         include: {
           auction: true,
-          bids: { orderBy: [{ amount: 'desc' }, { createdAt: 'asc' }], take: 2, include: { user: { include: { profile: true } } } },
+          bids: {
+            orderBy: [{ amount: 'desc' }, { createdAt: 'asc' }],
+            include: { user: { include: { profile: true } } },
+          },
           warehouseItem: true,
         },
       });
@@ -527,20 +588,65 @@ export class AuctionsService {
       const lotItemName = lot.warehouseItem?.name || lot.itemName || 'Предмет';
       const lotItemRarity = lot.warehouseItem?.rarity || lot.itemRarity || null;
 
-      const winningBid = lot.bids[0];
-      let finalPrice = winningBid ? Number(winningBid.amount) : 0;
+      let winningBid: (typeof lot.bids)[number] | null = null;
+      let finalPrice = 0;
       let winnerId: string | null = null;
       let winnerNickname: string | null = null;
       let sold = false;
 
-      if (winningBid) {
-        winnerId = winningBid.userId;
-        winnerNickname = winningBid.user?.profile?.nickname || null;
+      const holdIds = lot.bids.map((b) => b.holdId).filter((id): id is string => !!id);
+      const holds = holdIds.length
+        ? await tx.dkpHold.findMany({
+          where: { id: { in: holdIds } },
+          select: { id: true, status: true },
+        })
+        : [];
+      const holdStatusById = new Map(holds.map((h) => [h.id, h.status]));
+      if (lot.bids.length > 0) {
+        const topBid = lot.bids[0]!;
+        winningBid = topBid;
+        finalPrice = Number(topBid.amount);
+        winnerId = topBid.userId;
+        winnerNickname = topBid.user?.profile?.nickname || null;
 
-        if (winningBid.holdId) {
-          await this.dkpService.finalizeHold(winningBid.holdId);
+        try {
+          if (topBid.holdId) {
+            const holdStatus = holdStatusById.get(topBid.holdId);
+
+            if (holdStatus === DkpHoldStatus.ACTIVE) {
+              await this.dkpService.finalizeHold(topBid.holdId);
+            } else if (holdStatus !== DkpHoldStatus.FINALIZED) {
+              await this.dkpService.debitDkp({
+                userId: topBid.userId,
+                amount: Number(topBid.amount),
+                type: DkpTransactionType.AUCTION_WIN,
+                description: `Auction win charge for lot ${lotId}`,
+                referenceType: 'lot',
+                referenceId: lotId,
+                idempotencyKey: `lot-finish-debit-${lotId}-${topBid.id}`,
+                allowNegative: true,
+              });
+            }
+          } else {
+            await this.dkpService.debitDkp({
+              userId: topBid.userId,
+              amount: Number(topBid.amount),
+              type: DkpTransactionType.AUCTION_WIN,
+              description: `Auction win charge for lot ${lotId}`,
+              referenceType: 'lot',
+              referenceId: lotId,
+              idempotencyKey: `lot-finish-debit-${lotId}-${topBid.id}`,
+              allowNegative: true,
+            });
+          }
+        } catch (error) {
+          this.logger.warn(`Failed to settle winning bid ${topBid.id} for lot ${lotId}: ${(error as Error).message}`);
         }
 
+        sold = true;
+      }
+
+      if (sold) {
         await tx.lot.update({
           where: { id: lotId },
           data: { status: LotStatus.SOLD, winnerId, currentPrice: finalPrice },
@@ -554,44 +660,6 @@ export class AuctionsService {
             status: 'sold',
           },
         });
-
-        sold = true;
-      } else if (
-        lot.lotDurationMinutes == null &&
-        lot.noBidExtensions < AuctionsService.DEFAULT_LOT_MAX_NO_BID_EXTENSIONS &&
-        lot.endsAt &&
-        lot.endsAt <= new Date()
-      ) {
-        const now = new Date();
-        const baseEndsAt = lot.endsAt > now ? lot.endsAt : now;
-        const newEndsAt = new Date(baseEndsAt.getTime() + AuctionsService.DEFAULT_LOT_EXTENSION_MINUTES * 60_000);
-        const newNoBidExtensions = lot.noBidExtensions + 1;
-
-        await tx.lot.update({
-          where: { id: lotId },
-          data: { endsAt: newEndsAt, noBidExtensions: newNoBidExtensions },
-        });
-
-        await tx.auctionSystemEvent.create({
-          data: {
-            auctionId: lot.auctionId,
-            event: 'auction.timer.extended',
-            data: {
-              lotId,
-              newEndsAt: newEndsAt.toISOString(),
-              reason: 'no-bids-rollover',
-              extensionIndex: newNoBidExtensions,
-            },
-          },
-        });
-
-        this.socket.emitToAuction(lot.auctionId, 'auction.timer.extended', {
-          lotId,
-          newEndsAt,
-          reason: 'no-bids-rollover',
-        });
-
-        return { lot: { ...lot, endsAt: newEndsAt }, remainingActiveLots: 1 };
       }
 
       if (sold) {
@@ -608,10 +676,14 @@ export class AuctionsService {
             },
           });
 
-          await tx.warehouseItem.update({
+          const updatedItem = await tx.warehouseItem.update({
             where: { id: lot.warehouseItemId },
             data: { quantity: { decrement: lot.quantity } },
           });
+
+          if (updatedItem.quantity <= 0) {
+            await tx.warehouseItem.delete({ where: { id: lot.warehouseItemId } });
+          }
         }
 
         // Emit winner event for frontend celebration overlay

@@ -22,6 +22,12 @@ export class UsersController {
     return this.usersService.getTimeline(user.sub, query);
   }
 
+  @Get('me/stats')
+  @ApiOperation({ summary: 'Get current user DKP stats' })
+  async myStats(@CurrentUser() user: JwtPayload) {
+    return this.usersService.getUserStats(user.sub);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get user by ID' })
   async findOne(@Param('id') id: string) {
@@ -41,5 +47,11 @@ export class UsersController {
   @ApiOperation({ summary: 'Get user timeline' })
   async getTimeline(@Param('id') id: string, @Query() query: PaginationDto) {
     return this.usersService.getTimeline(id, query);
+  }
+
+  @Get(':id/stats')
+  @ApiOperation({ summary: 'Get user DKP stats' })
+  async getStats(@Param('id') id: string) {
+    return this.usersService.getUserStats(id);
   }
 }

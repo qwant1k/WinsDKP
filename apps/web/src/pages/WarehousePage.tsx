@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDkp, getRarityClass, getRarityBgClass, getRarityLabel } from '@/lib/utils';
-import { Package, Plus, Search, Trash2, Pencil, Save, X, Upload } from 'lucide-react';
+import { Package, Plus, Search, Trash2, Pencil, Save, X, Upload, Gift } from 'lucide-react';
 import { toast } from 'sonner';
 import { useState, type ChangeEvent } from 'react';
 import { motion } from 'framer-motion';
@@ -76,6 +76,17 @@ export function WarehousePage() {
       queryClient.invalidateQueries({ queryKey: ['warehouse'] });
       setEditingItem(null);
       toast.success('Предмет обновлён');
+    },
+    onError: (e) => toast.error(getErrorMessage(e)),
+  });
+
+  const fortuneToggleMutation = useMutation({
+    mutationFn: async ({ id, enabled }: { id: string; enabled: boolean }) =>
+      (await api.patch(`/clans/${clanId}/warehouse/${id}/fortune-toggle`, { enabled })).data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['warehouse'] });
+      queryClient.invalidateQueries({ queryKey: ['fortune-items'] });
+      toast.success('Доступность в Колесе Фортуны обновлена');
     },
     onError: (e) => toast.error(getErrorMessage(e)),
   });
@@ -293,6 +304,25 @@ export function WarehousePage() {
                     {item.dkpPrice && <span className="font-mono text-gold-400">{formatDkp(item.dkpPrice)} DKP</span>}
                     {item.source && <span className="text-muted-foreground">{item.source}</span>}
                   </div>
+                  {canManage && (
+                    <div className="mt-3">
+                      <Button
+                        variant={item.availableInFortune ? 'gold' : 'outline'}
+                        size="sm"
+                        className="h-7 text-xs"
+                        disabled={fortuneToggleMutation.isPending}
+                        onClick={() =>
+                          fortuneToggleMutation.mutate({
+                            id: item.id,
+                            enabled: !item.availableInFortune,
+                          })
+                        }
+                      >
+                        <Gift className="h-3 w-3" />
+                        {item.availableInFortune ? 'В фортуне' : 'Добавить в фортуну'}
+                      </Button>
+                    </div>
+                  )}
                   {editingItem === item.id && (
                     <div className="mt-3 space-y-2 border-t border-border/50 pt-3">
                       <div className="grid gap-2 grid-cols-2">

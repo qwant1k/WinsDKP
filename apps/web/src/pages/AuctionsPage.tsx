@@ -48,17 +48,19 @@ export function AuctionsPage() {
   });
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between gap-2">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <h1 className="font-display text-xl sm:text-2xl md:text-3xl font-bold">Аукционы</h1>
-          <p className="mt-1 text-sm text-muted-foreground hidden sm:block">Распределение лута через честные аукционы</p>
+          <p className="mt-1 text-xs text-muted-foreground sm:text-sm">Распределение лута через честные аукционы</p>
         </div>
-        <div className="flex gap-2 shrink-0">
-          <Link to="/rules/auction"><Button variant="outline" size="sm">Правила</Button></Link>
+        <div className={`grid gap-2 ${canManage ? 'grid-cols-2' : 'grid-cols-1'} w-full sm:flex sm:w-auto sm:shrink-0`}>
+          <Link to="/rules/auction" className="w-full sm:w-auto">
+            <Button variant="outline" size="sm" className="w-full">Правила</Button>
+          </Link>
           {canManage && (
-            <Button variant="gold" size="sm" onClick={() => setShowCreate(!showCreate)}>
-              <Plus className="h-4 w-4" /> <span className="hidden sm:inline">Создать</span>
+            <Button variant="gold" size="sm" className="w-full sm:w-auto" onClick={() => setShowCreate(!showCreate)}>
+              <Plus className="h-4 w-4" /> <span>Создать</span>
             </Button>
           )}
         </div>
@@ -82,9 +84,9 @@ export function AuctionsPage() {
               <input type="checkbox" checked={form.antiSniperEnabled} onChange={(e) => setForm({ ...form, antiSniperEnabled: e.target.checked })} className="rounded" />
               Anti-Sniper защита
             </label>
-            <div className="flex gap-2">
-              <Button variant="gold" onClick={() => createMutation.mutate()} disabled={!form.title || createMutation.isPending}>Создать</Button>
-              <Button variant="outline" onClick={() => setShowCreate(false)}>Отмена</Button>
+            <div className="grid grid-cols-1 gap-2 sm:flex">
+              <Button className="w-full sm:w-auto" variant="gold" onClick={() => createMutation.mutate()} disabled={!form.title || createMutation.isPending}>Создать</Button>
+              <Button className="w-full sm:w-auto" variant="outline" onClick={() => setShowCreate(false)}>Отмена</Button>
             </div>
           </CardContent>
         </Card>
@@ -97,11 +99,11 @@ export function AuctionsPage() {
           {data.data.map((auction: any, i: number) => (
             <motion.div key={auction.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
               <Link to={`/auctions/${auction.id}`}>
-                <Card className="group cursor-pointer hover:border-primary/30 transition-all hover:shadow-lg hover:shadow-primary/5">
+                <Card className="group cursor-pointer transition-all hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5">
                   <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg group-hover:text-primary transition-colors">{auction.title}</CardTitle>
-                      <div className="flex items-center gap-2">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                      <CardTitle className="text-base break-words transition-colors group-hover:text-primary sm:text-lg">{auction.title}</CardTitle>
+                      <div className="flex items-center gap-2 self-start sm:self-auto">
                         <Badge variant="outline" className={getStatusColor(auction.status)}>{getStatusLabel(auction.status)}</Badge>
                         {canManage && auction.status === 'COMPLETED' && (
                           <Button
@@ -120,21 +122,21 @@ export function AuctionsPage() {
                         )}
                       </div>
                     </div>
-                    {auction.description && <p className="text-sm text-muted-foreground line-clamp-2">{auction.description}</p>}
+                    {auction.description && <p className="line-clamp-2 text-sm text-muted-foreground">{auction.description}</p>}
                   </CardHeader>
                   <CardContent>
-                    <div className="flex items-center justify-between">
-                      <div className="flex gap-4 text-xs text-muted-foreground">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1"><Package className="h-3 w-3" />{auction._count?.lots || 0} лотов</span>
                         <span className="flex items-center gap-1"><Users className="h-3 w-3" />{auction._count?.participants || 0} участников</span>
                       </div>
-                      <div className="text-xs text-muted-foreground">
+                      <div className="text-xs text-muted-foreground sm:text-right">
                         {auction.startAt ? formatDateTime(auction.startAt) : 'Не начат'}
                       </div>
                     </div>
                     {auction.status === 'ACTIVE' && (
-                      <div className="mt-3 flex items-center justify-end">
-                        <Button variant="gold" size="sm" className="gap-1">
+                      <div className="mt-3 flex items-center justify-stretch sm:justify-end">
+                        <Button variant="gold" size="sm" className="w-full gap-1 sm:w-auto">
                           Перейти <ArrowRight className="h-3 w-3" />
                         </Button>
                       </div>

@@ -218,6 +218,8 @@ export class DkpService {
     return this.prisma.$transaction(async (tx) => {
       const hold = await tx.dkpHold.findUnique({ where: { id: holdId } });
       if (!hold) throw new NotFoundException('Hold not found');
+      // Idempotency: finalized hold means funds were already debited.
+      if (hold.status === DkpHoldStatus.FINALIZED) return hold;
       if (hold.status !== DkpHoldStatus.ACTIVE) throw new BadRequestException('Hold is not active');
 
       await tx.dkpHold.update({
@@ -259,6 +261,8 @@ export class DkpService {
     return this.prisma.$transaction(async (tx) => {
       const hold = await tx.dkpHold.findUnique({ where: { id: holdId } });
       if (!hold) throw new NotFoundException('Hold not found');
+      // Idempotency: already released hold requires no-op.
+      if (hold.status === DkpHoldStatus.RELEASED) return hold;
       if (hold.status !== DkpHoldStatus.ACTIVE) throw new BadRequestException('Hold is not active');
 
       await tx.dkpHold.update({

@@ -156,7 +156,45 @@ export class ClansController {
       emoji: string;
     }>,
     @Body('nextId') nextId: number,
+    @Body('locations') locations?: Array<{
+      id: number;
+      name: string;
+      floors: Array<{
+        id: number;
+        name: string;
+        bosses: Array<{
+          id: number;
+          name: string;
+          location: string;
+          respawnSeconds: number;
+          killedAt: number | null;
+          emoji: string;
+        }>;
+      }>;
+      bosses: Array<{
+        id: number;
+        name: string;
+        location: string;
+        respawnSeconds: number;
+        killedAt: number | null;
+        emoji: string;
+      }>;
+    }>,
+    @Body('nextLocationId') nextLocationId?: number,
+    @Body('nextFloorId') nextFloorId?: number,
+    @Body('nextBossId') nextBossId?: number,
+    @Body('activeLocId') activeLocId?: number | null,
   ) {
-    return this.clansService.saveBossTrackerState(clanId, user.sub, bosses, nextId);
+    return this.clansService.saveBossTrackerState(
+      clanId,
+      user.sub,
+      bosses,
+      nextId,
+      locations,
+      nextLocationId,
+      nextFloorId,
+      nextBossId,
+      activeLocId,
+    );
   }
 }

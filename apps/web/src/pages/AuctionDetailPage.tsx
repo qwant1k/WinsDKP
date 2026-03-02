@@ -43,6 +43,7 @@ interface Lot {
   result?: LotResult;
 }
 interface WinnerData {
+  lotId: string;
   nickname: string;
   itemName: string;
   itemRarity: string;
@@ -409,10 +410,12 @@ function AddOneModal({
 
 // ─── Lot Card ─────────────────────────────────────────────────────────────────
 function LotCard({
-  lot, auctionId, clanId, userId, isParticipant, canManage, isDraft,
+  lot, auctionId, clanId, userId, isParticipant, canManage, isDraft, isFavorite, onToggleFavorite,
 }: {
   lot: Lot; auctionId: string; clanId: string; userId?: string;
   isParticipant: boolean; canManage: boolean; isDraft: boolean;
+  isFavorite: boolean;
+  onToggleFavorite: (lotId: string) => void;
 }) {
   const queryClient = useQueryClient();
   const r = rc(lot.warehouseItem?.rarity || lot.itemRarity || undefined);
@@ -444,7 +447,12 @@ function LotCard({
       { amount: Number(bidAmt) },
       { headers: { 'X-Idempotency-Key': `bid-${lot.id}-${Date.now()}` } },
     )).data,
-    onSuccess: () => { setBidAmt(''); queryClient.invalidateQueries({ queryKey: ['auction', auctionId] }); toast.success('Ставка принята!'); },
+    onSuccess: () => {
+      setBidAmt('');
+      queryClient.invalidateQueries({ queryKey: ['auction', auctionId] });
+      queryClient.invalidateQueries({ queryKey: ['dkp', 'wallet'] });
+      toast.success('Ставка принята!');
+    },
     onError: (e) => toast.error(getErrorMessage(e)),
   });
 
@@ -503,6 +511,26 @@ function LotCard({
             <span style={{ fontSize: 11, color: '#555' }}>x{lot.quantity}</span>
           </div>
         </div>
+
+        <button
+          type="button"
+          onClick={() => onToggleFavorite(lot.id)}
+          title={isFavorite ? 'Убрать из избранного' : 'В избранное'}
+          style={{
+            flexShrink: 0,
+            background: isFavorite ? 'rgba(255,215,0,0.16)' : 'rgba(255,255,255,0.06)',
+            border: `1px solid ${isFavorite ? 'rgba(255,215,0,0.45)' : 'rgba(255,255,255,0.12)'}`,
+            borderRadius: 8,
+            color: isFavorite ? '#FFD700' : '#9aa0ad',
+            cursor: 'pointer',
+            fontSize: 15,
+            fontWeight: 700,
+            padding: '6px 9px',
+            lineHeight: 1,
+          }}
+        >
+          {isFavorite ? '★' : '☆'}
+        </button>
 
         {/* Timer */}
         {isActive && lot.endsAt && (
@@ -618,12 +646,85 @@ export function AuctionDetailPage() {
   const canManage = user?.clanMembership?.role === 'CLAN_LEADER' || user?.clanMembership?.role === 'ELDER';
 
   const [winner, setWinner] = useState<WinnerData | null>(null);
+  const [winnerQueue, setWinnerQueue] = useState<WinnerData[]>([]);
   const [showAddAll, setShowAddAll] = useState(false);
   const [showAddOne, setShowAddOne] = useState(false);
-  const [sidebarTab, setSidebarTab] = useState<'lots' | 'chat' | 'members'>('chat');
+  const [sidebarTab, setSidebarTab] = useState<'lots' | 'favorites' | 'chat' | 'members'>('chat');
   const [chatInput, setChatInput] = useState('');
+  const [favoriteLotIds, setFavoriteLotIds] = useState<string[]>([]);
+  const [isMobile, setIsMobile] = useState<boolean>(() => (typeof window !== 'undefined' ? window.innerWidth <= 1024 : false));
+  const [isPhone, setIsPhone] = useState<boolean>(() => (typeof window !== 'undefined' ? window.innerWidth <= 768 : false));
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const seenWinnerLotIdsRef = useRef<Set<string>>(new Set());
   const { canvasRef, fire } = useConfetti();
+
+  const enqueueWinner = useCallback((data: any) => {
+    const lotId = String(data?.lotId ?? '');
+    if (!lotId) return;
+    if (seenWinnerLotIdsRef.current.has(lotId)) return;
+    seenWinnerLotIdsRef.current.add(lotId);
+
+    setWinnerQueue((prev) => [
+      ...prev,
+      {
+        lotId,
+        nickname: data.winnerNickname || data.winnerId?.slice(0, 8) || '???',
+        itemName: data.itemName || 'Предмет',
+        itemRarity: data.itemRarity || 'COMMON',
+        finalPrice: Number(data.finalPrice ?? 0),
+      },
+    ]);
+  }, []);
+
+  useEffect(() => {
+    const onResize = () => {
+      setIsMobile(window.innerWidth <= 1024);
+      setIsPhone(window.innerWidth <= 768);
+    };
+    onResize();
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  useEffect(() => {
+    if (winner || winnerQueue.length === 0) return;
+    const nextWinner = winnerQueue[0];
+    setWinner(nextWinner);
+    setWinnerQueue((prev) => prev.slice(1));
+    fire();
+  }, [winner, winnerQueue, fire]);
+
+  useEffect(() => {
+    setWinner(null);
+    setWinnerQueue([]);
+    seenWinnerLotIdsRef.current.clear();
+  }, [id]);
+
+  const favoritesStorageKey = useMemo(
+    () => `auction:favorites:${id}:${userId ?? 'anon'}`,
+    [id, userId],
+  );
+  useEffect(() => {
+    if (typeof window === 'undefined' || !id) return;
+    try {
+      const raw = localStorage.getItem(favoritesStorageKey);
+      const parsed = raw ? JSON.parse(raw) : [];
+      setFavoriteLotIds(Array.isArray(parsed) ? parsed.filter((v) => typeof v === 'string') : []);
+    } catch {
+      setFavoriteLotIds([]);
+    }
+  }, [favoritesStorageKey, id]);
+  const toggleFavoriteLot = useCallback((lotId: string) => {
+    setFavoriteLotIds((prev) => {
+      const next = prev.includes(lotId) ? prev.filter((id) => id !== lotId) : [...prev, lotId];
+      try {
+        localStorage.setItem(favoritesStorageKey, JSON.stringify(next));
+      } catch {
+        // ignore local storage failures
+      }
+      return next;
+    });
+  }, [favoritesStorageKey]);
 
   // ─── Queries ─────────────────────────────────────────────────────────────
   const { data: auction, isLoading } = useQuery({
@@ -637,6 +738,12 @@ export function AuctionDetailPage() {
     queryKey: ['warehouse-items', clanId, 300],
     queryFn: async () => (await api.get(`/clans/${clanId}/warehouse?limit=300`)).data,
     enabled: !!clanId && canManage && (showAddOne || showAddAll),
+  });
+  const { data: walletData } = useQuery({
+    queryKey: ['dkp', 'wallet'],
+    queryFn: async () => (await api.get('/dkp/wallet')).data,
+    enabled: !!userId,
+    refetchInterval: 5000,
   });
   const warehouseItems: WarehouseItem[] = warehouseData?.data ?? [];
 
@@ -652,6 +759,14 @@ export function AuctionDetailPage() {
   const activeLots = allLots.filter((l: Lot) => l.status === 'ACTIVE');
   const pendingLots = allLots.filter((l: Lot) => l.status === 'PENDING');
   const finishedLots = allLots.filter((l: Lot) => l.status === 'SOLD' || l.status === 'UNSOLD');
+  const favoriteLotIdSet = useMemo(() => new Set(favoriteLotIds), [favoriteLotIds]);
+  const favoriteLots = useMemo(
+    () =>
+      allLots
+        .filter((lot: Lot) => favoriteLotIdSet.has(lot.id))
+        .sort((a: Lot, b: Lot) => a.sortOrder - b.sortOrder),
+    [allLots, favoriteLotIdSet],
+  );
   const myLots = useMemo(() => {
     if (!userId) return [];
 
@@ -673,16 +788,16 @@ export function AuctionDetailPage() {
   }, [allLots, userId]);
   const myLotIds = useMemo(() => new Set(myLots.map((lot: Lot) => lot.id)), [myLots]);
   const pendingLotsMain = useMemo(
-    () => pendingLots.filter((lot: Lot) => !myLotIds.has(lot.id)),
-    [pendingLots, myLotIds],
+    () => pendingLots.filter((lot: Lot) => !myLotIds.has(lot.id) && !favoriteLotIdSet.has(lot.id)),
+    [pendingLots, myLotIds, favoriteLotIdSet],
   );
   const activeLotsMain = useMemo(
-    () => activeLots.filter((lot: Lot) => !myLotIds.has(lot.id)),
-    [activeLots, myLotIds],
+    () => activeLots.filter((lot: Lot) => !myLotIds.has(lot.id) && !favoriteLotIdSet.has(lot.id)),
+    [activeLots, myLotIds, favoriteLotIdSet],
   );
   const finishedLotsMain = useMemo(
-    () => finishedLots.filter((lot: Lot) => !myLotIds.has(lot.id)),
-    [finishedLots, myLotIds],
+    () => finishedLots.filter((lot: Lot) => !myLotIds.has(lot.id) && !favoriteLotIdSet.has(lot.id)),
+    [finishedLots, myLotIds, favoriteLotIdSet],
   );
   const isParticipant = auction?.participants?.some((p: any) => p.userId === userId);
   const isDraft = auction?.status === 'DRAFT';
@@ -690,6 +805,9 @@ export function AuctionDetailPage() {
   const isCompleted = auction?.status === 'COMPLETED';
   const totalBids = allLots.reduce((a: number, l: Lot) => a + (l.bids?.length ?? 0), 0);
   const topBid = Math.max(0, ...allLots.flatMap((l: Lot) => l.bids?.map((b: Bid) => Number(b.amount)) ?? []));
+  const walletBalance = Number(walletData?.balance || 0);
+  const walletOnHold = Number(walletData?.onHold || 0);
+  const walletAvailable = walletBalance - walletOnHold;
 
   // ─── Socket ───────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -698,9 +816,9 @@ export function AuctionDetailPage() {
     const socket = getSocket();
     const refresh = (delay = 300) => setTimeout(() => queryClient.invalidateQueries({ queryKey: ['auction', id] }), delay);
 
-    socket.on('auction.bid.created', () => refresh());
+    socket.on('auction.bid.created', () => { refresh(); queryClient.invalidateQueries({ queryKey: ['dkp', 'wallet'] }); });
     socket.on('auction.timer.extended', () => { toast.info('⏱ Таймер продлён (Anti-Sniper)'); refresh(); });
-    socket.on('auction.lot.finished', () => refresh());
+    socket.on('auction.lot.finished', () => { refresh(); queryClient.invalidateQueries({ queryKey: ['dkp', 'wallet'] }); });
     socket.on('auction.updated', () => refresh());
     socket.on('auction.lot.added', () => refresh());
     socket.on('auction.lots.bulk_added', (data: any) => { toast.success(`Добавлено ${data.count} лотов`); refresh(); });
@@ -712,16 +830,13 @@ export function AuctionDetailPage() {
       }
     });
     socket.on('auction.chat.message', () => refresh());
-    socket.on('auction.bid.outbid', (data: any) => toast.warning(`Вас перебили! Новая ставка: ${fmtDkp(data.newAmount)}`));
+    socket.on('auction.bid.outbid', (data: any) => {
+      toast.warning(`Вас перебили! Новая ставка: ${fmtDkp(data.newAmount)}`);
+      queryClient.invalidateQueries({ queryKey: ['dkp', 'wallet'] });
+    });
 
     socket.on('auction.lot.sold', (data: any) => {
-      setWinner({
-        nickname: data.winnerNickname || data.winnerId?.slice(0, 8) || '???',
-        itemName: data.itemName || 'Предмет',
-        itemRarity: data.itemRarity || 'COMMON',
-        finalPrice: data.finalPrice,
-      });
-      fire();
+      enqueueWinner(data);
       refresh(200);
     });
 
@@ -731,7 +846,7 @@ export function AuctionDetailPage() {
         'auction.lot.added','auction.lots.bulk_added','auction.lot.deleted','auction.chat.message',
         'auction.bid.outbid','auction.lot.sold','auction.deleted'].forEach(e => socket.off(e));
     };
-  }, [id, queryClient, fire, navigate]);
+  }, [id, queryClient, enqueueWinner, navigate]);
 
   // Scroll chat
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [auction?.chatMessages?.length]);
@@ -782,9 +897,9 @@ export function AuctionDetailPage() {
   // ─── Render ───────────────────────────────────────────────────────────────
   if (isLoading) {
     return (
-      <div style={{ minHeight: '100vh', background: '#080b12', padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <Skeleton className="h-14 w-80" />
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16 }}>
+      <div style={{ minHeight: '100vh', background: '#080b12', padding: isPhone ? 12 : 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <Skeleton className={isPhone ? 'h-12 w-full' : 'h-14 w-80'} />
+        <div style={{ display: 'grid', gridTemplateColumns: isPhone ? '1fr' : 'repeat(3,1fr)', gap: 16 }}>
           {[1, 2, 3].map(i => <Skeleton key={i} className="h-72 rounded-2xl" />)}
         </div>
       </div>
@@ -799,9 +914,11 @@ export function AuctionDetailPage() {
   const STATUS_LABEL: Record<string, string> = { DRAFT: 'Черновик', ACTIVE: 'LIVE', COMPLETED: 'Завершён', CANCELLED: 'Отменён' };
   const STATUS_COLOR: Record<string, string> = { DRAFT: '#888', ACTIVE: '#4FCE8A', COMPLETED: '#FFD700', CANCELLED: '#ff6b6b' };
   const sc = STATUS_COLOR[auction.status] ?? '#888';
+  const lotGridTemplate = isPhone ? '1fr' : 'repeat(auto-fill,minmax(278px,1fr))';
+  const statsColumns = isPhone ? 'repeat(2,1fr)' : 'repeat(4,1fr)';
 
   return (
-    <div style={{ height: '100vh', background: '#080b12', color: '#e0e0e0', fontFamily: '"Trebuchet MS","Segoe UI",sans-serif', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <div style={{ minHeight: '100dvh', height: isMobile ? 'auto' : '100vh', background: '#080b12', color: '#e0e0e0', fontFamily: '"Trebuchet MS","Segoe UI",sans-serif', display: 'flex', flexDirection: 'column', overflow: isMobile ? 'auto' : 'hidden' }}>
 
       {/* Confetti canvas */}
       <canvas ref={canvasRef} style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 9998 }} />
@@ -828,11 +945,11 @@ export function AuctionDetailPage() {
       </AnimatePresence>
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div style={{ background: 'linear-gradient(180deg,#0c1020,rgba(8,11,18,0.97))', borderBottom: '1px solid rgba(255,215,0,0.09)', padding: '11px 22px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, gap: 12, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+      <div style={{ background: 'linear-gradient(180deg,#0c1020,rgba(8,11,18,0.97))', borderBottom: '1px solid rgba(255,215,0,0.09)', padding: isPhone ? '10px 12px' : '11px 22px', display: 'flex', alignItems: isPhone ? 'flex-start' : 'center', justifyContent: 'space-between', flexShrink: 0, gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: isPhone ? 'flex-start' : 'center', gap: isPhone ? 10 : 14, width: isPhone ? '100%' : 'auto' }}>
           <span style={{ fontSize: 28 }}>⚔️</span>
-          <div>
-            <div style={{ fontFamily: 'Georgia,serif', fontSize: 20, fontWeight: 800, color: '#fff' }}>{auction.title}</div>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontFamily: 'Georgia,serif', fontSize: isPhone ? 17 : 20, fontWeight: 800, color: '#fff', wordBreak: 'break-word' }}>{auction.title}</div>
             {auction.description && <div style={{ fontSize: 12, color: '#555', marginTop: 1 }}>{auction.description}</div>}
           </div>
           <div style={{ background: `${sc}18`, border: `1px solid ${sc}44`, borderRadius: 20, padding: '3px 12px', fontSize: 12, color: sc, fontWeight: 700, flexShrink: 0 }}>
@@ -840,25 +957,25 @@ export function AuctionDetailPage() {
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', width: isPhone ? '100%' : 'auto' }}>
           {!isParticipant && isActive && (
             <button onClick={() => joinMutation.mutate()} disabled={joinMutation.isPending}
-              style={{ background: 'linear-gradient(135deg,#FFD700,#FF8C00)', border: 'none', borderRadius: 9, padding: '9px 18px', color: '#000', fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>
+              style={{ background: 'linear-gradient(135deg,#FFD700,#FF8C00)', border: 'none', borderRadius: 9, padding: '9px 18px', color: '#000', fontWeight: 800, fontSize: 13, cursor: 'pointer', width: isPhone ? '100%' : 'auto' }}>
               👥 Присоединиться
             </button>
           )}
           {canManage && isDraft && (
             <>
               <button onClick={() => { setShowAddAll(false); setShowAddOne(true); }}
-                style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 9, padding: '9px 16px', color: '#ccc', cursor: 'pointer', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 9, padding: '9px 16px', color: '#ccc', cursor: 'pointer', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, width: isPhone ? '100%' : 'auto', justifyContent: 'center' }}>
                 ➕ Добавить лот
               </button>
               <button onClick={() => { setShowAddOne(false); setShowAddAll(true); }}
-                style={{ background: 'rgba(255,215,0,0.09)', border: '1px solid rgba(255,215,0,0.22)', borderRadius: 9, padding: '9px 16px', color: '#FFD700', cursor: 'pointer', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+                style={{ background: 'rgba(255,215,0,0.09)', border: '1px solid rgba(255,215,0,0.22)', borderRadius: 9, padding: '9px 16px', color: '#FFD700', cursor: 'pointer', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6, width: isPhone ? '100%' : 'auto', justifyContent: 'center' }}>
                 📦 Весь склад
               </button>
               <button onClick={() => startMutation.mutate()} disabled={startMutation.isPending || allLots.length === 0}
-                style={{ background: 'linear-gradient(135deg,#4FCE8A,#2da868)', border: 'none', borderRadius: 9, padding: '9px 18px', color: '#000', fontWeight: 800, fontSize: 13, cursor: 'pointer', opacity: allLots.length === 0 ? 0.5 : 1 }}>
+                style={{ background: 'linear-gradient(135deg,#4FCE8A,#2da868)', border: 'none', borderRadius: 9, padding: '9px 18px', color: '#000', fontWeight: 800, fontSize: 13, cursor: 'pointer', opacity: allLots.length === 0 ? 0.5 : 1, width: isPhone ? '100%' : 'auto' }}>
                 ▶ Запустить аукцион
               </button>
             </>
@@ -867,23 +984,40 @@ export function AuctionDetailPage() {
             <button
               onClick={() => deleteAuctionMutation.mutate()}
               disabled={deleteAuctionMutation.isPending}
-              style={{ background: 'rgba(255,107,107,0.14)', border: '1px solid rgba(255,107,107,0.36)', borderRadius: 9, padding: '9px 16px', color: '#ff8a8a', cursor: 'pointer', fontSize: 13, fontWeight: 700 }}
+              style={{ background: 'rgba(255,107,107,0.14)', border: '1px solid rgba(255,107,107,0.36)', borderRadius: 9, padding: '9px 16px', color: '#ff8a8a', cursor: 'pointer', fontSize: 13, fontWeight: 700, width: isPhone ? '100%' : 'auto' }}
             >
               🗑 Удалить аукцион
             </button>
           )}
         </div>
+
+        {userId && (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', width: isPhone ? '100%' : 'auto' }}>
+            <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 9, padding: '6px 10px', minWidth: 120 }}>
+              <div style={{ fontSize: 9, color: '#777', textTransform: 'uppercase', letterSpacing: 1.4 }}>Баланс</div>
+              <div style={{ fontSize: 13, color: '#FFD700', fontFamily: 'monospace', fontWeight: 800 }}>{fmtDkp(walletBalance)}</div>
+            </div>
+            <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 9, padding: '6px 10px', minWidth: 120 }}>
+              <div style={{ fontSize: 9, color: '#777', textTransform: 'uppercase', letterSpacing: 1.4 }}>Удержано</div>
+              <div style={{ fontSize: 13, color: '#ff9f43', fontFamily: 'monospace', fontWeight: 800 }}>{fmtDkp(walletOnHold)}</div>
+            </div>
+            <div style={{ background: 'rgba(79,206,138,0.08)', border: '1px solid rgba(79,206,138,0.28)', borderRadius: 9, padding: '6px 10px', minWidth: 140 }}>
+              <div style={{ fontSize: 9, color: '#6fbf8f', textTransform: 'uppercase', letterSpacing: 1.4 }}>Доступно для ставок</div>
+              <div style={{ fontSize: 13, color: '#4FCE8A', fontFamily: 'monospace', fontWeight: 900 }}>{fmtDkp(walletAvailable)}</div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── Stats bar ──────────────────────────────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', borderBottom: '1px solid rgba(255,255,255,0.05)', background: 'rgba(255,255,255,0.015)', flexShrink: 0 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: statsColumns, borderBottom: '1px solid rgba(255,255,255,0.05)', background: 'rgba(255,255,255,0.015)', flexShrink: 0 }}>
         {[
           { icon: '👥', val: auction.participants?.length ?? 0, label: 'Участников' },
           { icon: '🔥', val: `${activeLots.length}/${allLots.length}`, label: 'Активных лотов' },
           { icon: '⚡', val: totalBids, label: 'Ставок' },
           { icon: '👑', val: topBid > 0 ? fmtDkp(topBid) : '—', label: 'Топ ставка' },
         ].map((s, i) => (
-          <div key={i} style={{ padding: '10px 14px', borderRight: i < 3 ? '1px solid rgba(255,255,255,0.05)' : 'none', textAlign: 'center' }}>
+          <div key={i} style={{ padding: isPhone ? '9px 10px' : '10px 14px', borderRight: isPhone ? 'none' : i < 3 ? '1px solid rgba(255,255,255,0.05)' : 'none', borderBottom: isPhone && i < 2 ? '1px solid rgba(255,255,255,0.05)' : 'none', textAlign: 'center' }}>
             <div style={{ fontSize: 18 }}>{s.icon}</div>
             <div style={{ fontSize: 17, fontWeight: 800, color: '#fff', fontFamily: 'monospace', lineHeight: 1.2 }}>{s.val}</div>
             <div style={{ fontSize: 10, color: '#555', textTransform: 'uppercase', letterSpacing: 1.5 }}>{s.label}</div>
@@ -892,19 +1026,34 @@ export function AuctionDetailPage() {
       </div>
 
       {/* ── Body ───────────────────────────────────────────────────────────── */}
-      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 480px', minHeight: 0 }}>
+      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 480px', minHeight: 0 }}>
 
         {/* Lots area */}
-        <div style={{ overflowY: 'auto', padding: 18 }}>
+        <div style={{ overflowY: 'auto', padding: isPhone ? 10 : 18 }}>
           {myLots.length > 0 && (
             <div style={{ marginBottom: 20, padding: 14, borderRadius: 14, border: '1px solid rgba(255,215,0,0.18)', background: 'linear-gradient(180deg,rgba(255,215,0,0.05),rgba(255,215,0,0.015))' }}>
               <div style={{ fontSize: 11, color: '#FFD700', textTransform: 'uppercase', letterSpacing: 2.5, marginBottom: 12 }}>
                 Мои лоты в приоритете ({myLots.length})
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(278px,1fr))', gap: 14 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: lotGridTemplate, gap: 14 }}>
                 <AnimatePresence>
                   {myLots.map((lot: Lot) => (
-                    <LotCard key={`my-${lot.id}`} lot={lot} auctionId={id!} clanId={clanId} userId={userId} isParticipant={!!isParticipant} canManage={canManage} isDraft={isDraft} />
+                    <LotCard key={`my-${lot.id}`} lot={lot} auctionId={id!} clanId={clanId} userId={userId} isParticipant={!!isParticipant} canManage={canManage} isDraft={isDraft} isFavorite={favoriteLotIdSet.has(lot.id)} onToggleFavorite={toggleFavoriteLot} />
+                  ))}
+                </AnimatePresence>
+              </div>
+            </div>
+          )}
+
+          {favoriteLots.length > 0 && (
+            <div style={{ marginBottom: 20, padding: 14, borderRadius: 14, border: '1px solid rgba(255,215,0,0.18)', background: 'linear-gradient(180deg,rgba(255,215,0,0.04),rgba(255,215,0,0.01))' }}>
+              <div style={{ fontSize: 11, color: '#FFD700', textTransform: 'uppercase', letterSpacing: 2.5, marginBottom: 12 }}>
+                Избранные лоты ({favoriteLots.length})
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: lotGridTemplate, gap: 14 }}>
+                <AnimatePresence>
+                  {favoriteLots.map((lot: Lot) => (
+                    <LotCard key={`fav-${lot.id}`} lot={lot} auctionId={id!} clanId={clanId} userId={userId} isParticipant={!!isParticipant} canManage={canManage} isDraft={isDraft} isFavorite={favoriteLotIdSet.has(lot.id)} onToggleFavorite={toggleFavoriteLot} />
                   ))}
                 </AnimatePresence>
               </div>
@@ -918,9 +1067,9 @@ export function AuctionDetailPage() {
               <div style={{ fontSize: 20, fontWeight: 700, color: '#fff', fontFamily: 'Georgia,serif' }}>Добавьте лоты для аукциона</div>
               <div style={{ fontSize: 14, color: '#666' }}>Добавьте предметы по одному или выгрузите весь склад</div>
               {canManage && (
-                <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
-                  <button onClick={() => setShowAddOne(true)} style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 10, padding: '10px 20px', color: '#ccc', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>➕ Один лот</button>
-                  <button onClick={() => setShowAddAll(true)} style={{ background: 'rgba(255,215,0,0.09)', border: '1px solid rgba(255,215,0,0.22)', borderRadius: 10, padding: '10px 20px', color: '#FFD700', cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>📦 Весь склад</button>
+                <div style={{ display: 'flex', flexDirection: isPhone ? 'column' : 'row', width: isPhone ? '100%' : 'auto', gap: 10, marginTop: 8 }}>
+                  <button onClick={() => setShowAddOne(true)} style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 10, padding: '10px 20px', color: '#ccc', cursor: 'pointer', fontSize: 13, fontWeight: 600, width: isPhone ? '100%' : 'auto' }}>➕ Один лот</button>
+                  <button onClick={() => setShowAddAll(true)} style={{ background: 'rgba(255,215,0,0.09)', border: '1px solid rgba(255,215,0,0.22)', borderRadius: 10, padding: '10px 20px', color: '#FFD700', cursor: 'pointer', fontSize: 13, fontWeight: 700, width: isPhone ? '100%' : 'auto' }}>📦 Весь склад</button>
                 </div>
               )}
             </div>
@@ -932,10 +1081,10 @@ export function AuctionDetailPage() {
               <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: 2.5, marginBottom: 12 }}>
                 Ожидают старта ({pendingLotsMain.length})
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(278px,1fr))', gap: 14 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: lotGridTemplate, gap: 14 }}>
                 <AnimatePresence>
                   {pendingLotsMain.map((lot: Lot) => (
-                    <LotCard key={lot.id} lot={lot} auctionId={id!} clanId={clanId} userId={userId} isParticipant={!!isParticipant} canManage={canManage} isDraft={isDraft} />
+                    <LotCard key={lot.id} lot={lot} auctionId={id!} clanId={clanId} userId={userId} isParticipant={!!isParticipant} canManage={canManage} isDraft={isDraft} isFavorite={favoriteLotIdSet.has(lot.id)} onToggleFavorite={toggleFavoriteLot} />
                   ))}
                 </AnimatePresence>
               </div>
@@ -949,10 +1098,10 @@ export function AuctionDetailPage() {
                 <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#4FCE8A', display: 'inline-block', animation: 'auc-livePulse 1.5s infinite' }} />
                 Активные лоты ({activeLotsMain.length})
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(278px,1fr))', gap: 14 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: lotGridTemplate, gap: 14 }}>
                 <AnimatePresence>
                   {activeLotsMain.map((lot: Lot) => (
-                    <LotCard key={lot.id} lot={lot} auctionId={id!} clanId={clanId} userId={userId} isParticipant={!!isParticipant} canManage={canManage} isDraft={isDraft} />
+                    <LotCard key={lot.id} lot={lot} auctionId={id!} clanId={clanId} userId={userId} isParticipant={!!isParticipant} canManage={canManage} isDraft={isDraft} isFavorite={favoriteLotIdSet.has(lot.id)} onToggleFavorite={toggleFavoriteLot} />
                   ))}
                 </AnimatePresence>
               </div>
@@ -966,12 +1115,12 @@ export function AuctionDetailPage() {
               {finishedLotsMain.map((lot: Lot) => {
                 const r = rc(lot.warehouseItem?.rarity || lot.itemRarity || undefined);
                 return (
-                  <div key={lot.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'rgba(79,206,138,0.04)', border: '1px solid rgba(79,206,138,0.14)', borderRadius: 12, marginBottom: 8, gap: 12 }}>
+                  <div key={lot.id} style={{ display: 'flex', flexDirection: isPhone ? 'column' : 'row', alignItems: isPhone ? 'flex-start' : 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'rgba(79,206,138,0.04)', border: '1px solid rgba(79,206,138,0.14)', borderRadius: 12, marginBottom: 8, gap: 12 }}>
                     <div>
                       <span style={{ fontSize: 14, fontWeight: 700, color: '#aaa', fontFamily: 'Georgia,serif' }}>{lot.warehouseItem?.name || lot.itemName || 'Предмет'}</span>
                       <span style={{ marginLeft: 8, fontSize: 11, color: r.color }}>{r.label}</span>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, width: isPhone ? '100%' : 'auto', justifyContent: isPhone ? 'space-between' : 'flex-start' }}>
                       {lot.result?.winner && (
                         <span style={{ fontSize: 13, color: '#4FCE8A' }}>
                           👑 <ChampionNickname nickname={lot.result.winner.profile?.nickname} isChampion={lot.result.winner.profile?.isServerChampion} />
@@ -1001,13 +1150,13 @@ export function AuctionDetailPage() {
         </div>
 
         {/* ── Sidebar ──────────────────────────────────────────────────────── */}
-        <div style={{ borderLeft: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', background: '#090c15', minHeight: 0 }}>
+        <div style={{ borderLeft: isMobile ? 'none' : '1px solid rgba(255,255,255,0.06)', borderTop: isMobile ? '1px solid rgba(255,255,255,0.06)' : 'none', display: 'flex', flexDirection: 'column', background: '#090c15', minHeight: 0, maxHeight: isMobile ? '52vh' : 'none' }}>
 
           {/* Tabs */}
           <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
-            {(['lots', 'chat', 'members'] as const).map(t => (
-              <button key={t} onClick={() => setSidebarTab(t)} style={{ flex: 1, padding: '14px 0', background: 'none', border: 'none', fontSize: 12, color: sidebarTab === t ? '#FFD700' : '#555', fontWeight: sidebarTab === t ? 700 : 400, borderBottom: `2px solid ${sidebarTab === t ? '#FFD700' : 'transparent'}`, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: 1.5, transition: 'all 0.2s' }}>
-                {t === 'lots' ? '🗂 Лоты' : t === 'chat' ? '💬 Чат' : '👥 Состав'}
+            {(['lots', 'favorites', 'chat', 'members'] as const).map(t => (
+              <button key={t} onClick={() => setSidebarTab(t)} style={{ flex: 1, padding: isPhone ? '11px 0' : '14px 0', background: 'none', border: 'none', fontSize: isPhone ? 11 : 12, color: sidebarTab === t ? '#FFD700' : '#555', fontWeight: sidebarTab === t ? 700 : 400, borderBottom: `2px solid ${sidebarTab === t ? '#FFD700' : 'transparent'}`, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: isPhone ? 1.1 : 1.5, transition: 'all 0.2s' }}>
+                {t === 'lots' ? '🗂 Лоты' : t === 'favorites' ? '⭐ Избр.' : t === 'chat' ? '💬 Чат' : '👥 Состав'}
               </button>
             ))}
           </div>
@@ -1037,6 +1186,43 @@ export function AuctionDetailPage() {
             </div>
           )}
 
+          {/* Tab: Favorites */}
+          {sidebarTab === 'favorites' && (
+            <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {favoriteLots.length === 0 && (
+                <div style={{ fontSize: 13, color: '#777', padding: '10px 4px' }}>
+                  Нет избранных лотов. Нажмите ☆ на карточке лота.
+                </div>
+              )}
+              {favoriteLots.map((lot: Lot) => {
+                const r = rc(lot.warehouseItem?.rarity || lot.itemRarity || undefined);
+                const price = Number(lot.currentPrice ?? lot.startPrice);
+                const done = lot.status === 'SOLD' || lot.status === 'UNSOLD';
+                return (
+                  <div key={`sidebar-fav-${lot.id}`} style={{ padding: '12px 15px', background: done ? 'rgba(79,206,138,0.04)' : 'rgba(255,255,255,0.025)', borderRadius: 11, borderLeft: `3px solid ${lot.status === 'SOLD' ? '#4FCE8A' : lot.status === 'ACTIVE' ? r.color : '#333'}` }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: '#ddd', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {lot.warehouseItem?.name || lot.itemName || 'Предмет'}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => toggleFavoriteLot(lot.id)}
+                        title="Убрать из избранного"
+                        style={{ background: 'none', border: 'none', color: '#FFD700', cursor: 'pointer', fontSize: 15, padding: 0 }}
+                      >
+                        ★
+                      </button>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 5, alignItems: 'center' }}>
+                      <span style={{ fontSize: 12, color: r.color }}>{r.label} · x{lot.quantity}</span>
+                      <span style={{ fontSize: 14, fontFamily: 'monospace', fontWeight: 700, color: done ? '#4FCE8A' : '#FFD700' }}>{fmtDkp(price)}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
           {/* Tab: Chat */}
           {sidebarTab === 'chat' && (
             <>
@@ -1059,7 +1245,7 @@ export function AuctionDetailPage() {
                   <input value={chatInput} onChange={e => setChatInput(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter' && chatInput.trim()) chatMutation.mutate(); }}
                     placeholder="Написать в чат..."
-                    style={{ flex: 1, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 9, padding: '11px 14px', color: '#fff', fontSize: 14, outline: 'none' }} />
+                    style={{ flex: 1, minWidth: 0, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 9, padding: '11px 14px', color: '#fff', fontSize: 14, outline: 'none' }} />
                   <button onClick={() => chatMutation.mutate()} disabled={!chatInput.trim() || chatMutation.isPending}
                     style={{ background: '#FFD700', border: 'none', borderRadius: 9, padding: '11px 16px', cursor: 'pointer', fontWeight: 800, fontSize: 14, color: '#000', opacity: chatInput.trim() ? 1 : 0.5 }}>▶</button>
                 </div>

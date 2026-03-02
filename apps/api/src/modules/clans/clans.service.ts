@@ -4,7 +4,7 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 import { SocketGateway } from '../../common/socket/socket.gateway';
 import { RedisService } from '../../common/redis/redis.service';
 import { PaginationDto, PaginatedResponse } from '../../common/dto/pagination.dto';
-import { ClanRole, NotificationType } from '@prisma/client';
+import { ClanRole, DkpTransactionType, NotificationType } from '@prisma/client';
 import { NotificationsService } from '../notifications/notifications.service';
 
 type BossTrackerBoss = {
@@ -16,9 +16,27 @@ type BossTrackerBoss = {
   emoji: string;
 };
 
+type BossTrackerFloor = {
+  id: number;
+  name: string;
+  bosses: BossTrackerBoss[];
+};
+
+type BossTrackerLocation = {
+  id: number;
+  name: string;
+  floors: BossTrackerFloor[];
+  bosses: BossTrackerBoss[];
+};
+
 type BossTrackerState = {
   bosses: BossTrackerBoss[];
   nextId: number;
+  locations?: BossTrackerLocation[];
+  nextLocationId?: number;
+  nextFloorId?: number;
+  nextBossId?: number;
+  activeLocId?: number | null;
   updatedAt: number;
   respawnNotifiedCycles?: Record<string, number>;
 };
@@ -26,6 +44,19 @@ type BossTrackerState = {
 @Injectable()
 export class ClansService {
   private readonly logger = new Logger(ClansService.name);
+  private static readonly EARNED_TRANSACTION_TYPES: DkpTransactionType[] = [
+    DkpTransactionType.ACTIVITY_REWARD,
+    DkpTransactionType.ADMIN_ADJUST,
+    DkpTransactionType.MANUAL_CREDIT,
+  ];
+  // Final spend only; hold place/release are technical and excluded.
+  private static readonly SPENT_TRANSACTION_TYPES: DkpTransactionType[] = [
+    DkpTransactionType.AUCTION_WIN,
+    DkpTransactionType.HOLD_FINALIZE,
+    DkpTransactionType.FORTUNE_SPIN,
+    DkpTransactionType.SLOT_BET,
+    DkpTransactionType.MANUAL_DEBIT,
+  ];
 
   constructor(
     private readonly prisma: PrismaService,
@@ -49,16 +80,102 @@ export class ClansService {
     return `boss-tracker:clan:${clanId}`;
   }
 
+  private sanitizeBossTrackerBoss(boss: BossTrackerBoss): BossTrackerBoss {
+    return {
+      id: Number(boss.id),
+      name: String(boss.name || '').trim(),
+      location: String(boss.location || '').trim(),
+      respawnSeconds: Math.max(0, Number(boss.respawnSeconds || 0)),
+      killedAt: boss.killedAt === null ? null : Number(boss.killedAt),
+      emoji: String(boss.emoji || '\uD83D\uDC09'),
+    };
+  }
+
+  private isValidBossTrackerBoss(boss: BossTrackerBoss): boolean {
+    return (
+      Number.isFinite(boss.id) &&
+      !!boss.name &&
+      Number.isFinite(boss.respawnSeconds) &&
+      Number.isInteger(boss.respawnSeconds) &&
+      boss.respawnSeconds > 0 &&
+      (boss.killedAt === null || Number.isFinite(boss.killedAt))
+    );
+  }
+
   private async readBossTrackerState(clanId: string): Promise<BossTrackerState | null> {
     const raw = await this.redis.get(this.getBossTrackerRedisKey(clanId));
     if (!raw) return null;
 
     try {
       const parsed = JSON.parse(raw) as BossTrackerState;
-      if (!Array.isArray(parsed.bosses) || typeof parsed.nextId !== 'number') return null;
+
+      const parsedLocations = Array.isArray(parsed.locations)
+        ? parsed.locations.map((loc) => ({
+          id: Number(loc.id),
+          name: String(loc.name || '').trim(),
+          floors: Array.isArray(loc.floors)
+            ? loc.floors.map((floor) => ({
+              id: Number(floor.id),
+              name: String(floor.name || '').trim(),
+              bosses: (floor.bosses || [])
+                .map((boss) => this.sanitizeBossTrackerBoss(boss))
+                .filter((boss) => this.isValidBossTrackerBoss(boss)),
+            }))
+            : [],
+          bosses: (loc.bosses || [])
+            .map((boss) => this.sanitizeBossTrackerBoss(boss))
+            .filter((boss) => this.isValidBossTrackerBoss(boss)),
+        }))
+        : [];
+
+      const normalizedBossesFromLocations = parsedLocations.flatMap((loc) => [
+        ...loc.bosses,
+        ...loc.floors.flatMap((floor) => floor.bosses),
+      ]);
+
+      const normalizedBosses = Array.isArray(parsed.bosses)
+        ? parsed.bosses
+          .map((boss) => this.sanitizeBossTrackerBoss(boss))
+          .filter((boss) => this.isValidBossTrackerBoss(boss))
+        : normalizedBossesFromLocations;
+
+      if (!Array.isArray(parsed.bosses) && parsedLocations.length === 0) return null;
+
+      const currentMaxBossId = normalizedBosses.reduce((max, boss) => Math.max(max, boss.id), 0);
+      const normalizedNextId =
+        Number.isFinite(parsed.nextId) && parsed.nextId > currentMaxBossId
+          ? Math.floor(parsed.nextId)
+          : currentMaxBossId + 1;
+
+      const currentMaxLocationId = parsedLocations.reduce((max, loc) => Math.max(max, loc.id), 0);
+      const currentMaxFloorId = parsedLocations.reduce(
+        (max, loc) => Math.max(max, ...loc.floors.map((floor) => floor.id), 0),
+        0,
+      );
+      const parsedNextLocationId = Number(parsed.nextLocationId);
+      const parsedNextFloorId = Number(parsed.nextFloorId);
+      const parsedNextBossId = Number(parsed.nextBossId);
+
       return {
-        bosses: parsed.bosses,
-        nextId: parsed.nextId,
+        bosses: normalizedBosses,
+        nextId: normalizedNextId,
+        locations: parsedLocations,
+        nextLocationId:
+          Number.isFinite(parsedNextLocationId) && parsedNextLocationId > currentMaxLocationId
+            ? Math.floor(parsedNextLocationId)
+            : currentMaxLocationId + 1,
+        nextFloorId:
+          Number.isFinite(parsedNextFloorId) && parsedNextFloorId > currentMaxFloorId
+            ? Math.floor(parsedNextFloorId)
+            : currentMaxFloorId + 1,
+        nextBossId:
+          Number.isFinite(parsedNextBossId) && parsedNextBossId > currentMaxBossId
+            ? Math.floor(parsedNextBossId)
+            : normalizedNextId,
+        activeLocId:
+          parsed.activeLocId === null || Number.isFinite(parsed.activeLocId)
+            ? (parsed.activeLocId as number | null)
+            : (parsedLocations[0]?.id ?? null),
         updatedAt: typeof parsed.updatedAt === 'number' ? parsed.updatedAt : Date.now(),
         respawnNotifiedCycles:
           parsed.respawnNotifiedCycles && typeof parsed.respawnNotifiedCycles === 'object'
@@ -383,11 +500,14 @@ export class ClansService {
   }
 
   async getClanReport(clanId: string, from?: string, to?: string) {
+    const startDate = from ? new Date(`${from}T00:00:00.000Z`) : undefined;
+    const endDate = to ? new Date(`${to}T23:59:59.999Z`) : undefined;
+
     const dateFilter: Record<string, unknown> = {};
-    if (from || to) {
+    if (startDate || endDate) {
       dateFilter['createdAt'] = {
-        ...(from ? { gte: new Date(from) } : {}),
-        ...(to ? { lte: new Date(to) } : {}),
+        ...(startDate ? { gte: startDate } : {}),
+        ...(endDate ? { lte: endDate } : {}),
       };
     }
 
@@ -399,7 +519,7 @@ export class ClansService {
 
     const userIds = members.map((m) => m.userId);
 
-    const [activityParts, transactions, penalties, bids, randomizerWins] = await Promise.all([
+    const [activityParts, transactions, penalties, bids, lotWins, randomizerWins, fortuneWins] = await Promise.all([
       this.prisma.activityParticipant.findMany({
         where: { userId: { in: userIds }, ...(from || to ? { joinedAt: dateFilter['createdAt'] as any } : {}) },
         include: { activity: { select: { id: true, title: true, type: true } } },
@@ -414,11 +534,74 @@ export class ClansService {
         where: { userId: { in: userIds }, ...dateFilter },
         include: { lot: { include: { result: true } } },
       }),
+      this.prisma.lotResult.findMany({
+        where: {
+          winnerId: { in: userIds },
+          status: 'SOLD',
+          ...dateFilter,
+          lot: {
+            auction: {
+              clanId,
+              deletedAt: null,
+            },
+          },
+        },
+        include: {
+          lot: {
+            include: {
+              auction: { select: { id: true, title: true } },
+              warehouseItem: { select: { id: true, name: true, rarity: true } },
+            },
+          },
+        },
+      }),
       this.prisma.randomizerResult.findMany({
-        where: { winnerId: { in: userIds }, ...dateFilter },
-        include: { session: true },
+        where: {
+          winnerId: { in: userIds },
+          ...dateFilter,
+          session: { clanId },
+        },
+        include: {
+          session: {
+            select: {
+              id: true,
+              clanId: true,
+              warehouseItemId: true,
+            },
+          },
+        },
+      }),
+      this.prisma.fortuneSpin.findMany({
+        where: {
+          clanId,
+          userId: { in: userIds },
+          wonItemId: { not: null },
+          ...dateFilter,
+        },
+        include: {
+          wonItem: { select: { id: true, name: true, rarity: true } },
+        },
       }),
     ]);
+
+    const randomizerItemIds = [...new Set(randomizerWins.map((win) => win.session.warehouseItemId))];
+    const randomizerItems = randomizerItemIds.length > 0
+      ? await this.prisma.warehouseItem.findMany({
+        where: { id: { in: randomizerItemIds } },
+        select: { id: true, name: true, rarity: true },
+      })
+      : [];
+    const randomizerItemMap = new Map(randomizerItems.map((item) => [item.id, item]));
+
+    const memberMap = new Map(
+      members.map((member) => [
+        member.userId,
+        {
+          nickname: member.user.profile?.nickname || 'вЂ”',
+          displayName: member.user.profile?.displayName || null,
+        },
+      ]),
+    );
 
     const report = members.map((m) => {
       const userId = m.userId;
@@ -426,20 +609,21 @@ export class ClansService {
       const userPenalties = penalties.filter((p) => p.userId === userId);
       const userActivities = activityParts.filter((a) => a.userId === userId);
       const userBids = bids.filter((b) => b.userId === userId);
-      const userWonLots = userBids.filter((b) => b.lot?.result?.winnerId === userId);
+      const userWonLots = lotWins.filter((win) => win.winnerId === userId);
       const userRandomizerWins = randomizerWins.filter((r) => r.winnerId === userId);
+      const userFortuneWins = fortuneWins.filter((win) => win.userId === userId);
 
       const dkpEarned = userTxs
-        .filter((t) => Number(t.amount) > 0)
+        .filter((t) => Number(t.amount) > 0 && ClansService.EARNED_TRANSACTION_TYPES.includes(t.type))
         .reduce((sum, t) => sum + Number(t.amount), 0);
       const dkpSpent = userTxs
-        .filter((t) => Number(t.amount) < 0)
+        .filter((t) => Number(t.amount) < 0 && ClansService.SPENT_TRANSACTION_TYPES.includes(t.type))
         .reduce((sum, t) => sum + Math.abs(Number(t.amount)), 0);
       const penaltyTotal = userPenalties.reduce((sum, p) => sum + Number(p.amount), 0);
 
       return {
         userId,
-        nickname: m.user.profile?.nickname || '—',
+        nickname: m.user.profile?.nickname || 'вЂ”',
         displayName: m.user.profile?.displayName,
         role: m.role,
         bm: m.user.profile?.bm || 0,
@@ -452,9 +636,70 @@ export class ClansService {
         penaltyTotal: Math.round(penaltyTotal * 100) / 100,
         auctionBidsCount: userBids.length,
         auctionWinsCount: userWonLots.length,
-        itemsReceived: userWonLots.length + userRandomizerWins.length,
+        randomizerWinsCount: userRandomizerWins.length,
+        fortuneWinsCount: userFortuneWins.length,
+        itemsReceived: userWonLots.length + userRandomizerWins.length + userFortuneWins.length,
       };
     });
+
+    const wins = [
+      ...lotWins.map((win) => {
+        const winner = memberMap.get(win.winnerId || '');
+        return {
+          id: win.id,
+          source: 'AUCTION' as const,
+          wonAt: win.createdAt,
+          userId: win.winnerId,
+          nickname: winner?.nickname || 'вЂ”',
+          displayName: winner?.displayName || null,
+          itemName: win.lot.warehouseItem?.name || win.lot.itemName || 'Предмет',
+          itemRarity: win.lot.warehouseItem?.rarity || win.lot.itemRarity || null,
+          quantity: win.lot.quantity,
+          details: {
+            auctionId: win.lot.auctionId,
+            auctionTitle: win.lot.auction?.title || 'Аукцион',
+            lotId: win.lotId,
+            finalPrice: win.finalPrice ? Number(win.finalPrice) : null,
+          },
+        };
+      }),
+      ...randomizerWins.map((win) => {
+        const winner = memberMap.get(win.winnerId);
+        const item = randomizerItemMap.get(win.session.warehouseItemId);
+        return {
+          id: win.id,
+          source: 'RANDOMIZER' as const,
+          wonAt: win.createdAt,
+          userId: win.winnerId,
+          nickname: winner?.nickname || 'вЂ”',
+          displayName: winner?.displayName || null,
+          itemName: item?.name || 'Предмет',
+          itemRarity: item?.rarity || null,
+          quantity: 1,
+          details: {
+            sessionId: win.sessionId,
+          },
+        };
+      }),
+      ...fortuneWins.map((win) => {
+        const winner = memberMap.get(win.userId);
+        return {
+          id: win.id,
+          source: 'FORTUNE' as const,
+          wonAt: win.createdAt,
+          userId: win.userId,
+          nickname: winner?.nickname || 'вЂ”',
+          displayName: winner?.displayName || null,
+          itemName: win.wonItem?.name || 'Предмет',
+          itemRarity: win.wonItem?.rarity || win.wonRarity,
+          quantity: 1,
+          details: {
+            bet: win.bet,
+            rarity: win.wonRarity,
+          },
+        };
+      }),
+    ].sort((a, b) => +new Date(b.wonAt) - +new Date(a.wonAt));
 
     return {
       clanId,
@@ -463,6 +708,13 @@ export class ClansService {
       generatedAt: new Date().toISOString(),
       membersCount: members.length,
       report,
+      wins,
+      winsSummary: {
+        auction: lotWins.length,
+        randomizer: randomizerWins.length,
+        fortune: fortuneWins.length,
+        total: wins.length,
+      },
     };
   }
 
@@ -642,50 +894,118 @@ export class ClansService {
     const state = await this.readBossTrackerState(clanId);
 
     if (!state) {
-      return { bosses: [], nextId: 1, updatedAt: null };
+      return {
+        bosses: [],
+        nextId: 1,
+        locations: [],
+        nextLocationId: 1,
+        nextFloorId: 1,
+        nextBossId: 1,
+        activeLocId: null,
+        updatedAt: null,
+      };
     }
 
     return state;
   }
 
-  async saveBossTrackerState(clanId: string, userId: string, bosses: BossTrackerBoss[], nextId: number) {
+  async saveBossTrackerState(
+    clanId: string,
+    userId: string,
+    bosses: BossTrackerBoss[],
+    nextId: number,
+    locations?: BossTrackerLocation[],
+    nextLocationId?: number,
+    nextFloorId?: number,
+    nextBossId?: number,
+    activeLocId?: number | null,
+  ) {
     await this.ensureActiveMember(clanId, userId);
 
     if (!Array.isArray(bosses)) {
       throw new BadRequestException('Bosses must be an array');
     }
 
-    const sanitizedBosses = bosses.map((boss) => ({
-      id: Number(boss.id),
-      name: String(boss.name || '').trim(),
-      location: String(boss.location || '').trim(),
-      respawnSeconds: Math.max(0, Number(boss.respawnSeconds || 0)),
-      killedAt: boss.killedAt === null ? null : Number(boss.killedAt),
-      emoji: String(boss.emoji || '🐉'),
-    }));
+    const hasStructuredLocations = Array.isArray(locations);
+    const sanitizedLocations: BossTrackerLocation[] = hasStructuredLocations
+      ? locations.map((loc) => ({
+        id: Number(loc.id),
+        name: String(loc.name || '').trim(),
+        floors: Array.isArray(loc.floors)
+          ? loc.floors.map((floor) => ({
+            id: Number(floor.id),
+            name: String(floor.name || '').trim(),
+            bosses: (floor.bosses || []).map((boss) => this.sanitizeBossTrackerBoss(boss)),
+          }))
+          : [],
+        bosses: (loc.bosses || []).map((boss) => this.sanitizeBossTrackerBoss(boss)),
+      }))
+      : [];
 
-    const invalid = sanitizedBosses.some(
-      (boss) =>
-        !Number.isFinite(boss.id) ||
-        !boss.name ||
-        !Number.isFinite(boss.respawnSeconds) ||
-        !Number.isInteger(boss.respawnSeconds) ||
-        boss.respawnSeconds <= 0 ||
-        (boss.killedAt !== null && !Number.isFinite(boss.killedAt)),
-    );
+    const sanitizedBosses = hasStructuredLocations
+      ? sanitizedLocations.flatMap((loc) => [
+        ...loc.bosses,
+        ...loc.floors.flatMap((floor) => floor.bosses),
+      ])
+      : bosses.map((boss) => this.sanitizeBossTrackerBoss(boss));
 
-    if (invalid) {
+    const invalidBoss = sanitizedBosses.some((boss) => !this.isValidBossTrackerBoss(boss));
+    const invalidLocation =
+      hasStructuredLocations &&
+      sanitizedLocations.some(
+        (loc) =>
+          !Number.isFinite(loc.id) ||
+          !loc.name ||
+          loc.floors.some(
+            (floor) =>
+              !Number.isFinite(floor.id) ||
+              !floor.name ||
+              floor.bosses.some((boss) => !this.isValidBossTrackerBoss(boss)),
+          ) ||
+          loc.bosses.some((boss) => !this.isValidBossTrackerBoss(boss)),
+      );
+
+    if (invalidBoss || invalidLocation) {
       throw new BadRequestException('Invalid boss tracker payload');
     }
 
     const currentMaxId = sanitizedBosses.reduce((max, boss) => Math.max(max, boss.id), 0);
-    const normalizedNextId = Number.isFinite(nextId) && nextId > currentMaxId ? Math.floor(nextId) : currentMaxId + 1;
+    const nextBossCandidate = Number(nextBossId ?? nextId);
+    const normalizedNextId =
+      Number.isFinite(nextBossCandidate) && nextBossCandidate > currentMaxId
+        ? Math.floor(nextBossCandidate)
+        : currentMaxId + 1;
 
     const existingState = await this.readBossTrackerState(clanId);
+    const maxLocationId = sanitizedLocations.reduce((max, loc) => Math.max(max, loc.id), 0);
+    const maxFloorId = sanitizedLocations.reduce(
+      (max, loc) => Math.max(max, ...loc.floors.map((floor) => floor.id), 0),
+      0,
+    );
+    const normalizedNextLocationId = hasStructuredLocations
+      ? (Number.isFinite(nextLocationId) && Number(nextLocationId) > maxLocationId
+        ? Math.floor(Number(nextLocationId))
+        : maxLocationId + 1)
+      : existingState?.nextLocationId;
+    const normalizedNextFloorId = hasStructuredLocations
+      ? (Number.isFinite(nextFloorId) && Number(nextFloorId) > maxFloorId
+        ? Math.floor(Number(nextFloorId))
+        : maxFloorId + 1)
+      : existingState?.nextFloorId;
+    const normalizedActiveLocId = hasStructuredLocations
+      ? (activeLocId === null || Number.isFinite(activeLocId)
+        ? (activeLocId as number | null)
+        : (sanitizedLocations[0]?.id ?? null))
+      : existingState?.activeLocId;
 
     const state: BossTrackerState = {
       bosses: sanitizedBosses,
       nextId: normalizedNextId,
+      locations: hasStructuredLocations ? sanitizedLocations : existingState?.locations,
+      nextLocationId: normalizedNextLocationId,
+      nextFloorId: normalizedNextFloorId,
+      nextBossId: normalizedNextId,
+      activeLocId: normalizedActiveLocId,
       updatedAt: Date.now(),
       respawnNotifiedCycles: existingState?.respawnNotifiedCycles || {},
     };
@@ -700,3 +1020,4 @@ export class ClansService {
     return state;
   }
 }
+

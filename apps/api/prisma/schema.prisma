@@ -38,6 +38,9 @@ enum DkpTransactionType {
   HOLD_FINALIZE
   MANUAL_CREDIT
   MANUAL_DEBIT
+  FORTUNE_SPIN
+  SLOT_BET
+  SLOT_WIN
 }
 
 enum DkpHoldStatus {
@@ -102,6 +105,7 @@ enum WarehouseMovementType {
   OUTGOING_RANDOMIZER
   RETURN
   WRITE_OFF
+  FORTUNE_WIN
 }
 
 enum NotificationType {
@@ -176,6 +180,8 @@ model User {
   sentMessages     DirectMessage[]  @relation("MessageSender")
   receivedMessages DirectMessage[]  @relation("MessageReceiver")
   lotResults       LotResult[]
+  fortuneSpins     FortuneSpin[]
+  slotSpins        SlotSpin[]
 
   @@map("users")
 }
@@ -257,6 +263,8 @@ model Clan {
   randomizerSessions RandomizerSession[]
   newsPosts    NewsPost[]
   feedPosts    FeedPost[]
+  fortuneSpins FortuneSpin[]
+  slotSpins    SlotSpin[]
 
   @@map("clans")
 }
@@ -468,6 +476,7 @@ model WarehouseItem {
   name        String
   description String?
   quantity    Int        @default(0)
+  availableInFortune Boolean @default(false) @map("available_in_fortune")
   rarity      ItemRarity @default(COMMON)
   imageUrl    String?    @map("image_url")
   dkpPrice    Decimal?   @map("dkp_price") @db.Decimal(12, 2)
@@ -479,9 +488,50 @@ model WarehouseItem {
   clan      Clan                    @relation(fields: [clanId], references: [id], onDelete: Cascade)
   movements WarehouseItemMovement[]
   lots      Lot[]
+  fortuneSpins FortuneSpin[]
 
   @@index([clanId])
   @@map("warehouse_items")
+}
+
+model FortuneSpin {
+  id        String     @id @default(uuid()) @db.Uuid
+  userId    String     @map("user_id") @db.Uuid
+  clanId    String     @map("clan_id") @db.Uuid
+  bet       Int
+  wonItemId String?    @map("won_item_id") @db.Uuid
+  wonRarity ItemRarity @map("won_rarity")
+  dkpSpent  Int        @map("dkp_spent")
+  spinHash  String     @map("spin_hash")
+  seed      String
+  createdAt DateTime   @default(now()) @map("created_at")
+
+  user    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clan    Clan          @relation(fields: [clanId], references: [id], onDelete: Cascade)
+  wonItem WarehouseItem? @relation(fields: [wonItemId], references: [id], onDelete: SetNull)
+
+  @@index([clanId, createdAt])
+  @@index([userId, createdAt])
+  @@map("fortune_spins")
+}
+
+model SlotSpin {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  clanId     String   @map("clan_id") @db.Uuid
+  tier       String
+  multiplier Float
+  payout     Float
+  seed       String
+  spinHash   String   @map("spin_hash")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clan Clan @relation(fields: [clanId], references: [id], onDelete: Cascade)
+
+  @@index([clanId, createdAt])
+  @@index([userId, createdAt])
+  @@map("slot_spins")
 }
 
 model WarehouseItemMovement {

@@ -19,6 +19,8 @@ import { AdminModule } from './modules/admin/admin.module';
 import { HealthModule } from './modules/health/health.module';
 import { MessagesModule } from './modules/messages/messages.module';
 import { SearchModule } from './modules/search/search.module';
+import { FortuneModule } from './modules/fortune/fortune.module';
+import { SlotsModule } from './modules/slots/slots.module';
 import { SocketModule } from './common/socket/socket.module';
 
 @Module({
@@ -47,6 +49,8 @@ import { SocketModule } from './common/socket/socket.module';
     HealthModule,
     MessagesModule,
     SearchModule,
+    FortuneModule,
+    SlotsModule,
   ],
 })
 export class AppModule {}

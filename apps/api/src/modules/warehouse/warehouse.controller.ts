@@ -30,7 +30,7 @@ export class WarehouseController {
   async create(
     @Param('clanId') clanId: string,
     @CurrentUser() user: JwtPayload,
-    @Body() body: { name: string; description?: string; quantity: number; rarity: ItemRarity; imageUrl?: string; dkpPrice?: number; source?: string },
+    @Body() body: { name: string; description?: string; quantity: number; rarity: ItemRarity; imageUrl?: string; dkpPrice?: number; source?: string; availableInFortune?: boolean },
   ) {
     return this.warehouseService.create(clanId, body, user.sub);
   }
@@ -52,9 +52,20 @@ export class WarehouseController {
   async update(
     @Param('id') id: string,
     @CurrentUser() user: JwtPayload,
-    @Body() body: { name?: string; description?: string; rarity?: ItemRarity; imageUrl?: string; dkpPrice?: number; source?: string },
+    @Body() body: { name?: string; description?: string; rarity?: ItemRarity; imageUrl?: string; dkpPrice?: number; source?: string; availableInFortune?: boolean },
   ) {
     return this.warehouseService.update(id, body, user.sub);
+  }
+
+  @Patch(':id/fortune-toggle')
+  @Roles('ELDER')
+  @ApiOperation({ summary: 'Toggle item availability in Fortune Wheel' })
+  async toggleFortune(
+    @Param('id') id: string,
+    @CurrentUser() user: JwtPayload,
+    @Body() body: { enabled: boolean },
+  ) {
+    return this.warehouseService.toggleFortune(id, !!body.enabled, user.sub);
   }
 
   @Post(':id/stock')

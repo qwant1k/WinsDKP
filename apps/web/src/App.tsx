@@ -115,6 +115,8 @@ export default function App() {
           <Route path="auctions/:id" element={<AuctionDetailPage />} />
           <Route path="randomizer" element={<RandomizerPage />} />
           <Route path="warehouse" element={<WarehousePage />} />
+          <Route path="fortune" element={<Navigate to="/" replace />} />
+          <Route path="slots" element={<Navigate to="/" replace />} />
           <Route path="news" element={<NewsPage />} />
           <Route path="feed" element={<FeedPage />} />
           <Route path="notifications" element={<NotificationsPage />} />

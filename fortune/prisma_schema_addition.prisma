@@ -1,0 +1,53 @@
+// ============================================================
+// ДОБАВИТЬ В apps/api/prisma/schema.prisma
+// ============================================================
+
+// 1. Добавить поле в модель WarehouseItem:
+//    availableInFortune Boolean @default(false)
+
+// 2. Добавить новую модель:
+
+model FortuneSpin {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+  clanId       String
+  bet          Int      // 15 | 30 | 50 | 100
+  wonItemId    String?
+  wonItem      WarehouseItem? @relation(fields: [wonItemId], references: [id])
+  wonRarity    String?  // COMMON | UNCOMMON | RARE | EPIC | LEGENDARY
+  dkpSpent     Int
+  spinHash     String   // SHA-256 proof of fairness
+  seed         String   // random seed
+  createdAt    DateTime @default(now())
+
+  @@map("fortune_spins")
+}
+
+// ============================================================
+// MIGRATION SQL (создать файл в apps/api/prisma/migrations/):
+// ============================================================
+/*
+ALTER TABLE "warehouse_items" ADD COLUMN "available_in_fortune" BOOLEAN NOT NULL DEFAULT false;
+
+CREATE TABLE "fortune_spins" (
+    "id"          TEXT NOT NULL,
+    "user_id"     TEXT NOT NULL,
+    "clan_id"     TEXT NOT NULL,
+    "bet"         INTEGER NOT NULL,
+    "won_item_id" TEXT,
+    "won_rarity"  TEXT,
+    "dkp_spent"   INTEGER NOT NULL,
+    "spin_hash"   TEXT NOT NULL,
+    "seed"        TEXT NOT NULL,
+    "created_at"  TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "fortune_spins_pkey" PRIMARY KEY ("id")
+);
+
+ALTER TABLE "fortune_spins" ADD CONSTRAINT "fortune_spins_user_id_fkey"
+    FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+ALTER TABLE "fortune_spins" ADD CONSTRAINT "fortune_spins_won_item_id_fkey"
+    FOREIGN KEY ("won_item_id") REFERENCES "warehouse_items"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+*/

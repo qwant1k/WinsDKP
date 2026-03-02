@@ -132,6 +132,7 @@ export class WarehouseService {
     imageUrl?: string;
     dkpPrice?: number;
     source?: string;
+    availableInFortune?: boolean;
   }, actorId: string) {
     const item = await this.prisma.warehouseItem.create({
       data: { clanId, ...data },
@@ -170,7 +171,13 @@ export class WarehouseService {
     imageUrl?: string;
     dkpPrice?: number;
     source?: string;
+    availableInFortune?: boolean;
   }, actorId: string) {
+    if (data.quantity !== undefined && data.quantity <= 0) {
+      const deleted = await this.softDelete(id, actorId);
+      return { ...deleted, deleted: true, id };
+    }
+
     const before = await this.prisma.warehouseItem.findUnique({ where: { id } });
     if (!before) throw new NotFoundException('Item not found');
 
@@ -187,6 +194,29 @@ export class WarehouseService {
         entityId: id,
         before,
         after: updated,
+      },
+    });
+
+    return updated;
+  }
+
+  async toggleFortune(id: string, enabled: boolean, actorId: string) {
+    const before = await this.prisma.warehouseItem.findUnique({ where: { id } });
+    if (!before) throw new NotFoundException('Item not found');
+
+    const updated = await this.prisma.warehouseItem.update({
+      where: { id },
+      data: { availableInFortune: enabled },
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        actorId,
+        action: 'warehouse.item.fortune_toggled',
+        entityType: 'warehouse_item',
+        entityId: id,
+        before: { availableInFortune: before.availableInFortune },
+        after: { availableInFortune: updated.availableInFortune },
       },
     });
 
@@ -225,8 +255,9 @@ export class WarehouseService {
     if (!item) throw new NotFoundException('Item not found');
     if (item.quantity < quantity) throw new BadRequestException('Insufficient quantity');
 
+    let deleted = false;
     await this.prisma.$transaction(async (tx) => {
-      await tx.warehouseItem.update({
+      const updatedItem = await tx.warehouseItem.update({
         where: { id },
         data: { quantity: { decrement: quantity } },
       });
@@ -240,7 +271,16 @@ export class WarehouseService {
           performedBy: actorId,
         },
       });
+
+      if (updatedItem.quantity <= 0) {
+        await tx.warehouseItem.delete({ where: { id } });
+        deleted = true;
+      }
     });
+
+    if (deleted) {
+      return { message: 'Item deleted', deleted: true, id };
+    }
 
     return this.findById(id);
   }
